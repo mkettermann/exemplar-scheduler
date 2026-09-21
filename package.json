@@ -1,0 +1,30 @@
+{
+  "name": "exemplar-scheduler",
+  "version": "0.1.0",
+  "description": "Serviço isolado de jobs agendados — não escala, réplica única.",
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/server.js",
+    "tsc": "tsc --noEmit"
+  },
+  "dependencies": {
+    "fastify": "^5.1.0",
+    "mssql": "^11.0.1",
+    "node-schedule": "^2.1.1",
+    "pino": "^9.5.0",
+    "pino-pretty": "^13.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/mssql": "^9.1.5",
+    "@types/node": "^24.0.0",
+    "@types/node-schedule": "^2.1.7",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}

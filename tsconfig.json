@@ -1,0 +1,45 @@
+{
+  "compilerOptions": {
+    /* Alvo de runtime: Node 24 já suporta tranquilamente ES2023 */
+    "target": "ES2023",
+    "lib": ["ES2023"],
+
+    /* CommonJS proposital: time já é acostumado com isso no repo legado.
+       Menos uma variável nova para aprender junto com TS + estrutura nova. */
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+
+    "rootDir": "src",
+    "outDir": "dist",
+    "sourceMap": true,
+    "declaration": false,
+
+    /* Modo estrito completo — como o time comenta pouco o código,
+       o compilador vira a documentação viva do formato dos objetos */
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
+
+    /* Extras que pegam bugs comuns de quem vem de JS puro */
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "exactOptionalPropertyTypes": true,
+
+    "skipLibCheck": true,
+    "isolatedModules": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}
