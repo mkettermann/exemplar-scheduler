@@ -1,0 +1,23 @@
+# Nunca copie segredo local para dentro da imagem.
+# O .env.example fica de fora também: em produção os valores vêm da
+# biblioteca de variáveis do Azure, injetada no momento do deploy.
+.env
+.env.*
+
+# Dependências e artefatos são reconstruídos dentro do build.
+# Copiar node_modules do host quebraria binários nativos (Windows -> Linux).
+node_modules
+dist
+coverage
+
+# Ruído que só aumentaria o contexto enviado ao daemon.
+.git
+.gitignore
+.vscode
+.idea
+docs
+README.md
+*.md
+npm-debug.log*
+Dockerfile
+.dockerignore

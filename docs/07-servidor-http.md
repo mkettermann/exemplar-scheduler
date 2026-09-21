@@ -135,43 +135,13 @@ export const getAlgo = async (req: FastifyRequest) => {
 };
 ```
 
-**Proteger uma rota nova com chave** — se a rota exigir autenticação, o formato
-abaixo é um `preHandler` reutilizável. Ele foi removido da estrutura junto com
-o endpoint administrativo, mas fica registrado aqui porque a parte sutil é a
-comparação:
-
-```ts
-// src/server/middlewares/require-admin-key.ts
-import { timingSafeEqual } from 'node:crypto';
-
-function chaveConfere(recebida: string, esperada: string): boolean {
-  const a = Buffer.from(recebida);
-  const b = Buffer.from(esperada);
-  // timingSafeEqual exige buffers do mesmo tamanho; o tamanho não é segredo.
-  return a.length === b.length && timingSafeEqual(a, b);
-}
-
-export function requireAdminKey(req: FastifyRequest, reply: FastifyReply, done: () => void): void {
-  const recebida = req.headers['x-admin-key'];
-  if (typeof recebida !== 'string' || !chaveConfere(recebida, env.ADMIN_API_KEY)) {
-    reply.code(401).send({ error: 'unauthorized' });
-    return;
-  }
-  done();
-}
-```
-
-Use `timingSafeEqual`, não `!==`. A comparação nativa de strings retorna assim
-que encontra o primeiro caractere diferente, e essa diferença de microssegundos
-é mensurável na rede — dá para descobrir a chave caractere por caractere.
-
-Adotando isso, some: `ADMIN_API_KEY` no `envSchema` com `.min(8)`
-([capítulo 02](02-configuracao-de-ambiente.md)), o caminho
-`req.headers["x-admin-key"]` no `redact` do logger
-([capítulo 03](03-logger.md)), `@fastify/rate-limit` na rota (sem isso a chave
-fica exposta a força bruta) e um teste de `401` na suíte
-([capítulo 09](09-testes.md)). Uma chave estática sem rotação é o piso, não o
-alvo: o passo seguinte é um token do Entra ID validado por JWKS.
+**Se a rota nova precisar de autenticação, ela provavelmente não é deste
+serviço.** Toda a superfície HTTP aqui é pública e anônima de propósito: são
+duas rotas de health, que o orquestrador precisa alcançar sem credencial.
+Consulta operacional, painel e relatório pertencem à API principal, que já tem
+autenticação de usuário, autorização e auditoria — e não a uma chave estática
+guardada em variável de ambiente, que não rotaciona, não identifica quem
+chamou e vaza inteira junto com o primeiro `.env` exposto.
 
 **Adicionar schema de resposta às rotas** — o Fastify serializa 2 a 3 vezes
 mais rápido com `schema.response` declarado, e o schema funciona como filtro:

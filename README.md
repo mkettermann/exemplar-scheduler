@@ -118,3 +118,42 @@ Ver [`.env.example`](.env.example) e a tabela completa no
 [capítulo 02](docs/02-configuracao-de-ambiente.md). Em produção, os valores
 reais vêm da biblioteca de variáveis do Azure, injetada pela pipeline no
 momento do deploy.
+
+## Container e deploy no Azure
+
+O [`Dockerfile`](Dockerfile) é multi-stage: a imagem final carrega `dist/`, as
+dependências de produção e nada mais — sem código-fonte, sem `devDependencies`
+e sem a suíte de testes.
+
+```bash
+docker build -t exemplar-scheduler:local .
+docker run --rm -p 3000:3000 --env-file .env exemplar-scheduler:local
+```
+
+**O build é um portão.** Antes de compilar, o estágio `verify` roda
+`npm run typecheck` e `npm test`; qualquer erro de tipo ou teste vermelho
+derruba o `docker build` e nenhuma imagem é produzida. Para um hotfix em que o
+portão precise ser contornado, existe uma saída explícita e registrada no log
+da pipeline — que **não** deve virar padrão no YAML de deploy:
+
+```bash
+docker build --build-arg SKIP_CHECKS=1 -t exemplar-scheduler:hotfix .
+```
+
+**Fuso horário.** O cron usa o fuso do processo, e uma imagem Alpine sem
+`tzdata` resolve tudo como UTC. O Dockerfile instala `tzdata` e fixa
+`TZ=America/Sao_Paulo`; ajuste com `--build-arg TZ=...` ou pela variável de
+ambiente `TZ` no Azure.
+
+**Configuração do serviço no Azure** — todas as variáveis de
+[`.env.example`](.env.example) precisam estar definidas, e mais:
+
+| Onde | Ajuste |
+| --- | --- |
+| Container Apps | `targetPort: 3000`; **réplicas mín. e máx. = 1** (sem isso os jobs duplicam) |
+| App Service for Containers | app setting `WEBSITES_PORT=3000` |
+| Probes | liveness em `GET /health`, readiness em `GET /health/ready` |
+| Segredos | `DB_PASSWORD` via Key Vault ou secret do Container App, nunca como app setting em texto |
+
+O `HEALTHCHECK` declarado no Dockerfile vale para `docker run` local; Container
+Apps e App Service usam as próprias probes e ignoram essa instrução.

@@ -21,7 +21,7 @@ particular:
 
 - o health check existe, responde e **distingue online de offline**;
 - o serviço é de fato somente leitura;
-- as rotas administrativas exigem a chave.
+- a superfície HTTP é só o health — nenhuma rota administrativa existe.
 
 ## Arquivos
 
