@@ -97,6 +97,7 @@ test/
   setup.ts
   health.route.test.ts
   read-only.guard.test.ts
+  jobs-enabled.test.ts
 ```
 
 ## Convenções de código
@@ -132,6 +133,11 @@ Ver [`.env.example`](.env.example) e a tabela completa no
 [capítulo 02](docs/02-configuracao-de-ambiente.md). Em produção, os valores
 reais vêm da biblioteca de variáveis do Azure, injetada pela pipeline no
 momento do deploy.
+
+`JOBS_ENABLED` decide se os jobs são registrados no boot: desligue
+(`false`/`0`) em qualidade e homologação, ligue em produção. Ausente, vale
+`true` — o serviço se comporta como antes da variável existir. Ver
+[capítulo 05](docs/05-scheduler.md#ligar-e-desligar-os-jobs-por-ambiente).
 
 ## Container e deploy no Azure
 

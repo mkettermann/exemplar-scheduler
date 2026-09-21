@@ -101,6 +101,7 @@ definidas ([capítulo 02](02-configuracao-de-ambiente.md)), e mais:
 | Container Apps | `targetPort: 3000`; **réplicas mín. e máx. = 1** (sem isso os jobs duplicam) |
 | App Service for Containers | app setting `WEBSITES_PORT=3000` |
 | Probes | liveness em `GET /health`, readiness em `GET /health/ready` |
+| Jobs | `JOBS_ENABLED=false` em qualidade e homologação, `true` em produção ([capítulo 05](05-scheduler.md#ligar-e-desligar-os-jobs-por-ambiente)) |
 | Segredos | `DB_PASSWORD` via Key Vault ou secret do Container App, nunca como app setting em texto |
 
 A réplica única não é detalhe de capacidade: é a premissa da arquitetura

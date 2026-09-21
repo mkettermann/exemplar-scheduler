@@ -24,7 +24,8 @@ particular:
 
 - o health check existe, responde e **distingue online de offline**;
 - o serviço é de fato somente leitura;
-- a superfície HTTP é só o health — nenhuma rota administrativa existe.
+- a superfície HTTP é só o health — nenhuma rota administrativa existe;
+- a flag que desliga os jobs é lida sem ambiguidade — `false` é `false`.
 
 ## Arquivos
 
@@ -34,6 +35,7 @@ particular:
 | [`test/setup.ts`](../test/setup.ts) | Variáveis de ambiente dos testes |
 | [`test/health.route.test.ts`](../test/health.route.test.ts) | Liveness e readiness, banco online e offline |
 | [`test/read-only.guard.test.ts`](../test/read-only.guard.test.ts) | Verbos de escrita recusados, superfície HTTP mínima |
+| [`test/jobs-enabled.test.ts`](../test/jobs-enabled.test.ts) | Leitura da flag `JOBS_ENABLED`, incluindo valor inválido |
 | [`.markdownlint-cli2.jsonc`](../.markdownlint-cli2.jsonc) | Régua de formatação da documentação |
 
 ## Como rodar

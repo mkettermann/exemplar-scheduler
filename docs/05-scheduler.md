@@ -110,7 +110,8 @@ No boot, `iniciar()` segue três passos:
 1. **`obterPoolDb()`** — falha rápido. Um serviço que sobe sem banco só
    descobriria o problema no primeiro disparo de cron, possivelmente de
    madrugada.
-2. **`jobs.forEach(registrarJob)`** — registra os jobs da lista central.
+2. **`jobs.forEach(registrarJob)`** — registra os jobs da lista central, e
+   só acontece se `JOBS_ENABLED` estiver ligada (seção seguinte).
 3. **`construirApp()` e `listen()`** — a superfície HTTP entra por último, e é
    o que faz o readiness passar a responder.
 
@@ -131,6 +132,42 @@ primeiro é o que o Kubernetes envia, o segundo é o `Ctrl+C` local.
 Para que esse encerramento aconteça de fato no container, o `SIGTERM` precisa
 chegar ao processo Node — é o papel do `tini` como PID 1
 ([capítulo 11](11-container-e-deploy.md)).
+
+## Ligar e desligar os jobs por ambiente
+
+Em qualidade e homologação é comum não querer job nenhum rodando: o serviço
+precisa subir, responder às probes e não disparar efeito colateral. Em produção
+eles ficam ligados. Quem decide isso é a variável `JOBS_ENABLED`
+([capítulo 02](02-configuracao-de-ambiente.md)):
+
+```ts
+// src/server.ts
+if (ambiente.JOBS_ENABLED) {
+  jobs.forEach(registrarJob);
+} else {
+  logger.warn({ jobsDeclarados: jobs.length }, 'JOBS_ENABLED=false — nenhum job registrado');
+}
+```
+
+Três decisões explicam o desenho:
+
+- **O corte é no registro, não na execução.** Com a flag desligada, nada chega
+  ao `node-schedule`: não há timer armado, não há disputa de lock e não há uma
+  linha de log por disparo. O oposto — registrar tudo e abortar dentro do
+  handler — encheria o log de ruído e ainda dependeria do banco para decidir
+  não fazer nada.
+- **O default é `true`.** Um deploy que não declara a variável se comporta
+  exatamente como antes dela existir. Desligar é sempre um ato explícito.
+- **O estado mora no deploy, não em memória.** Não existe endpoint para ligar
+  ou desligar job, porque a superfície HTTP é somente leitura por decisão de
+  arquitetura ([índice](README.md#2-a-superfície-http-é-somente-leitura)).
+
+O log de boot conta a verdade nos dois casos: com a flag desligada sai um
+`warn` nominal e a linha final fecha com `Total de jobs: 0`.
+
+A flag desliga os jobs, e só. O pool do banco continua sendo aberto no boot e o
+readiness continua dependendo dele — um scheduler sem jobs registrados ainda é
+um serviço que precisa provar que está pronto.
 
 ## Expressões cron
 
@@ -181,12 +218,12 @@ uma **quebra de contrato**: todo handler precisa ser revisado. Para migrar sem
 parada, torne o parâmetro opcional primeiro (`(ctx?: ContextoJob)`), migre os
 handlers um a um, e só depois torne obrigatório.
 
-**Ligar e desligar jobs por configuração** — resista a fazer isso por endpoint:
-a superfície HTTP é somente leitura por decisão de arquitetura
-([índice](README.md#2-a-superfície-http-é-somente-leitura)). O caminho correto é
-uma variável de ambiente validada no `esquemaAmbiente` (por exemplo
-`JOBS_DESABILITADOS` como lista separada por vírgula), filtrando o array antes
-do `forEach`. Isso mantém o estado auditável no deploy, não em memória.
+**Ligar e desligar jobs individualmente** — o interruptor global já existe
+(`JOBS_ENABLED`, seção [acima](#ligar-e-desligar-os-jobs-por-ambiente)). Para
+granularidade por job, o caminho é o mesmo: uma variável validada no
+`esquemaAmbiente` — por exemplo `JOBS_DESABILITADOS`, lista separada por
+vírgula — filtrando o array antes do `forEach`. Resista a fazer isso por
+endpoint: o estado precisa ficar auditável no deploy, não em memória.
 
 **Trocar `node-schedule` por `croner` ou `toad-scheduler`** — o acoplamento
 está em duas linhas de `registrarJob` e uma de `shutdown`. Requisitos para o

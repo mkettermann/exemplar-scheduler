@@ -18,13 +18,22 @@ let encerrando = false;
 async function iniciar(): Promise<void> {
   await obterPoolDb();
 
-  jobs.forEach(registrarJob);
+  if (ambiente.JOBS_ENABLED) {
+    jobs.forEach(registrarJob);
+  } else {
+    logger.warn(
+      { jobsDeclarados: jobs.length },
+      `${Util.corAmarelo('JOBS_ENABLED=false')} — nenhum job registrado; o serviço sobe apenas com o health`,
+    );
+  }
 
   servidor = await construirApp();
   await servidor.listen({ port: ambiente.PORT, host: '0.0.0.0' });
 
+  const jobsRegistrados = ambiente.JOBS_ENABLED ? jobs.length : 0;
+
   logger.info(
-    `[${ambiente.NODE_ENV.toUpperCase()}] ${Util.corVerde('Scheduler no ar em')} http://0.0.0.0:${ambiente.PORT} - ${Util.corVerde('Total de jobs:')} ${jobs.length}`,
+    `[${ambiente.NODE_ENV.toUpperCase()}] ${Util.corVerde('Scheduler no ar em')} http://0.0.0.0:${ambiente.PORT} - ${Util.corVerde('Total de jobs:')} ${jobsRegistrados}`,
   );
 }
 

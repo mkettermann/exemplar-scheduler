@@ -62,6 +62,7 @@ campos tipados. Ninguém lê `process.env` diretamente.
 | --- | --- | --- | --- |
 | `NODE_ENV` | não | `development` | Decide formato de log, TLS do banco e verbosidade do readiness |
 | `PORT` | não | `3000` | Porta HTTP |
+| `JOBS_ENABLED` | não | `true` | Registra ou não os jobs no boot — desligada, o serviço sobe só com o health |
 | `DB_SERVER` | **sim** | — | Host do MSSQL |
 | `DB_PORT` | não | `1433` | Porta do MSSQL |
 | `DB_NAME` | **sim** | — | Base de dados |
@@ -74,6 +75,20 @@ campos tipados. Ninguém lê `process.env` diretamente.
 > string não vazia vira `true`. `DB_ENCRYPT=false` resulta em **`true`**. Para
 > desligar, deixe a variável vazia ou ausente. Se isso incomodar, a seção de
 > upgrades mostra como trocar por um parser explícito.
+
+`JOBS_ENABLED` não cai nessa armadilha: ela usa um parser explícito, que aceita
+apenas `true`, `false`, `1` e `0`. Qualquer outro valor — inclusive `False` ou
+`TRUE` — derruba o boot com mensagem nominal, em vez de ligar os jobs em um
+ambiente onde eles não deviam rodar. É o mesmo parser sugerido abaixo para
+`DB_ENCRYPT`, e toda flag booleana nova deve reusá-lo:
+
+```ts
+const booleano = z
+  .enum(['true', 'false', '1', '0'])
+  .transform((valor) => valor === 'true' || valor === '1');
+
+JOBS_ENABLED: booleano.default('true'),
+```
 
 ## Upgrades futuros sem quebrar o que existe
 
@@ -89,19 +104,16 @@ Se a variável for obrigatória (sem default), a ordem se inverte: **primeiro** 
 pipeline passa a injetar, **depois** o schema exige. Na ordem contrária, o
 próximo deploy não sobe.
 
-**Corrigir o comportamento de `DB_ENCRYPT`** — troque por um parser explícito,
-que é compatível com os valores já em uso:
+**Corrigir o comportamento de `DB_ENCRYPT`** — o parser explícito já está no
+arquivo, usado por `JOBS_ENABLED`. Basta aplicá-lo:
 
 ```ts
-const booleano = z
-  .enum(['true', 'false', '1', '0'])
-  .default('true')
-  .transform((v) => v === 'true' || v === '1');
-
-DB_ENCRYPT: booleano,
+DB_ENCRYPT: booleano.default('true'),
 ```
 
-Aplique a mesma ideia em toda flag booleana futura.
+Isso **muda o comportamento** de qualquer ambiente que hoje injeta
+`DB_ENCRYPT=false` e recebe `true`: confira o valor real na pipeline antes de
+trocar. Vale para toda flag booleana futura.
 
 **Migrar para zod 4** — a API de erros mudou. O ponto de impacto aqui é único:
 `resultado.error.flatten().fieldErrors` em `carregarAmbiente()`. Em zod 4 o

@@ -4,6 +4,7 @@
  */
 process.env.NODE_ENV = 'test';
 process.env.PORT = '3000';
+process.env.JOBS_ENABLED = 'true';
 process.env.DB_SERVER = 'localhost';
 process.env.DB_PORT = '1433';
 process.env.DB_NAME = 'scheduler_test';
