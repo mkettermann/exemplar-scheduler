@@ -10,14 +10,14 @@ const mocks = vi.hoisted(() => ({
   checkDbHealth: vi.fn(),
 }));
 
-vi.mock('../src/db/mssql', () => ({
+vi.mock('../src/db/mssql.js', () => ({
   checkDbHealth: mocks.checkDbHealth,
   getDbPool: vi.fn(),
   closeDbPool: vi.fn(),
   sql: {},
 }));
 
-import { buildApp } from '../src/server/app';
+import { buildApp } from '../src/server/app.js';
 
 const BANCO_ONLINE = { ok: true, latencyMs: 4 };
 const BANCO_OFFLINE = {

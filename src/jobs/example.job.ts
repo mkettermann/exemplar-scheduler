@@ -1,6 +1,6 @@
-import type { JobDefinition } from '../scheduler/job.types';
-import { logger } from '../logger/logger';
-import { coletarResumoDoProcesso } from '../services/example.service';
+import type { JobDefinition } from '../scheduler/job.types.js';
+import { logger } from '../logger/logger.js';
+import { coletarResumoDoProcesso } from '../services/example.service.js';
 
 /**
  * MODELO de job — apague junto com `example.service.ts` ao implementar de verdade.

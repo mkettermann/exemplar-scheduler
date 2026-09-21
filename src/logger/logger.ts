@@ -1,5 +1,5 @@
 import pino from 'pino';
-import { env } from '../config/env';
+import { env } from '../config/env.js';
 
 /**
  * Em desenvolvimento: saída legível (pino-pretty).

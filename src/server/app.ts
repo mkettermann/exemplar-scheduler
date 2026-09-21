@@ -1,6 +1,6 @@
 import Fastify, { type FastifyInstance } from 'fastify';
-import { registerRoutes } from './routes';
-import { aplicarGuardaSomenteLeitura } from './plugins/read-only';
+import { registerRoutes } from './routes.js';
+import { aplicarGuardaSomenteLeitura } from './plugins/read-only.js';
 
 /**
  * Monta a instância Fastify sem subir o servidor.

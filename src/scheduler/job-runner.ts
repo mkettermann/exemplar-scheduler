@@ -1,7 +1,7 @@
 import schedule from 'node-schedule';
-import type { JobDefinition, JobStatus } from './job.types';
-import { withJobLock } from './lock';
-import { logger } from '../logger/logger';
+import type { JobDefinition, JobStatus } from './job.types.js';
+import { withJobLock } from './lock.js';
+import { logger } from '../logger/logger.js';
 
 async function runWithTimeout(fn: () => Promise<void>, timeoutMs: number): Promise<void> {
   let timer: NodeJS.Timeout;

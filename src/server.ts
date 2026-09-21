@@ -1,12 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import schedule from 'node-schedule';
-import { env } from './config/env';
-import { logger } from './logger/logger';
-import { getDbPool, closeDbPool } from './db/mssql';
-import { registerJob } from './scheduler/job-runner';
-import { jobs } from './jobs/jobs';
-import { buildApp } from './server/app';
-import { Util } from './util/util';
+import { env } from './config/env.js';
+import { logger } from './logger/logger.js';
+import { getDbPool, closeDbPool } from './db/mssql.js';
+import { registerJob } from './scheduler/job-runner.js';
+import { jobs } from './jobs/jobs.js';
+import { buildApp } from './server/app.js';
+import { Util } from './util/util.js';
 
 let app: FastifyInstance | undefined;
 let encerrando = false;

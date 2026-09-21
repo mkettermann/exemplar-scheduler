@@ -1,5 +1,5 @@
-import type { JobDefinition } from '../scheduler/job.types';
-import { exampleJob } from './example.job';
+import type { JobDefinition } from '../scheduler/job.types.js';
+import { exampleJob } from './example.job.js';
 
 /**
  * Lista central de jobs ativos. Ao migrar um job do repositório legado,

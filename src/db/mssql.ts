@@ -1,6 +1,6 @@
 import sql from 'mssql';
-import { env } from '../config/env';
-import { logger } from '../logger/logger';
+import { env } from '../config/env.js';
+import { logger } from '../logger/logger.js';
 
 const config: sql.config = {
   server: env.DB_SERVER,

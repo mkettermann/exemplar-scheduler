@@ -5,14 +5,14 @@ const mocks = vi.hoisted(() => ({
   checkDbHealth: vi.fn(),
 }));
 
-vi.mock('../src/db/mssql', () => ({
+vi.mock('../src/db/mssql.js', () => ({
   checkDbHealth: mocks.checkDbHealth,
   getDbPool: vi.fn(),
   closeDbPool: vi.fn(),
   sql: {},
 }));
 
-import { buildApp } from '../src/server/app';
+import { buildApp } from '../src/server/app.js';
 
 /**
  * Regra da arquitetura: este serviço nunca recebe conteúdo de fora, e o

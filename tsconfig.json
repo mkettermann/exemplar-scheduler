@@ -4,10 +4,13 @@
     "target": "ES2023",
     "lib": ["ES2023"],
 
-    /* CommonJS proposital: time já é acostumado com isso no repo legado.
-       Menos uma variável nova para aprender junto com TS + estrutura nova. */
-    "module": "CommonJS",
-    "moduleResolution": "Node",
+    /* ESM nativo do Node. `NodeNext` faz o TS resolver módulos exatamente como
+       o Node 24 resolve em runtime (campo `exports` dos pacotes, distinção
+       entre .mts/.cts), então o que compila aqui é o que carrega lá.
+       Consequência prática: todo import relativo exige a extensão `.js`,
+       mesmo partindo de um arquivo `.ts`. */
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
@@ -38,7 +41,12 @@
     "exactOptionalPropertyTypes": true,
 
     "skipLibCheck": true,
-    "isolatedModules": true
+    "isolatedModules": true,
+
+    /* Nenhum import é apagado ou reescrito pelo compilador: o que está escrito
+       no .ts é o que sai no .js. Obriga `import type` em import de tipo e
+       impede que um `import x = require()` entre sem querer e quebre o ESM. */
+    "verbatimModuleSyntax": true
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules", "dist"]

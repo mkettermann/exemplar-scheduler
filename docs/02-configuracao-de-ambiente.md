@@ -51,7 +51,7 @@ Três coisas acontecem de uma vez:
 3. **Tipo** — `z.infer` deriva `Env` do schema. Não existe uma interface
    escrita à mão para sair de sincronia com a validação.
 
-O resto do sistema só faz `import { env } from '../config/env'` e usa campos
+O resto do sistema só faz `import { env } from '../config/env.js'` e usa campos
 tipados. Ninguém lê `process.env` diretamente.
 
 ## Variáveis atuais

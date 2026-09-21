@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { getHealth, getReadiness } from './routes/health.route';
+import { getHealth, getReadiness } from './routes/health.route.js';
 
 /**
  * Mapa explícito de método + rota + handler. Todo endpoint do serviço

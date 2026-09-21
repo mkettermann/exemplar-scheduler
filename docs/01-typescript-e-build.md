@@ -33,23 +33,44 @@ no CI. Sem ele, um erro de tipo só apareceria no build de deploy.
 | --- | --- |
 | [`tsconfig.json`](../tsconfig.json) | Configuração do build de produção. `include` cobre apenas `src/` |
 | [`tsconfig.test.json`](../tsconfig.test.json) | Só checagem (`noEmit`), cobre `src/` **e** `test/` |
+| [`package.json`](../package.json) | `"type": "module"` — é o que faz o Node tratar `dist/*.js` como ESM |
 
-Os dois são separados de propósito: o build de produção não pode enxergar
-`test/`, senão os testes acabariam dentro de `dist/`.
+Os dois `tsconfig` são separados de propósito: o build de produção não pode
+enxergar `test/`, senão os testes acabariam dentro de `dist/`.
 
 ## Decisões que valem entender
 
-### CommonJS, não ESM
+### ESM nativo, não CommonJS
 
 ```jsonc
-"module": "CommonJS",
-"moduleResolution": "Node",
+// package.json
+"type": "module",
+
+// tsconfig.json
+"module": "NodeNext",
+"moduleResolution": "NodeNext",
+"verbatimModuleSyntax": true,
 ```
 
-Escolha deliberada: o time vem de um repositório legado em CommonJS. Trocar
-módulo, linguagem e estrutura ao mesmo tempo é uma variável a mais para
-depurar. O código ESM moderno (`await import`, top-level await) **não funciona**
-aqui — se precisar dele, veja a seção de upgrades.
+O serviço é ESM puro. `NodeNext` faz o TypeScript resolver módulos do mesmo
+jeito que o Node 24 resolve em runtime — respeitando o campo `exports` de cada
+pacote —, então o que compila aqui é o que carrega lá. `await import()` e
+top-level await funcionam; `require()` e `__dirname` não existem.
+
+Duas consequências no dia a dia:
+
+- **Todo import relativo leva extensão `.js`** — `from './env.js'`, mesmo
+  dentro de um arquivo `.ts`. O caminho escrito é o do arquivo **emitido**, não
+  o do fonte. Sem a extensão o `npm run typecheck` acusa na hora; se passasse,
+  o erro só apareceria no `node dist/server.js`.
+- **Pacote CommonJS entra por import default** — `import sql from 'mssql'` traz
+  o `module.exports` inteiro, que é o que o Node entrega ao ler um CJS a partir
+  de ESM. `esModuleInterop` mantém o tipo alinhado com esse comportamento.
+
+`verbatimModuleSyntax` é a trava contra regressão: o compilador não apaga nem
+reescreve import nenhum, então import de tipo exige `import type` (como já está
+no código) e um `import x = require()` deixa de compilar em vez de virar um
+`dist/` que não carrega.
 
 ### Modo estrito completo, e além
 
@@ -94,19 +115,27 @@ que estava escondido.
 juntos. Deixar `target` para trás não quebra nada (só gera código mais
 conservador), mas deixar `lib` para trás faz o TS não reconhecer APIs novas.
 
-**Migrar de CommonJS para ESM** — é a mudança mais invasiva desta estrutura.
-Em ordem:
-1. `"type": "module"` no `package.json`.
-2. `"module": "Node16"` (ou `NodeNext`) e `"moduleResolution": "Node16"`.
-3. Todo import relativo passa a exigir extensão: `from './env'` vira
-   `from './env.js'` (`.js` mesmo em arquivo `.ts` — é o caminho de saída).
-4. `import sql from 'mssql'` pode precisar virar
-   `import * as sql from 'mssql'`, dependendo de como o pacote expõe o default.
-5. `require()` deixa de existir; `__dirname` também.
+**Usar um pacote que só publica CommonJS** — funciona sem gambiarra, desde que
+o import seja o default: `import pkg from 'pacote'`, e os nomes saem de `pkg`.
+O que pode falhar é `import { algo } from 'pacote'`, quando o analisador
+estático do Node não consegue enxergar aquele nome dentro do CJS. O erro
+aparece só em runtime (`SyntaxError: Named export 'algo' not found`), nunca no
+`typecheck` — a correção é trocar pelo import default e desestruturar depois.
 
-Faça em um commit separado, sem nenhuma outra mudança junto, e confirme com
-`npm run build && npm start` antes de mergear. `vitest.config.mts` já é ESM e
-não precisa mudar.
+**Precisar de `__dirname` ou `require()`** — não existem em ESM, e os
+substitutos ficam no próprio Node:
+
+```ts
+import { createRequire } from 'node:module';
+import { dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const require = createRequire(import.meta.url);
+```
+
+São escape hatches, não padrão da casa. Se aparecerem com frequência, o
+problema está na dependência, não no formato de módulo.
 
 **Trocar `tsx` por outro runner** (`ts-node`, `node --experimental-strip-types`)
 — só afeta o script `dev`. O Node 24 já roda `.ts` nativamente com

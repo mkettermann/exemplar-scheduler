@@ -1,5 +1,5 @@
-import { getDbPool, sql } from '../db/mssql';
-import { logger } from '../logger/logger';
+import { getDbPool, sql } from '../db/mssql.js';
+import { logger } from '../logger/logger.js';
 
 /**
  * Trava de execução baseada em sp_getapplock do próprio MSSQL.

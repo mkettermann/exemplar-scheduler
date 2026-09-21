@@ -1,7 +1,7 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import { checkDbHealth } from '../../db/mssql';
-import { env } from '../../config/env';
-import { logger } from '../../logger/logger';
+import { checkDbHealth } from '../../db/mssql.js';
+import { env } from '../../config/env.js';
+import { logger } from '../../logger/logger.js';
 
 export interface LivenessResponse {
   status: 'ok';

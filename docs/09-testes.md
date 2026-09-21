@@ -80,7 +80,7 @@ não competem por porta quando o CI executa vários jobs em paralelo.
 ```ts
 const mocks = vi.hoisted(() => ({ checkDbHealth: vi.fn() }));
 
-vi.mock('../src/db/mssql', () => ({
+vi.mock('../src/db/mssql.js', () => ({
   checkDbHealth: mocks.checkDbHealth,
   getDbPool: vi.fn(),
   closeDbPool: vi.fn(),
@@ -88,8 +88,13 @@ vi.mock('../src/db/mssql', () => ({
 }));
 ```
 
-Dois detalhes que costumam tropeçar:
+Três detalhes que costumam tropeçar:
 
+- **O caminho do `vi.mock` leva `.js`**, igual a qualquer import do projeto
+  ([capítulo 01](01-typescript-e-build.md)). O vitest resolve esse caminho até
+  o `.ts` real, como faz com os imports — mas os dois precisam apontar para o
+  mesmo módulo, senão o mock simplesmente não é aplicado e o teste tenta abrir
+  conexão de verdade.
 - **`vi.hoisted`** — o vitest iça as chamadas de `vi.mock` para antes dos
   imports. Uma `const` declarada normalmente ainda não existe quando a fábrica
   roda, e o teste falha com "Cannot access before initialization".

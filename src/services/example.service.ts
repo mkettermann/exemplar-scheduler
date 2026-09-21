@@ -1,4 +1,4 @@
-import { logger } from '../logger/logger';
+import { logger } from '../logger/logger.js';
 
 /**
  * MODELO de serviço — apague junto com `example.job.ts` ao implementar de verdade.
