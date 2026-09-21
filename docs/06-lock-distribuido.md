@@ -1,6 +1,8 @@
 # 06 — Lock distribuído
 
-[← Scheduler](05-scheduler.md) · [Índice](README.md) · [Próximo: Servidor HTTP →](07-servidor-http.md)
+[← Scheduler](05-scheduler.md) ·
+[Índice](README.md) ·
+[Próximo: Servidor HTTP →](07-servidor-http.md)
 
 ## Biblioteca
 
@@ -35,7 +37,7 @@ vezes não é um detalhe. O lock fecha essa janela.
 ## Como funciona
 
 ```ts
-const { ran } = await withJobLock(job.name, async () => { /* ... */ });
+const { executou } = await executarComLock(job.nome, async () => { /* ... */ });
 ```
 
 O fluxo:
@@ -44,7 +46,7 @@ O fluxo:
 2. Chama `sp_getapplock` com `@Resource = 'job:<nome>'`, modo `Exclusive`,
    dono `Transaction` e **`@LockTimeout = 0`**.
 3. Retorno `>= 0` significa trava adquirida; negativo significa ocupada.
-4. Se não conseguiu: `rollback`, devolve `{ ran: false }`, e o runner apenas
+4. Se não conseguiu: `rollback`, devolve `{ executou: false }`, e o runner só
    loga em `debug`. **A execução é pulada, não enfileirada.**
 5. Se conseguiu: executa a função e dá `commit`, o que libera a trava.
 
@@ -82,11 +84,11 @@ a trava evita a execução simultânea, não a execução parcial.
 
 **Deixar o job esperar em vez de pular** — mude `@LockTimeout` de `0` para um
 valor em milissegundos. Faça isso por job, não globalmente: exige um campo novo
-em `JobDefinition` e repasse por `withJobLock`. Um timeout de espera global é a
-receita para conexões acumuladas no pool.
+em `DefinicaoJob` e repasse por `executarComLock`. Um timeout de espera global
+é a receita para conexões acumuladas no pool.
 
 **Tornar o lock opcional por job** — adicione `usaLock?: boolean` (default
-`true`) ao contrato e faça o runner pular `withJobLock` quando for `false`.
+`true`) ao contrato e faça o runner pular `executarComLock` quando for `false`.
 Útil para jobs comprovadamente idempotentes e muito frequentes, onde a
 transação aberta custa mais que o risco. O default preserva o comportamento
 atual.
@@ -101,7 +103,15 @@ se o serviço deixar de depender do SQL Server. Se for esse o caso, o requisito
 é manter a assinatura:
 
 ```ts
-withJobLock<T>(jobName: string, fn: () => Promise<T>): Promise<{ ran: boolean; result?: T }>
+interface ResultadoComLock<T> {
+  executou: boolean;
+  resultado?: T;
+}
+
+executarComLock<T>(
+  nomeJob: string,
+  acao: () => Promise<T>,
+): Promise<ResultadoComLock<T>>
 ```
 
 Mantendo essa assinatura, nem o `job-runner` nem os jobs mudam. **Atenção ao
@@ -119,7 +129,7 @@ Lua). O `LockOwner = 'Transaction'` do SQL Server dá isso de graça.
 | Redis | `SET chave token NX PX ttl` + renovação + liberação por token |
 
 Em PostgreSQL e MySQL, `key` é numérico ou string — nos dois casos derive de
-`job.name` com um hash estável, nunca de um contador, ou a chave muda a cada
+`job.nome` com um hash estável, nunca de um contador, ou a chave muda a cada
 deploy.
 
 **Escalar para N réplicas permanentes** — o lock passa a ser a única coisa

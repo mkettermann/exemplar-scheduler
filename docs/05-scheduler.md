@@ -1,6 +1,8 @@
 # 05 — Scheduler
 
-[← Banco de dados](04-banco-de-dados.md) · [Índice](README.md) · [Próximo: Lock distribuído →](06-lock-distribuido.md)
+[← Banco de dados](04-banco-de-dados.md) ·
+[Índice](README.md) ·
+[Próximo: Lock distribuído →](06-lock-distribuido.md)
 
 ## Bibliotecas
 
@@ -28,11 +30,11 @@ Três arquivos, três papéis distintos:
 ## O contrato
 
 ```ts
-export interface JobDefinition {
-  name: string;        // identificador estável — usado no lock e nos logs
-  schedule: string;    // expressão cron
-  timeoutMs: number;   // teto de duração de uma execução
-  handler: () => Promise<void>;
+export interface DefinicaoJob {
+  nome: string;           // identificador estável — usado no lock e nos logs
+  agendamento: string;    // expressão cron
+  tempoLimiteMs: number;  // teto de duração de uma execução
+  executar: () => Promise<void>;
 }
 ```
 
@@ -40,38 +42,38 @@ Quatro campos, e é isso. Um job **não** trata lock, não abre transação de l
 não mede tempo e não captura o próprio erro. Se um handler estiver fazendo
 qualquer uma dessas coisas, ele está duplicando o runner.
 
-Sobre `name`: ele é a chave do lock distribuído e o campo `job` de todos os
+Sobre `nome`: ele é a chave do lock distribuído e o campo `job` de todos os
 logs. Renomear um job libera o lock antigo e corta a continuidade das consultas
 de log. Trate como identificador imutável.
 
 ## O entorno
 
-`executeJob` aplica, nesta ordem:
+`executarJob` aplica, nesta ordem:
 
 ```text
-withJobLock(name)          <- só uma instância executa      (cap. 06)
-  -> runWithTimeout(...)   <- Promise.race contra o timeout
-  -> logger.info/error     <- status + durationMs no log     (cap. 03)
+executarComLock(nome)              <- só uma instância executa   (cap. 06)
+  -> executarComTempoLimite(...)   <- Promise.race contra o timeout
+  -> logger.info/error             <- status + duracaoMs no log  (cap. 03)
 ```
 
 O desfecho de cada execução sai como log estruturado, com `status`
-(`success` | `failure` | `timeout`) e `durationMs` em campos próprios. É o que
+(`sucesso` | `falha` | `timeout`) e `duracaoMs` em campos próprios. É o que
 permite responder "esse job rodou?" e "quanto demorou?" por query no Log
 Analytics, sem tabela de histórico.
 
 Dois detalhes que explicam o comportamento em falha:
 
 - **O erro do handler não é relançado.** Ele é classificado (`timeout` se a
-  mensagem começa com `Timeout`, senão `failure`) e logado. Um job que falha
+  mensagem começa com `Timeout`, senão `falha`) e logado. Um job que falha
   não derruba o processo nem impede a próxima execução agendada.
-- **`registerJob` envolve tudo em `.catch()` com `logger.fatal`.** Chegar ali
+- **`registrarJob` envolve tudo em `.catch()` com `logger.fatal`.** Chegar ali
   significa que o próprio runner falhou (o banco recusou a transação do lock,
   por exemplo), não que o job falhou. É um alerta de infraestrutura.
 
 ### O timeout interrompe a espera, não o trabalho
 
 ```ts
-await Promise.race([fn(), timeout]);
+await Promise.race([acao(), expiracao]);
 ```
 
 Quando o timeout vence, o runner para de **esperar** o handler — mas o handler
@@ -91,12 +93,44 @@ await fetch(url, { signal: AbortSignal.timeout(10_000) });
 ## Registrar um job novo
 
 1. Crie `src/services/meu-processo.service.ts` com a regra de negócio.
-2. Crie `src/jobs/meu-processo.job.ts` exportando um `JobDefinition` cujo
-   `handler` só chama o serviço e loga o resultado.
+2. Crie `src/jobs/meu-processo.job.ts` exportando um `DefinicaoJob` cujo
+   `executar` só chama o serviço e loga o resultado.
 3. Adicione ao array em [`src/jobs/jobs.ts`](../src/jobs/jobs.ts).
 
-`server.ts` não é tocado: ele importa o array e faz `jobs.forEach(registerJob)`.
-Ver [capítulo 11](11-exemplo-job-e-servico.md) para o modelo completo.
+`server.ts` não é tocado: ele importa o array e faz `jobs.forEach(registrarJob)`.
+Ver [capítulo 12](12-exemplo-job-e-servico.md) para o modelo completo.
+
+## O entrypoint: boot e encerramento
+
+[`src/server.ts`](../src/server.ts) é o único arquivo que amarra as peças, e a
+ordem em que ele faz isso não é arbitrária.
+
+No boot, `iniciar()` segue três passos:
+
+1. **`obterPoolDb()`** — falha rápido. Um serviço que sobe sem banco só
+   descobriria o problema no primeiro disparo de cron, possivelmente de
+   madrugada.
+2. **`jobs.forEach(registrarJob)`** — registra os jobs da lista central.
+3. **`construirApp()` e `listen()`** — a superfície HTTP entra por último, e é
+   o que faz o readiness passar a responder.
+
+No encerramento, `encerrar(sinal)` inverte a lógica, na ordem que importa
+durante um rolling update:
+
+1. **`schedule.gracefulShutdown()`** — para de agendar novas execuções e
+   **espera** as que já estão rodando terminarem. Um job cortado na metade é
+   exatamente o que o lock distribuído não consegue desfazer
+   ([capítulo 06](06-lock-distribuido.md)).
+2. **`servidor.close()`** — para de aceitar novas requisições.
+3. **`fecharPoolDb()`** — só depois que ninguém mais precisa do banco.
+
+A flag `encerrando` garante que dois sinais seguidos não disparem o
+procedimento duas vezes. `SIGTERM` e `SIGINT` levam ao mesmo caminho: o
+primeiro é o que o Kubernetes envia, o segundo é o `Ctrl+C` local.
+
+Para que esse encerramento aconteça de fato no container, o `SIGTERM` precisa
+chegar ao processo Node — é o papel do `tini` como PID 1
+([capítulo 11](11-container-e-deploy.md)).
 
 ## Expressões cron
 
@@ -120,14 +154,14 @@ definido roda em UTC, e `0 3 * * *` dispara às 00:00 em Brasília. Defina `TZ`
 no deployment ou use a forma com objeto:
 
 ```ts
-schedule: { rule: '0 3 * * *', tz: 'America/Sao_Paulo' }
+agendamento: { rule: '0 3 * * *', tz: 'America/Sao_Paulo' }
 ```
 
-Isso exige alargar o tipo de `JobDefinition.schedule` — ver upgrades abaixo.
+Isso exige alargar o tipo de `DefinicaoJob.agendamento` — ver upgrades abaixo.
 
 ## Upgrades futuros sem quebrar o que existe
 
-**Adicionar um campo opcional ao `JobDefinition`** — seguro, porque jobs
+**Adicionar um campo opcional ao `DefinicaoJob`** — seguro, porque jobs
 existentes continuam válidos. É como adicionar `enabled?: boolean`,
 `description?: string` ou `tz?: string`. Regra: o comportamento quando o campo
 está ausente tem de ser exatamente o de hoje.
@@ -136,29 +170,29 @@ está ausente tem de ser exatamente o de hoje.
 aceita o objeto:
 
 ```ts
-schedule: string | { rule: string; tz: string };
+agendamento: string | { rule: string; tz: string };
 ```
 
 Nenhum job existente quebra, porque `string` continua no union.
 
-**Passar contexto ao handler** — `handler: (ctx: JobContext) => Promise<void>`,
-com `ctx` trazendo `executionId`, um `logger` filho e um `AbortSignal`. Essa é
+**Passar contexto ao handler** — `executar: (ctx: ContextoJob) => Promise<void>`,
+com `ctx` trazendo `execucaoId`, um `logger` filho e um `AbortSignal`. Essa é
 uma **quebra de contrato**: todo handler precisa ser revisado. Para migrar sem
-parada, torne o parâmetro opcional primeiro (`(ctx?: JobContext)`), migre os
+parada, torne o parâmetro opcional primeiro (`(ctx?: ContextoJob)`), migre os
 handlers um a um, e só depois torne obrigatório.
 
 **Ligar e desligar jobs por configuração** — resista a fazer isso por endpoint:
 a superfície HTTP é somente leitura por decisão de arquitetura
 ([índice](README.md#2-a-superfície-http-é-somente-leitura)). O caminho correto é
-uma variável de ambiente validada no `envSchema` (por exemplo
+uma variável de ambiente validada no `esquemaAmbiente` (por exemplo
 `JOBS_DESABILITADOS` como lista separada por vírgula), filtrando o array antes
 do `forEach`. Isso mantém o estado auditável no deploy, não em memória.
 
 **Trocar `node-schedule` por `croner` ou `toad-scheduler`** — o acoplamento
-está em duas linhas de `registerJob` e uma de `shutdown`. Requisitos para o
+está em duas linhas de `registrarJob` e uma de `shutdown`. Requisitos para o
 substituto: aceitar expressão cron em string, permitir cancelamento gracioso no
 SIGTERM, e não disparar execuções concorrentes do mesmo job. Mantenha
-`JobDefinition` intacto e a troca fica invisível para os jobs.
+`DefinicaoJob` intacto e a troca fica invisível para os jobs.
 
 **Escalar para mais de uma réplica** — não faça sem antes ler o
 [capítulo 06](06-lock-distribuido.md). O lock protege a janela de rolling

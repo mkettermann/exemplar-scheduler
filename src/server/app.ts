@@ -1,26 +1,22 @@
 import Fastify, { type FastifyInstance } from 'fastify';
-import { registerRoutes } from './routes.js';
+import { registrarRotas } from './routes.js';
 import { aplicarGuardaSomenteLeitura } from './plugins/read-only.js';
 
 /**
- * Monta a instância Fastify sem subir o servidor.
- *
- * Separado de `server.ts` justamente para os testes: o vitest chama
- * `buildApp()` e usa `app.inject()` para bater nas rotas sem abrir
- * porta TCP nenhuma.
+ * Monta a instância Fastify sem subir o servidor — é o que permite aos testes
+ * usarem `app.inject()` sem abrir porta. As opções passadas ao Fastify e o
+ * motivo de a guarda ser aplicada fora de `register` estão em
+ * `docs/07-servidor-http.md`.
  */
-export async function buildApp(): Promise<FastifyInstance> {
+export async function construirApp(): Promise<FastifyInstance> {
   const app = Fastify({
-    logger: false, // usamos nosso próprio pino, não o do fastify
-    // Sem rota de escrita, não há corpo legítimo para receber.
+    logger: false,
     bodyLimit: 1024,
-    // O AKS/ingress é quem fala com o cliente real; confiar no proxy
-    // faz `req.ip` refletir o cliente e não o balanceador.
     trustProxy: true,
   });
 
   aplicarGuardaSomenteLeitura(app);
-  await app.register(registerRoutes);
+  await app.register(registrarRotas);
 
   return app;
 }

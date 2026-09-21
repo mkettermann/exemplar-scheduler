@@ -1,15 +1,12 @@
 import type { FastifyInstance } from 'fastify';
-import { getHealth, getReadiness } from './routes/health.route.js';
+import { obterLiveness, obterReadiness } from './routes/health.route.js';
 
 /**
- * Mapa explícito de método + rota + handler. Todo endpoint do serviço
- * aparece aqui — não precisa entrar em cada arquivo de rota para saber
- * o que existe, só para saber COMO cada um funciona por dentro.
- *
- * Regra da casa: só GET, e só observabilidade. O health é a única
- * superfície HTTP deste serviço.
+ * Mapa explícito de método, rota e handler: todo endpoint do serviço aparece
+ * aqui. Regra da casa: só GET, e só observabilidade.
+ * Ver `docs/07-servidor-http.md`.
  */
-export async function registerRoutes(app: FastifyInstance): Promise<void> {
-  app.get('/health', getHealth);
-  app.get('/health/ready', getReadiness);
+export async function registrarRotas(app: FastifyInstance): Promise<void> {
+  app.get('/health', obterLiveness);
+  app.get('/health/ready', obterReadiness);
 }

@@ -1,71 +1,71 @@
 import schedule from 'node-schedule';
-import type { JobDefinition, JobStatus } from './job.types.js';
-import { withJobLock } from './lock.js';
+import type { DefinicaoJob, StatusJob } from './job.types.js';
+import { executarComLock } from './lock.js';
 import { logger } from '../logger/logger.js';
 
-async function runWithTimeout(fn: () => Promise<void>, timeoutMs: number): Promise<void> {
-  let timer: NodeJS.Timeout;
+async function executarComTempoLimite(
+  acao: () => Promise<void>,
+  tempoLimiteMs: number,
+): Promise<void> {
+  let temporizador: NodeJS.Timeout;
 
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`Timeout após ${timeoutMs}ms`)), timeoutMs);
+  const expiracao = new Promise<never>((_, rejeitar) => {
+    temporizador = setTimeout(
+      () => rejeitar(new Error(`Timeout após ${tempoLimiteMs}ms`)),
+      tempoLimiteMs,
+    );
   });
 
   try {
-    await Promise.race([fn(), timeout]);
+    await Promise.race([acao(), expiracao]);
   } finally {
-    clearTimeout(timer!);
+    clearTimeout(temporizador!);
   }
 }
 
 /**
- * Executa um job aplicando, nesta ordem: lock distribuído -> handler com
- * timeout -> log estruturado do desfecho (sucesso/falha/timeout) e da duração.
- *
- * Nenhum job individual precisa se preocupar com nada disso — só implementa
- * `handler`. Isso é o que mantém a migração dos jobs legados simples: a
- * lógica de negócio é praticamente colada, só o "entorno" muda.
+ * Aplica, nesta ordem: lock distribuído, handler com timeout e log estruturado
+ * do desfecho. O erro do handler é classificado e logado, nunca relançado.
+ * Ver `docs/05-scheduler.md`.
  */
-async function executeJob(job: JobDefinition): Promise<void> {
-  const { ran } = await withJobLock(job.name, async () => {
+async function executarJob(job: DefinicaoJob): Promise<void> {
+  const { executou } = await executarComLock(job.nome, async () => {
     const iniciadoEm = Date.now();
-    logger.info({ job: job.name }, 'Job iniciado');
+    logger.info({ job: job.nome }, 'Job iniciado');
 
     try {
-      await runWithTimeout(job.handler, job.timeoutMs);
+      await executarComTempoLimite(job.executar, job.tempoLimiteMs);
 
       logger.info(
-        { job: job.name, status: 'success' satisfies JobStatus, durationMs: Date.now() - iniciadoEm },
+        { job: job.nome, status: 'sucesso' satisfies StatusJob, duracaoMs: Date.now() - iniciadoEm },
         'Job concluído com sucesso',
       );
-    } catch (err) {
-      const isTimeout = err instanceof Error && err.message.startsWith('Timeout');
-      const status: JobStatus = isTimeout ? 'timeout' : 'failure';
+    } catch (erro) {
+      const expirou = erro instanceof Error && erro.message.startsWith('Timeout');
+      const status: StatusJob = expirou ? 'timeout' : 'falha';
 
-      // O erro não é relançado: um job que falha não derruba o processo
-      // nem impede a próxima execução agendada.
       logger.error(
-        { job: job.name, status, durationMs: Date.now() - iniciadoEm, err },
+        { job: job.nome, status, duracaoMs: Date.now() - iniciadoEm, err: erro },
         `Job falhou (${status})`,
       );
     }
   });
 
-  if (!ran) {
-    logger.debug({ job: job.name }, 'Execução pulada — lock ocupado por outra instância');
+  if (!executou) {
+    logger.debug({ job: job.nome }, 'Execução pulada — lock ocupado por outra instância');
   }
 }
 
 /**
- * Registra um job no scheduler do processo. Chamar uma vez por job,
- * na inicialização do serviço (ver `src/server.ts`).
+ * Registra um job no scheduler do processo. Chamar uma vez por job, no boot.
+ * Ver `docs/05-scheduler.md`.
  */
-export function registerJob(job: JobDefinition): schedule.Job {
-  logger.info({ job: job.name, cron: job.schedule }, 'Job registrado');
+export function registrarJob(job: DefinicaoJob): schedule.Job {
+  logger.info({ job: job.nome, cron: job.agendamento }, 'Job registrado');
 
-  return schedule.scheduleJob(job.name, job.schedule, () => {
-    void executeJob(job).catch((err) => {
-      // Falha aqui é bug no próprio runner, não no job — não deveria acontecer.
-      logger.fatal({ job: job.name, err }, 'Falha inesperada no job-runner');
+  return schedule.scheduleJob(job.nome, job.agendamento, () => {
+    void executarJob(job).catch((erro) => {
+      logger.fatal({ job: job.nome, err: erro }, 'Falha inesperada no job-runner');
     });
   });
 }

@@ -29,13 +29,14 @@ link para a documentação oficial de cada uma.
 | 02 | [Configuração de ambiente](docs/02-configuracao-de-ambiente.md) | `zod`, `.env` |
 | 03 | [Logger](docs/03-logger.md) | `pino`, `pino-pretty` |
 | 04 | [Banco de dados](docs/04-banco-de-dados.md) | `mssql`, pool |
-| 05 | [Scheduler](docs/05-scheduler.md) | `node-schedule`, contrato de job |
+| 05 | [Scheduler](docs/05-scheduler.md) | `node-schedule`, contrato de job, entrypoint |
 | 06 | [Lock distribuído](docs/06-lock-distribuido.md) | `sp_getapplock` |
 | 07 | [Servidor HTTP](docs/07-servidor-http.md) | `fastify`, rotas, guarda somente-leitura |
 | 08 | [Health check](docs/08-health-check.md) | liveness, readiness, probes |
-| 09 | [Testes](docs/09-testes.md) | `vitest` |
+| 09 | [Testes](docs/09-testes.md) | `vitest`, `markdownlint-cli2` |
 | 10 | [Utilitários](docs/10-utilitarios.md) | `src/util` |
-| 11 | [Exemplo de job e serviço](docs/11-exemplo-job-e-servico.md) | **descartável** |
+| 11 | [Container e deploy](docs/11-container-e-deploy.md) | `Dockerfile`, Azure |
+| 12 | [Exemplo de job e serviço](docs/12-exemplo-job-e-servico.md) | **descartável** |
 
 ## Setup local
 
@@ -56,6 +57,7 @@ npm run dev
 | `npm test` | Roda a suíte de testes uma vez |
 | `npm run test:watch` | Re-roda os testes ao salvar |
 | `npm run test:coverage` | Relatório de cobertura |
+| `npm run lint:md` | Verifica a formatação da documentação |
 
 ## Endpoints
 
@@ -71,10 +73,10 @@ global, mesmo em caminhos que não existem.
 
 ```text
 src/
-  server.ts              # entrypoint: DB -> jobs -> HTTP -> shutdown ordenado
+  server.ts              # entrypoint: DB -> jobs -> HTTP -> encerramento ordenado
   config/env.ts          # variáveis de ambiente validadas (zod)
   logger/logger.ts       # logger estruturado (pino)
-  db/mssql.ts            # pool MSSQL compartilhado + checkDbHealth
+  db/mssql.ts            # pool MSSQL compartilhado + verificarSaudeDb
   scheduler/
     job.types.ts         # contrato que todo job segue
     job-runner.ts        # lock + timeout + log, genérico para qualquer job
@@ -97,14 +99,26 @@ test/
   read-only.guard.test.ts
 ```
 
+## Convenções de código
+
+Variáveis, funções, tipos e propriedades internas são nomeados **em português,
+sem acentos** (`obterPoolDb`, `executarComLock`, `tempoLimiteMs`). Ficam em
+inglês apenas os contratos com o mundo de fora: nomes de variáveis de ambiente,
+corpo das respostas HTTP, parâmetros de stored procedure e nomes de arquivo.
+
+Comentário no código diz **o quê** e aponta o capítulo que explica **o
+porquê** — a explicação longa mora em `docs/`, onde pode ser lida inteira.
+Detalhes em
+[Os quatro princípios](docs/README.md#os-quatro-princípios-que-explicam-o-resto).
+
 ## Adicionando um job
 
 1. Crie o serviço em `src/services/` com a regra de negócio.
-2. Crie o job em `src/jobs/` — o `handler` só chama o serviço.
+2. Crie o job em `src/jobs/` — o `executar` só chama o serviço.
 3. Adicione ao array em `src/jobs/jobs.ts`.
 
 `src/server.ts` não precisa ser tocado. Passo a passo completo, incluindo
-migração de job legado: [capítulo 11](docs/11-exemplo-job-e-servico.md).
+migração de job legado: [capítulo 12](docs/12-exemplo-job-e-servico.md).
 
 ## Banco de dados
 
@@ -130,30 +144,9 @@ docker build -t exemplar-scheduler:local .
 docker run --rm -p 3000:3000 --env-file .env exemplar-scheduler:local
 ```
 
-**O build é um portão.** Antes de compilar, o estágio `verify` roda
-`npm run typecheck` e `npm test`; qualquer erro de tipo ou teste vermelho
-derruba o `docker build` e nenhuma imagem é produzida. Para um hotfix em que o
-portão precise ser contornado, existe uma saída explícita e registrada no log
-da pipeline — que **não** deve virar padrão no YAML de deploy:
+**O build é um portão**: antes de compilar, o estágio `verify` roda
+`npm run typecheck` e `npm test`, e qualquer erro derruba o `docker build`.
 
-```bash
-docker build --build-arg SKIP_CHECKS=1 -t exemplar-scheduler:hotfix .
-```
-
-**Fuso horário.** O cron usa o fuso do processo, e uma imagem Alpine sem
-`tzdata` resolve tudo como UTC. O Dockerfile instala `tzdata` e fixa
-`TZ=America/Sao_Paulo`; ajuste com `--build-arg TZ=...` ou pela variável de
-ambiente `TZ` no Azure.
-
-**Configuração do serviço no Azure** — todas as variáveis de
-[`.env.example`](.env.example) precisam estar definidas, e mais:
-
-| Onde | Ajuste |
-| --- | --- |
-| Container Apps | `targetPort: 3000`; **réplicas mín. e máx. = 1** (sem isso os jobs duplicam) |
-| App Service for Containers | app setting `WEBSITES_PORT=3000` |
-| Probes | liveness em `GET /health`, readiness em `GET /health/ready` |
-| Segredos | `DB_PASSWORD` via Key Vault ou secret do Container App, nunca como app setting em texto |
-
-O `HEALTHCHECK` declarado no Dockerfile vale para `docker run` local; Container
-Apps e App Service usam as próprias probes e ignoram essa instrução.
+Os quatro estágios, o escape hatch para hotfix, o fuso horário, o `tini` e a
+configuração no Container Apps / App Service estão no
+[capítulo 11](docs/11-container-e-deploy.md).

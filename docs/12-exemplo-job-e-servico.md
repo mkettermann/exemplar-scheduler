@@ -1,6 +1,7 @@
-# 11 — Exemplo de job e serviço
+# 12 — Exemplo de job e serviço
 
-[← Utilitários](10-utilitarios.md) · [Índice](README.md)
+[← Utilitários](10-utilitarios.md) ·
+[Índice](README.md)
 
 > **Este capítulo documenta material descartável.**
 > [`example.job.ts`](../src/jobs/example.job.ts),
@@ -48,7 +49,7 @@ Três características que todo serviço desta estrutura compartilha:
    estado compartilhado do processo mora no pool de conexão, não no serviço.
 2. **As fontes de dados são declaradas aqui dentro.** `LIMITE_MEMORIA_MB` é uma
    constante do código. Poderia ser uma variável do
-   [`envSchema`](02-configuracao-de-ambiente.md) ou uma consulta ao banco
+   [`esquemaAmbiente`](02-configuracao-de-ambiente.md) ou uma consulta ao banco
    ([capítulo 04](04-banco-de-dados.md)). O que **não** pode é vir de uma
    requisição HTTP — este serviço não tem endpoint que receba conteúdo.
 3. **Não sabe que existe um job.** A função pode ser chamada por outro serviço,
@@ -68,49 +69,49 @@ Quando um job precisar falar com um sistema externo, o formato é este:
 const ERP_BASE_URL = 'https://erp.interno.empresa.com/api/v1';
 
 export async function buscarPedidosPendentes(): Promise<Pedido[]> {
-  const res = await fetch(`${ERP_BASE_URL}/pedidos?status=pendente`, {
-    headers: { Authorization: `Bearer ${env.ERP_TOKEN}` },
+  const resposta = await fetch(`${ERP_BASE_URL}/pedidos?status=pendente`, {
+    headers: { Authorization: `Bearer ${ambiente.ERP_TOKEN}` },
     // Sempre um teto: sem isso, uma chamada pendurada segura o job
-    // até o timeoutMs do runner, e mesmo depois continua rodando.
+    // até o tempoLimiteMs do runner, e mesmo depois continua rodando.
     signal: AbortSignal.timeout(10_000),
   });
 
-  if (!res.ok) {
-    throw new Error(`ERP respondeu ${res.status}`);
+  if (!resposta.ok) {
+    throw new Error(`ERP respondeu ${resposta.status}`);
   }
 
-  return pedidoSchema.array().parse(await res.json());
+  return esquemaPedido.array().parse(await resposta.json());
 }
 ```
 
 Quatro pontos desse trecho valem como regra geral:
 
-- **URL base constante** ou vinda do `envSchema` validado — nunca de parâmetro
-  externo. Isso elimina uma classe inteira de SSRF por construção.
-- **Segredo pelo `env`**, nunca no código.
-- **`AbortSignal.timeout`** em toda chamada de rede. O `timeoutMs` do
+- **URL base constante** ou vinda do `esquemaAmbiente` validado — nunca de
+  parâmetro externo. Isso elimina uma classe inteira de SSRF por construção.
+- **Segredo pelo `ambiente`**, nunca no código.
+- **`AbortSignal.timeout`** em toda chamada de rede. O `tempoLimiteMs` do
   [job-runner](05-scheduler.md) para de *esperar*, mas não interrompe a
   chamada; só o `AbortSignal` interrompe de fato.
 - **Resposta validada com zod** antes de ser usada. Um sistema externo pode
   mudar o contrato sem avisar, e o TypeScript não protege contra o que vem da
-  rede — `res.json()` é `any`.
+  rede — `resposta.json()` é `any`.
 
 ## O job
 
 ```ts
 // src/jobs/example.job.ts
-export const exampleJob: JobDefinition = {
-  name: 'example-job',
-  schedule: '*/5 * * * *',
-  timeoutMs: 30_000,
-  handler: async () => {
+export const jobExemplo: DefinicaoJob = {
+  nome: 'example-job',
+  agendamento: '*/5 * * * *',
+  tempoLimiteMs: 30_000,
+  executar: async () => {
     const resumo = await coletarResumoDoProcesso();
     logger.info({ resumo }, 'example-job executado');
   },
 };
 ```
 
-O `handler` faz duas coisas: chama o serviço e loga o resultado. Não trata
+O `executar` faz duas coisas: chama o serviço e loga o resultado. Não trata
 erro, não mede tempo, não adquire lock, não grava histórico — o
 [job-runner](05-scheduler.md) já faz tudo isso em volta.
 
@@ -122,10 +123,10 @@ Se o handler estiver com `try/catch`, medição de duração ou verificação de
 1. **Crie o serviço** em `src/services/nome.service.ts` e cole a lógica de
    negócio lá. Tipe as entradas e saídas que antes não tinham tipo — é o
    momento em que os contratos implícitos aparecem.
-2. **Crie o job** em `src/jobs/nome.job.ts`, com `handler` chamando o serviço.
-3. **Ajuste `timeoutMs`** para algo realista. Olhe quanto o job legado leva no
-   pior dia, não na média, e dê folga.
-4. **Ajuste `schedule`**, atento ao fuso ([capítulo 05](05-scheduler.md) —
+2. **Crie o job** em `src/jobs/nome.job.ts`, com `executar` chamando o serviço.
+3. **Ajuste `tempoLimiteMs`** para algo realista. Olhe quanto o job legado leva
+   no pior dia, não na média, e dê folga.
+4. **Ajuste `agendamento`**, atento ao fuso ([capítulo 05](05-scheduler.md) —
    container sem `TZ` roda em UTC).
 5. **Registre** em [`src/jobs/jobs.ts`](../src/jobs/jobs.ts).
 6. **Rode em dry-run** (logando o que faria, sem efeito real) em paralelo com o
@@ -140,9 +141,9 @@ sozinhas no comparativo, em vez de aparecerem como incidente.
 
 - [ ] `src/jobs/example.job.ts` removido
 - [ ] `src/services/example.service.ts` removido
-- [ ] `exampleJob` removido do array em `src/jobs/jobs.ts`
-- [ ] `docs/11-exemplo-job-e-servico.md` removido
-- [ ] Linha 11 removida do índice em `docs/README.md`
+- [ ] `jobExemplo` removido do array em `src/jobs/jobs.ts`
+- [ ] `docs/12-exemplo-job-e-servico.md` removido
+- [ ] Linha 12 removida do índice em `docs/README.md`
 - [ ] `npm run typecheck && npm test && npm run build` passando
 
 Nada mais referencia o exemplo: ele foi mantido nas pontas da estrutura

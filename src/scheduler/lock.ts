@@ -1,34 +1,34 @@
-import { getDbPool, sql } from '../db/mssql.js';
+import { obterPoolDb, sql } from '../db/mssql.js';
 import { logger } from '../logger/logger.js';
 
-/**
- * Trava de execução baseada em sp_getapplock do próprio MSSQL.
- *
- * Por que isso existe mesmo com réplica fixa em 1 no AKS:
- * durante um rolling update o pod antigo pode continuar vivo por
- * alguns segundos enquanto o novo já sobe — nessa janela, duas
- * instâncias do processo podem existir ao mesmo tempo. O lock
- * garante que só uma delas realmente executa o job.
- *
- * Retorna `true` se conseguiu a trava (deve executar o job) e
- * `false` se outra instância já está executando esse job agora.
- */
-export async function withJobLock<T>(
-  jobName: string,
-  fn: () => Promise<T>,
-): Promise<{ ran: boolean; result?: T }> {
-  const pool = await getDbPool();
-  const transaction = new sql.Transaction(pool);
+/** Desfecho de uma tentativa de execução sob lock. */
+export interface ResultadoComLock<T> {
+  /** `false` quando outra instância já segurava a trava — a execução é pulada. */
+  executou: boolean;
+  resultado?: T;
+}
 
-  await transaction.begin();
-  const request = new sql.Request(transaction);
+/**
+ * Trava de execução baseada em `sp_getapplock` do próprio MSSQL: garante que,
+ * mesmo com dois processos vivos durante um rolling update, só um execute cada
+ * job. Ver `docs/06-lock-distribuido.md`, inclusive para as limitações.
+ */
+export async function executarComLock<T>(
+  nomeJob: string,
+  acao: () => Promise<T>,
+): Promise<ResultadoComLock<T>> {
+  const pool = await obterPoolDb();
+  const transacao = new sql.Transaction(pool);
+
+  await transacao.begin();
+  const requisicao = new sql.Request(transacao);
 
   try {
-    const lockResult = await request
-      .input('Resource', sql.NVarChar, `job:${jobName}`)
+    const retornoLock = await requisicao
+      .input('Resource', sql.NVarChar, `job:${nomeJob}`)
       .input('LockMode', sql.NVarChar, 'Exclusive')
       .input('LockOwner', sql.NVarChar, 'Transaction')
-      .input('LockTimeout', sql.Int, 0) // não espera: se estiver ocupado, desiste na hora
+      .input('LockTimeout', sql.Int, 0)
       .query(
         `DECLARE @result int;
           EXEC @result = sp_getapplock
@@ -39,20 +39,20 @@ export async function withJobLock<T>(
           SELECT @result AS result;`,
       );
 
-    const acquired = (lockResult.recordset[0]?.result ?? -1) >= 0;
+    const adquiriu = (retornoLock.recordset[0]?.result ?? -1) >= 0;
 
-    if (!acquired) {
-      logger.warn({ jobName }, 'Job já está em execução em outra instância — pulando');
-      await transaction.rollback();
-      return { ran: false };
+    if (!adquiriu) {
+      logger.warn({ job: nomeJob }, 'Job já está em execução em outra instância — pulando');
+      await transacao.rollback();
+      return { executou: false };
     }
 
-    const result = await fn();
+    const resultado = await acao();
 
-    await transaction.commit(); // libera o lock automaticamente ao fim da transação
-    return { ran: true, result };
-  } catch (err) {
-    await transaction.rollback();
-    throw err;
+    await transacao.commit();
+    return { executou: true, resultado };
+  } catch (erro) {
+    await transacao.rollback();
+    throw erro;
   }
 }

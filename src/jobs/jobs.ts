@@ -1,12 +1,10 @@
-import type { JobDefinition } from '../scheduler/job.types.js';
-import { exampleJob } from './example.job.js';
+import type { DefinicaoJob } from '../scheduler/job.types.js';
+import { jobExemplo } from './example.job.js';
 
 /**
- * Lista central de jobs ativos. Ao migrar um job do repositório legado,
- * crie o arquivo em `src/scheduler/jobs/` seguindo o modelo de
- * `example.job.ts` e adicione aqui. O `server.ts` só importa este array —
- * raramente precisa ser tocado por causa de um job novo.
+ * Lista central de jobs ativos — a única coisa que `server.ts` importa para
+ * registrar tudo. Ver `docs/05-scheduler.md`.
  */
-export const jobs: JobDefinition[] = [
-	exampleJob,
+export const jobs: DefinicaoJob[] = [
+  jobExemplo,
 ];

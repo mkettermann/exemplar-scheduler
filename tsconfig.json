@@ -1,14 +1,10 @@
 {
+  /* Build de produção. As decisões por trás destas flags — ESM nativo,
+     modo estrito completo e alvo ES2023 — estão em docs/01-typescript-e-build.md */
   "compilerOptions": {
-    /* Alvo de runtime: Node 24 já suporta tranquilamente ES2023 */
     "target": "ES2023",
     "lib": ["ES2023"],
 
-    /* ESM nativo do Node. `NodeNext` faz o TS resolver módulos exatamente como
-       o Node 24 resolve em runtime (campo `exports` dos pacotes, distinção
-       entre .mts/.cts), então o que compila aqui é o que carrega lá.
-       Consequência prática: todo import relativo exige a extensão `.js`,
-       mesmo partindo de um arquivo `.ts`. */
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "esModuleInterop": true,
@@ -20,8 +16,6 @@
     "sourceMap": true,
     "declaration": false,
 
-    /* Modo estrito completo — como o time comenta pouco o código,
-       o compilador vira a documentação viva do formato dos objetos */
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
@@ -31,7 +25,6 @@
     "noImplicitThis": true,
     "alwaysStrict": true,
 
-    /* Extras que pegam bugs comuns de quem vem de JS puro */
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "noImplicitReturns": true,
@@ -42,10 +35,6 @@
 
     "skipLibCheck": true,
     "isolatedModules": true,
-
-    /* Nenhum import é apagado ou reescrito pelo compilador: o que está escrito
-       no .ts é o que sai no .js. Obriga `import type` em import de tipo e
-       impede que um `import x = require()` entre sem querer e quebre o ESM. */
     "verbatimModuleSyntax": true
   },
   "include": ["src/**/*.ts"],

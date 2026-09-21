@@ -1,6 +1,8 @@
 # 04 — Banco de dados
 
-[← Logger](03-logger.md) · [Índice](README.md) · [Próximo: Scheduler →](05-scheduler.md)
+[← Logger](03-logger.md) ·
+[Índice](README.md) ·
+[Próximo: Scheduler →](05-scheduler.md)
 
 ## Bibliotecas
 
@@ -16,9 +18,9 @@ banco. Ele expõe quatro coisas e nada mais:
 
 | Export | Para quê |
 | --- | --- |
-| `getDbPool()` | Devolve o pool único do processo |
-| `closeDbPool()` | Encerra o pool no shutdown |
-| `checkDbHealth()` | Ping usado pelo readiness — nunca lança |
+| `obterPoolDb()` | Devolve o pool único do processo |
+| `fecharPoolDb()` | Encerra o pool no shutdown |
+| `verificarSaudeDb()` | Ping usado pelo readiness — nunca lança |
 | `sql` | Reexport do driver, para os tipos de parâmetro (`sql.NVarChar`, `sql.Int`) |
 
 A regra é curta: **nunca instancie `new sql.ConnectionPool()` fora deste
@@ -33,7 +35,7 @@ de a estrutura não trazer migrações nem ORM.
 
 Os jobs que você implementar provavelmente usarão o mesmo pool para a regra de
 negócio deles. Quando isso acontecer, a query mora no serviço
-([capítulo 11](11-exemplo-job-e-servico.md)), não aqui.
+([capítulo 12](12-exemplo-job-e-servico.md)), não aqui.
 
 ## Um único pool, memoizado
 
@@ -43,7 +45,7 @@ let connecting: Promise<sql.ConnectionPool> | undefined;
 ```
 
 Duas variáveis, não uma. O motivo é uma corrida real: se dois jobs dispararem
-no mesmo segundo durante o boot, os dois chamam `getDbPool()` antes de qualquer
+no mesmo segundo durante o boot, os dois chamam `obterPoolDb()` antes de qualquer
 conexão existir. Guardando apenas `pool`, ambos veriam `undefined` e abririam
 um pool cada um.
 
@@ -57,7 +59,7 @@ rejeitada ficar em cache para sempre.
 ```ts
 options: {
   encrypt: env.DB_ENCRYPT,
-  trustServerCertificate: env.NODE_ENV !== 'production',
+  trustServerCertificate: ambiente.NODE_ENV !== 'production',
 },
 pool: { max: 10, min: 0, idleTimeoutMillis: 30_000 },
 ```
@@ -71,10 +73,10 @@ pool: { max: 10, min: 0, idleTimeoutMillis: 30_000 },
 - **`max: 10`** — teto por processo. Como só existe uma réplica, é também o
   teto do serviço inteiro.
 
-## `checkDbHealth()` não lança
+## `verificarSaudeDb()` não lança
 
 ```ts
-export async function checkDbHealth(timeoutMs = env.HEALTH_DB_TIMEOUT_MS): Promise<DbHealth>
+export async function verificarSaudeDb(tempoLimiteMs = ambiente.HEALTH_DB_TIMEOUT_MS): Promise<SaudeBanco>
 ```
 
 Ele corre um `SELECT 1` contra um timeout e devolve
@@ -122,7 +124,7 @@ roda é a pipeline, com credencial própria.
 [changelog](https://github.com/tediousjs/node-mssql/releases). As quebras
 históricas ficaram concentradas em `options` (nomes de flag de TLS) e no
 comportamento padrão de `encrypt`. Depois de subir, o teste mais rápido é
-`npm run dev` com o banco real: o boot chama `getDbPool()` e falha na hora se
+`npm run dev` com o banco real: o boot chama `obterPoolDb()` e falha na hora se
 a configuração ficou inválida.
 
 **Trocar autenticação por Managed Identity do Azure** — é o upgrade de
@@ -130,7 +132,7 @@ segurança de maior retorno aqui, porque elimina `DB_USER`/`DB_PASSWORD` do
 ambiente. A mudança é local a este arquivo:
 
 ```ts
-const config: sql.config = {
+const configuracao: sql.config = {
   server: env.DB_SERVER,
   database: env.DB_NAME,
   authentication: { type: 'azure-active-directory-default' },
@@ -138,7 +140,7 @@ const config: sql.config = {
 };
 ```
 
-Depois remova as três variáveis do `envSchema` e do `.env.example`. Nenhum
+Depois remova as três variáveis do `esquemaAmbiente` e do `.env.example`. Nenhum
 outro arquivo é tocado — é a prova de que o isolamento do pool funciona.
 
 **Trocar o SQL Server por outro banco** — o impacto vai além deste arquivo,
@@ -158,6 +160,7 @@ conexões — a da transação do lock e a do trabalho em si
 útil é metade do `max`.
 
 **Adicionar uma segunda dependência externa** (Redis, fila, API interna) — siga
-o mesmo formato: um módulo dono da conexão, um `getX()` memoizado, um
-`closeX()` chamado no shutdown e um `checkXHealth()` que nunca lança. Depois
-adicione o check ao readiness — o [capítulo 08](08-health-check.md) mostra onde.
+o mesmo formato: um módulo dono da conexão, um `obterX()` memoizado, um
+`fecharX()` chamado no encerramento e um `verificarSaudeX()` que nunca lança.
+Depois adicione o check ao readiness — o [capítulo 08](08-health-check.md)
+mostra onde.

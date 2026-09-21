@@ -1,6 +1,8 @@
 # 08 — Health check
 
-[← Servidor HTTP](07-servidor-http.md) · [Índice](README.md) · [Próximo: Testes →](09-testes.md)
+[← Servidor HTTP](07-servidor-http.md) ·
+[Índice](README.md) ·
+[Próximo: Testes →](09-testes.md)
 
 ## Bibliotecas
 
@@ -28,7 +30,7 @@ Por isso a separação é explícita no código.
 ## `GET /health` — liveness
 
 ```ts
-export const getHealth = async () => ({
+export const obterLiveness = async () => ({
   status: 'ok',
   uptimeSeconds: Math.floor(process.uptime()),
 });
@@ -71,7 +73,7 @@ Verifica as dependências externas e responde:
 
 Três decisões deste handler:
 
-1. **`checkDbHealth()` nunca lança** ([capítulo 04](04-banco-de-dados.md)). Um
+1. **`verificarSaudeDb()` nunca lança** ([capítulo 04](04-banco-de-dados.md)). Um
    `503` explicando "o banco não responde" é informação; um `500` genérico não é.
 2. **Tem timeout próprio** (`HEALTH_DB_TIMEOUT_MS`, padrão 3000ms). O
    `connect()` do driver pode ficar pendurado bem além do intervalo entre duas
@@ -132,15 +134,24 @@ Ver [capítulo 09](09-testes.md) para como rodar.
 isso. `checks` é um objeto com uma chave por dependência:
 
 ```ts
-const [database, fila] = await Promise.all([checkDbHealth(), checkFilaHealth()]);
-const ok = database.ok && fila.ok;
+const [banco, fila] = await Promise.all([verificarSaudeDb(), verificarSaudeFila()]);
+const ok = banco.ok && fila.ok;
 
-return { status: ok ? 'ok' : 'degraded', uptimeSeconds, checks: { database, fila } };
+return {
+  status: ok ? 'ok' : 'degraded',
+  uptimeSeconds: Math.floor(process.uptime()),
+  checks: {
+    database: { ok: banco.ok, latencyMs: banco.latenciaMs },
+    queue: { ok: fila.ok, latencyMs: fila.latenciaMs },
+  },
+};
 ```
 
 Use `Promise.all`, não `await` sequencial: o tempo total do readiness passa a
 ser o do check mais lento, e não a soma. Todo check novo segue o mesmo
-contrato — nunca lançar, sempre devolver `{ ok, latencyMs, error? }`.
+contrato interno — nunca lançar, sempre devolver `{ ok, latenciaMs, erro? }` —
+e o handler é quem traduz isso para as chaves do corpo da resposta, que ficam
+em inglês por serem contrato externo ([índice](README.md#4-o-código-é-em-português-a-fronteira-não)).
 
 **Distinguir dependência crítica de opcional** — nem toda dependência justifica
 `503`. Um cache fora deixa o serviço lento, não inoperante. Adicione

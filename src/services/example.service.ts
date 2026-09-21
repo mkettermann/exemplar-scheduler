@@ -1,18 +1,12 @@
 import { logger } from '../logger/logger.js';
 
 /**
- * MODELO de serviço — apague junto com `example.job.ts` ao implementar de verdade.
+ * MODELO de serviço — apague junto com `example.job.ts` ao implementar de
+ * verdade. O job diz QUANDO rodar; o serviço diz O QUE fazer, e suas fontes de
+ * dados são declaradas aqui dentro, nunca recebidas por requisição.
  *
- * Um "serviço" é onde a regra de negócio mora. O job só diz QUANDO rodar;
- * o serviço diz O QUE fazer. Essa separação é o que permite testar a regra
- * sem precisar esperar o cron disparar.
- *
- * Regra da arquitetura: as fontes de dados de um serviço são declaradas
- * AQUI DENTRO (constantes, env validado, repositórios). Nada vem de
- * requisição HTTP — o serviço nunca é chamado por alguém de fora.
+ * Ver `docs/12-exemplo-job-e-servico.md`.
  */
-
-/** Fonte declarada no código, não recebida de fora. Veja `docs/12-exemplo-job-e-servico.md`. */
 const LIMITE_MEMORIA_MB = 512;
 
 export interface ResumoDoProcesso {
@@ -21,11 +15,6 @@ export interface ResumoDoProcesso {
   acimaDoLimite: boolean;
 }
 
-/**
- * Coleta um resumo do próprio processo. É deliberadamente trivial e sem
- * dependência externa: o objetivo é mostrar o formato de um serviço, não
- * resolver um problema real.
- */
 export async function coletarResumoDoProcesso(): Promise<ResumoDoProcesso> {
   const memoriaMb = Math.round(process.memoryUsage().heapUsed / 1024 / 1024);
 

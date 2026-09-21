@@ -1,13 +1,11 @@
 import { z } from 'zod';
 
 /**
- * Schema das variáveis de ambiente esperadas pelo serviço.
- *
- * Isto substitui comentário: se um valor não bater com o schema,
- * o processo falha JÁ NA INICIALIZAÇÃO com uma mensagem clara,
- * em vez de quebrar silenciosamente no meio de um job às 3h da manhã.
+ * Variáveis de ambiente do serviço, validadas no momento do import.
+ * Ver `docs/02-configuracao-de-ambiente.md` para a tabela completa e para o
+ * motivo de o processo morrer no boot quando algo não bate com o schema.
  */
-const envSchema = z.object({
+const esquemaAmbiente = z.object({
   NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
 
@@ -18,21 +16,20 @@ const envSchema = z.object({
   DB_PASSWORD: z.string().min(1),
   DB_ENCRYPT: z.coerce.boolean().default(true),
 
-  /** Tempo máximo, em ms, que o readiness espera o banco responder antes de considerar degradado. */
   HEALTH_DB_TIMEOUT_MS: z.coerce.number().int().positive().default(3000),
 });
 
-export type Env = z.infer<typeof envSchema>;
+export type Ambiente = z.infer<typeof esquemaAmbiente>;
 
-function loadEnv(): Env {
-  const parsed = envSchema.safeParse(process.env);
+function carregarAmbiente(): Ambiente {
+  const resultado = esquemaAmbiente.safeParse(process.env);
 
-  if (!parsed.success) {
-    console.error('Variáveis de ambiente inválidas:', parsed.error.flatten().fieldErrors);
+  if (!resultado.success) {
+    console.error('Variáveis de ambiente inválidas:', resultado.error.flatten().fieldErrors);
     process.exit(1);
   }
 
-  return parsed.data;
+  return resultado.data;
 }
 
-export const env = loadEnv();
+export const ambiente = carregarAmbiente();

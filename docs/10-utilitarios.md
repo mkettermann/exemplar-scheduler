@@ -1,6 +1,8 @@
 # 10 — Utilitários
 
-[← Testes](09-testes.md) · [Índice](README.md) · [Próximo: Exemplo de job e serviço →](11-exemplo-job-e-servico.md)
+[← Testes](09-testes.md) ·
+[Índice](README.md) ·
+[Próximo: Exemplo de job e serviço →](12-exemplo-job-e-servico.md)
 
 ## Biblioteca
 
@@ -36,9 +38,9 @@ falha fatal — os dois momentos em que alguém está de fato olhando o terminal
 
 | Função | O que faz |
 | --- | --- |
-| `Util.classof(o)` | Tipo real via `Object.prototype.toString`, distinguindo `array`, `date`, `null` e `nan` — que o `typeof` não separa |
-| `Util.limparOA(oa)` | Remove chaves `null`, `undefined`, `""` e a string `"undefined"` |
-| `Util.aCadaObjExecuta(oa, fn)` | Aplica `fn` a um objeto ou a cada item de um array |
+| `Util.tipoDe(valor)` | Tipo real via `Object.prototype.toString`, distinguindo `array`, `date`, `null` e `nan` — que o `typeof` não separa |
+| `Util.limparOA(objetoOuArray)` | Remove chaves `null`, `undefined`, `""` e a string `"undefined"` |
+| `Util.aCadaObjExecuta(objetoOuArray, funcao)` | Aplica `funcao` a um objeto ou a cada item de um array |
 
 Duas advertências sobre `limparOA`: ela **muta** o objeto recebido (não devolve
 cópia) e é rasa (não desce em objetos aninhados). Ambas são herança do código
@@ -68,7 +70,7 @@ cor devolverem o texto puro quando a saída não for um TTY ou quando
 `NODE_ENV === 'production'`:
 
 ```ts
-const usaCor = process.stdout.isTTY && env.NODE_ENV !== 'production';
+const usaCor = process.stdout.isTTY && ambiente.NODE_ENV !== 'production';
 static corVerde = (t: string) => (usaCor ? `\x1b[32m${t}\x1b[0m` : t);
 ```
 
@@ -81,9 +83,9 @@ quebra de comportamento**: código que depende da mutação in loco para de
 funcionar silenciosamente. Se for fazer, adicione `limparOACopia` ao lado e
 migre os chamadores um a um, em vez de trocar a implementação existente.
 
-**Substituir `classof` por checagens nativas** — para a maioria dos casos,
+**Substituir `tipoDe` por checagens nativas** — para a maioria dos casos,
 `Array.isArray`, `value instanceof Date` e `Number.isNaN` são mais legíveis e
-mais rápidos. `classof` continua útil quando o tipo é genuinamente desconhecido
+mais rápidos. `tipoDe` continua útil quando o tipo é genuinamente desconhecido
 (parsing de resposta externa). Não há pressa em remover.
 
 **Apagar o que não é usado** — se os jobs reais não usarem as cores nem as

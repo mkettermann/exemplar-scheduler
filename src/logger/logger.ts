@@ -1,22 +1,18 @@
 import pino from 'pino';
-import { env } from '../config/env.js';
+import { ambiente } from '../config/env.js';
 
 /**
- * Em desenvolvimento: saída legível (pino-pretty).
- * Em produção: JSON puro, pronto para ser coletado pelo Log Analytics/App Insights do AKS.
- * Em teste: silencioso, para a saída do vitest não virar sopa de log.
+ * Logger estruturado único do processo.
+ * Níveis por ambiente, redação de segredos e convenções de uso em
+ * `docs/03-logger.md`.
  */
-function resolveLevel(): pino.LevelWithSilent {
-  if (env.NODE_ENV === 'test') return 'silent';
-  return env.NODE_ENV === 'production' ? 'info' : 'debug';
+function definirNivel(): pino.LevelWithSilent {
+  if (ambiente.NODE_ENV === 'test') return 'silent';
+  return ambiente.NODE_ENV === 'production' ? 'info' : 'debug';
 }
 
-const baseOptions: pino.LoggerOptions = {
-  level: resolveLevel(),
-  /**
-   * Nada que passe por estas chaves é impresso em claro. Jobs que logam
-   * o payload de um serviço externo não vazam segredo por descuido.
-   */
+const opcoesBase: pino.LoggerOptions = {
+  level: definirNivel(),
   redact: {
     paths: ['password', '*.password', 'DB_PASSWORD'],
     censor: '[REDACTED]',
@@ -24,9 +20,9 @@ const baseOptions: pino.LoggerOptions = {
 };
 
 export const logger =
-  env.NODE_ENV === 'development'
+  ambiente.NODE_ENV === 'development'
     ? pino({
-        ...baseOptions,
+        ...opcoesBase,
         transport: { target: 'pino-pretty', options: { colorize: true, translateTime: 'SYS:standard' } },
       })
-    : pino(baseOptions);
+    : pino(opcoesBase);

@@ -1,6 +1,8 @@
 # 09 — Testes
 
-[← Health check](08-health-check.md) · [Índice](README.md) · [Próximo: Utilitários →](10-utilitarios.md)
+[← Health check](08-health-check.md) ·
+[Índice](README.md) ·
+[Próximo: Utilitários →](10-utilitarios.md)
 
 ## Bibliotecas
 
@@ -8,6 +10,7 @@
 | --- | --- | --- |
 | [`vitest`](https://vitest.dev/) | `^5.0` | Runner de testes, com suporte nativo a TypeScript |
 | [`@vitest/coverage-v8`](https://vitest.dev/guide/coverage.html) | `^5.0` | Relatório de cobertura usando o coverage do próprio V8 |
+| [`markdownlint-cli2`](https://github.com/DavidAnson/markdownlint-cli2#readme) | `^0.23` | Verifica a formatação dos arquivos `.md` |
 
 Por que vitest e não jest: ele executa TypeScript sem `ts-jest` nem configuração
 de transform, e a API de mock (`vi.mock`, `vi.hoisted`) resolve o caso central
@@ -31,6 +34,7 @@ particular:
 | [`test/setup.ts`](../test/setup.ts) | Variáveis de ambiente dos testes |
 | [`test/health.route.test.ts`](../test/health.route.test.ts) | Liveness e readiness, banco online e offline |
 | [`test/read-only.guard.test.ts`](../test/read-only.guard.test.ts) | Verbos de escrita recusados, superfície HTTP mínima |
+| [`.markdownlint-cli2.jsonc`](../.markdownlint-cli2.jsonc) | Régua de formatação da documentação |
 
 ## Como rodar
 
@@ -39,6 +43,7 @@ npm test             # roda uma vez (é o que o CI usa)
 npm run test:watch   # re-roda ao salvar
 npm run test:coverage
 npm run typecheck    # tipos de src/ E de test/
+npm run lint:md      # formatação da documentação
 ```
 
 Nenhum teste precisa de banco, rede ou porta livre.
@@ -58,17 +63,17 @@ do import** e chama `process.exit(1)` se faltar algo ([capítulo
 sem mensagem clara. `setupFiles` roda antes dos imports de cada arquivo de
 teste, então as variáveis já estão lá.
 
-É também por isso que `NODE_ENV: 'test'` existe no `envSchema`: o vitest define
+É também por isso que `NODE_ENV: 'test'` existe no `esquemaAmbiente`: o vitest define
 `NODE_ENV=test` sozinho, e sem esse valor no enum a validação reprovaria. O
 [logger](03-logger.md) usa o mesmo valor para ficar silencioso.
 
-### 2. `buildApp()` dispensa servidor de verdade
+### 2. `construirApp()` dispensa servidor de verdade
 
 ```ts
-const app = await buildApp();
+const app = await construirApp();
 await app.ready();
 
-const res = await app.inject({ method: 'GET', url: '/health' });
+const resposta = await app.inject({ method: 'GET', url: '/health' });
 ```
 
 `app.inject()` percorre todo o pipeline do Fastify — hooks, `preHandler`,
@@ -78,12 +83,12 @@ não competem por porta quando o CI executa vários jobs em paralelo.
 ### 3. O banco é mockado, e é isso que permite testar "offline"
 
 ```ts
-const mocks = vi.hoisted(() => ({ checkDbHealth: vi.fn() }));
+const mocks = vi.hoisted(() => ({ verificarSaudeDb: vi.fn() }));
 
 vi.mock('../src/db/mssql.js', () => ({
-  checkDbHealth: mocks.checkDbHealth,
-  getDbPool: vi.fn(),
-  closeDbPool: vi.fn(),
+  verificarSaudeDb: mocks.verificarSaudeDb,
+  obterPoolDb: vi.fn(),
+  fecharPoolDb: vi.fn(),
   sql: {},
 }));
 ```
@@ -100,15 +105,15 @@ Três detalhes que costumam tropeçar:
   roda, e o teste falha com "Cannot access before initialization".
   `vi.hoisted` é içado junto.
 - **A fábrica precisa exportar tudo** que qualquer módulo da árvore importa
-  daquele arquivo — não só o que o teste usa. Hoje só `checkDbHealth` é
-  chamado, mas `getDbPool`, `closeDbPool` e `sql` estão na fábrica porque são o
-  contrato público do módulo: quando um job novo importar `getDbPool`, o mock
-  já cobre.
+  daquele arquivo — não só o que o teste usa. Hoje só `verificarSaudeDb` é
+  chamado, mas `obterPoolDb`, `fecharPoolDb` e `sql` estão na fábrica porque
+  são o contrato público do módulo: quando um job novo importar `obterPoolDb`,
+  o mock já cobre.
 
-Com `checkDbHealth` mockado, "banco offline" vira uma linha:
+Com `verificarSaudeDb` mockado, "banco offline" vira uma linha:
 
 ```ts
-mocks.checkDbHealth.mockResolvedValue({ ok: false, latencyMs: 3000, error: '...' });
+mocks.verificarSaudeDb.mockResolvedValue({ ok: false, latenciaMs: 3000, erro: '...' });
 ```
 
 Determinístico, instantâneo e sem precisar derrubar nada de verdade.
@@ -141,16 +146,35 @@ Não há limiar mínimo configurado, de propósito: em um template, um limiar al
 transforma a primeira contribuição real em uma briga com a ferramenta. Ver
 upgrades.
 
+## Formatação da documentação
+
+`npm run lint:md` roda o `markdownlint-cli2` sobre todo `.md` do repositório.
+A régua está em [`.markdownlint-cli2.jsonc`](../.markdownlint-cli2.jsonc) e é o
+conjunto padrão do markdownlint, com duas exceções declaradas:
+
+| Regra | Ajuste | Por quê |
+| --- | --- | --- |
+| `MD013` (comprimento da linha) | 80 colunas, ignorando tabelas, blocos de código e títulos | Quebrar a linha de uma tabela muda a renderização; quebrar um bloco de código muda o comando |
+| `MD024` (títulos duplicados) | `siblings_only` | "Bibliotecas", "Responsabilidade" e "Upgrades futuros..." se repetem de propósito em cada capítulo |
+
+Tudo o mais fica no padrão — inclusive `MD031`, que exige linha em branco em
+volta de todo bloco de código, e `MD032`, que exige o mesmo para listas.
+
+O lint não entra no `Dockerfile` de propósito
+([capítulo 11](11-container-e-deploy.md)): documentação desformatada não é
+motivo para bloquear uma imagem de produção. No CI, ele roda junto com o
+`typecheck`.
+
 ## Upgrades futuros sem quebrar o que existe
 
 **Testar um serviço novo** — é o teste de maior retorno, porque serviço é onde
 mora a regra de negócio. Como serviços não dependem de Fastify, o teste é
 direto: importe a função, mocke o repositório, verifique o resultado. Foi para
-isso que a lógica saiu do `handler` ([capítulo 11](11-exemplo-job-e-servico.md)).
+isso que a lógica saiu do `handler` ([capítulo 12](12-exemplo-job-e-servico.md)).
 
 **Testar o `job-runner`** — hoje não coberto, e é o código mais crítico da
 estrutura. Mocke `lock.ts` e espie o `logger`, verificando que o campo `status`
-sai como `success` no caminho feliz, `failure` quando o handler lança e
+sai como `sucesso` no caminho feliz, `falha` quando o handler lança e
 `timeout` quando estoura o prazo; e que o handler nem é chamado quando o lock
 não é adquirido. Use `vi.useFakeTimers()` para não esperar o timeout de
 verdade.
@@ -168,12 +192,15 @@ não por um número redondo aspiracional: a função do limiar é impedir regres
 não forçar uma meta.
 
 **Rodar no CI** — o mínimo útil, em ordem:
+
 ```bash
 npm ci
 npm run typecheck
 npm test
 npm run build
+npm run lint:md
 ```
+
 `typecheck` antes de `test` porque o vitest transpila sem checar tipos: um erro
 de tipo passaria pelos testes e só apareceria no `build`.
 

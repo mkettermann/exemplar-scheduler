@@ -1,25 +1,20 @@
 /**
- * Contrato único que todo job — novo ou migrado do repositório legado —
- * deve implementar. Isso é o que torna o `job-runner` genérico: ele não
- * sabe nada sobre a regra de negócio de cada job, só sabe rodar este contrato.
+ * Contrato único que todo job implementa. É o que torna o job-runner genérico.
+ * Ver `docs/05-scheduler.md`.
  */
-export interface JobDefinition {
-  /** Identificador único e estável do job (usado no lock e nos logs). */
-  name: string;
+export interface DefinicaoJob {
+  /** Identificador estável: chave do lock e campo `job` de todos os logs. */
+  nome: string;
 
-  /**
-   * Expressão cron aceita pelo node-schedule (ex.: a cada 6 horas).
-   * Mantenha cron string sempre que possível — é o formato que o
-   * time já conhece do repositório legado.
-   */
-  schedule: string;
+  /** Expressão cron aceita pelo node-schedule. */
+  agendamento: string;
 
   /** Tempo máximo permitido para uma execução, em milissegundos. */
-  timeoutMs: number;
+  tempoLimiteMs: number;
 
-  /** Lógica de negócio do job. Deve ser idempotente sempre que possível. */
-  handler: () => Promise<void>;
+  /** Regra de negócio do job. Deve ser idempotente sempre que possível. */
+  executar: () => Promise<void>;
 }
 
 /** Desfecho de uma execução, usado no campo `status` do log estruturado. */
-export type JobStatus = 'success' | 'failure' | 'timeout';
+export type StatusJob = 'sucesso' | 'falha' | 'timeout';

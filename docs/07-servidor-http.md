@@ -1,6 +1,8 @@
 # 07 — Servidor HTTP
 
-[← Lock distribuído](06-lock-distribuido.md) · [Índice](README.md) · [Próximo: Health check →](08-health-check.md)
+[← Lock distribuído](06-lock-distribuido.md) ·
+[Índice](README.md) ·
+[Próximo: Health check →](08-health-check.md)
 
 ## Biblioteca
 
@@ -26,25 +28,25 @@ a schema de validação, compensa.
 | [`plugins/read-only.ts`](../src/server/plugins/read-only.ts) | Recusa verbos de escrita |
 | [`routes/health.route.ts`](../src/server/routes/health.route.ts) | Os dois handlers de health |
 
-### `buildApp()` separado de `listen()`
+### `construirApp()` separado de `listen()`
 
 ```ts
 // src/server/app.ts
-export async function buildApp(): Promise<FastifyInstance> { ... }
+export async function construirApp(): Promise<FastifyInstance> { ... }
 ```
 
 A instância é montada em um lugar e o `listen` acontece em
 [`server.ts`](../src/server.ts). Essa separação existe para os testes: eles
-chamam `buildApp()` e usam `app.inject()`, sem porta, sem processo extra, sem
-race de inicialização. Se `buildApp` e `listen` estivessem juntos, todo teste
+chamam `construirApp()` e usam `app.inject()`, sem porta, sem processo extra, sem
+race de inicialização. Se `construirApp` e `listen` estivessem juntos, todo teste
 de rota precisaria subir um servidor real.
 
 ### O mapa de rotas
 
 ```ts
-export async function registerRoutes(app: FastifyInstance): Promise<void> {
-  app.get('/health', getHealth);
-  app.get('/health/ready', getReadiness);
+export async function registrarRotas(app: FastifyInstance): Promise<void> {
+  app.get('/health', obterLiveness);
+  app.get('/health/ready', obterReadiness);
 }
 ```
 
@@ -85,7 +87,7 @@ requisição antes do handler, e o teste em
 [`read-only.guard.test.ts`](../test/read-only.guard.test.ts) falha no CI
 explicando o porquê.
 
-O hook é chamado **diretamente** em `buildApp`, não via `app.register()`.
+O hook é chamado **diretamente** em `construirApp`, não via `app.register()`.
 Motivo: `register` cria um escopo encapsulado no Fastify, e um hook adicionado
 lá dentro não vale para as rotas registradas fora dele. Direto no root, vale
 para tudo.
@@ -125,12 +127,12 @@ HTTP.
 `Number('abc')` daria `NaN` e seguiria adiante silenciosamente.
 
 ```ts
-const querySchema = z.object({
-  limit: z.coerce.number().int().positive().max(500).default(50),
+const esquemaConsulta = z.object({
+  limite: z.coerce.number().int().positive().max(500).default(50),
 });
 
-export const getAlgo = async (req: FastifyRequest) => {
-  const { limit } = querySchema.parse(req.query);
+export const obterAlgo = async (requisicao: FastifyRequest) => {
+  const { limite } = esquemaConsulta.parse(requisicao.query);
   // ...
 };
 ```

@@ -1,14 +1,18 @@
 import type { FastifyReply, FastifyRequest } from 'fastify';
-import { checkDbHealth } from '../../db/mssql.js';
-import { env } from '../../config/env.js';
+import { verificarSaudeDb } from '../../db/mssql.js';
+import { ambiente } from '../../config/env.js';
 import { logger } from '../../logger/logger.js';
 
-export interface LivenessResponse {
+/**
+ * Corpo das respostas de health. As chaves ficam em inglês por serem contrato
+ * externo, lido por probes e por monitoração. Ver `docs/08-health-check.md`.
+ */
+export interface RespostaLiveness {
   status: 'ok';
   uptimeSeconds: number;
 }
 
-export interface ReadinessResponse {
+export interface RespostaReadiness {
   status: 'ok' | 'degraded';
   uptimeSeconds: number;
   checks: {
@@ -17,45 +21,46 @@ export interface ReadinessResponse {
 }
 
 /**
- * Liveness — "o processo está vivo?".
- *
- * Sem autenticação de propósito: é isto que o liveness probe do AKS
- * chama constantemente. NÃO consulta o banco: se consultasse, uma queda
- * momentânea do MSSQL faria o Kubernetes matar e recriar o pod em loop,
- * transformando um problema de banco em um problema de disponibilidade.
+ * Liveness — "o processo está vivo?". Público e sem I/O: não consulta o banco,
+ * de propósito. Ver `docs/08-health-check.md`.
  */
-export const getHealth = async (_req: FastifyRequest, _reply: FastifyReply): Promise<LivenessResponse> => {
+export const obterLiveness = async (
+  _requisicao: FastifyRequest,
+  _resposta: FastifyReply,
+): Promise<RespostaLiveness> => {
   return { status: 'ok', uptimeSeconds: Math.floor(process.uptime()) };
 };
 
 /**
- * Readiness — "o processo consegue trabalhar?".
- *
- * Aqui sim as dependências externas são verificadas. Responde 200 quando
- * tudo está de pé e 503 quando alguma dependência está fora, para o AKS
- * tirar o pod do balanceamento sem reiniciá-lo.
- *
- * Em produção a mensagem de erro do banco fica só no log: ela costuma
- * conter host e nome de instância, que não precisam ir para a resposta.
+ * Readiness — "o processo consegue trabalhar?". Responde 200 com as
+ * dependências de pé e 503 quando alguma está fora; em produção o motivo da
+ * falha fica só no log. Ver `docs/08-health-check.md`.
  */
-export const getReadiness = async (_req: FastifyRequest, reply: FastifyReply): Promise<ReadinessResponse> => {
-  const database = await checkDbHealth();
-  const detalhe = database.error;
+export const obterReadiness = async (
+  _requisicao: FastifyRequest,
+  resposta: FastifyReply,
+): Promise<RespostaReadiness> => {
+  const banco = await verificarSaudeDb();
 
-  if (!database.ok) {
-    logger.error({ check: 'database', latencyMs: database.latencyMs, detalhe }, 'Readiness falhou');
+  if (!banco.ok) {
+    logger.error(
+      { check: 'database', latencyMs: banco.latenciaMs, motivo: banco.erro },
+      'Readiness falhou',
+    );
   }
 
-  reply.code(database.ok ? 200 : 503);
+  resposta.code(banco.ok ? 200 : 503);
 
   return {
-    status: database.ok ? 'ok' : 'degraded',
+    status: banco.ok ? 'ok' : 'degraded',
     uptimeSeconds: Math.floor(process.uptime()),
     checks: {
       database: {
-        ok: database.ok,
-        latencyMs: database.latencyMs,
-        ...(env.NODE_ENV !== 'production' && detalhe !== undefined ? { error: detalhe } : {}),
+        ok: banco.ok,
+        latencyMs: banco.latenciaMs,
+        ...(ambiente.NODE_ENV !== 'production' && banco.erro !== undefined
+          ? { error: banco.erro }
+          : {}),
       },
     },
   };

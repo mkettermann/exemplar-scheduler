@@ -1,12 +1,6 @@
 /**
- * Ambiente mínimo para os testes.
- *
- * `src/config/env.ts` roda a validação no momento do import e chama
- * `process.exit(1)` se algo faltar — por isso estes valores precisam existir
- * antes de qualquer `import` de dentro de `src/`. É o que o `setupFiles`
- * do vitest garante.
- *
- * Nenhum destes valores conecta em nada: os testes mockam `src/db/mssql`.
+ * Ambiente mínimo dos testes, preenchido antes de qualquer import de `src/`.
+ * Ver `docs/09-testes.md` para o porquê de isto rodar via `setupFiles`.
  */
 process.env.NODE_ENV = 'test';
 process.env.PORT = '3000';

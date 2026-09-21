@@ -1,6 +1,7 @@
 # 01 — TypeScript e build
 
-[← Índice](README.md) · [Próximo: Configuração de ambiente →](02-configuracao-de-ambiente.md)
+[← Índice](README.md) ·
+[Próximo: Configuração de ambiente →](02-configuracao-de-ambiente.md)
 
 ## Bibliotecas
 
@@ -94,6 +95,7 @@ formato dos objetos. Duas flags costumam surpreender quem vem de JS puro:
 - **`exactOptionalPropertyTypes`** — `{ error?: string }` aceita a chave ausente
   ou uma `string`, mas **não** `error: undefined`. Por isso o código monta
   objetos opcionais com spread condicional:
+
   ```ts
   ...(detalhe !== undefined ? { error: detalhe } : {})
   ```

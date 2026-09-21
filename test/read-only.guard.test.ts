@@ -2,29 +2,29 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 
 const mocks = vi.hoisted(() => ({
-  checkDbHealth: vi.fn(),
+  verificarSaudeDb: vi.fn(),
 }));
 
 vi.mock('../src/db/mssql.js', () => ({
-  checkDbHealth: mocks.checkDbHealth,
-  getDbPool: vi.fn(),
-  closeDbPool: vi.fn(),
+  verificarSaudeDb: mocks.verificarSaudeDb,
+  obterPoolDb: vi.fn(),
+  fecharPoolDb: vi.fn(),
   sql: {},
 }));
 
-import { buildApp } from '../src/server/app.js';
+import { construirApp } from '../src/server/app.js';
 
 /**
- * Regra da arquitetura: este serviço nunca recebe conteúdo de fora, e o
- * health é a sua única superfície HTTP. Estes testes são a trava
- * automatizada dessas duas regras.
+ * Trava automatizada de duas regras de arquitetura: o serviço nunca recebe
+ * conteúdo de fora e o health é a sua única superfície HTTP.
+ * Ver `docs/07-servidor-http.md` e `docs/09-testes.md`.
  */
 describe('serviço somente leitura', () => {
   let app: FastifyInstance;
 
   beforeEach(async () => {
-    mocks.checkDbHealth.mockResolvedValue({ ok: true, latencyMs: 1 });
-    app = await buildApp();
+    mocks.verificarSaudeDb.mockResolvedValue({ ok: true, latenciaMs: 1 });
+    app = await construirApp();
     await app.ready();
   });
 
@@ -32,23 +32,27 @@ describe('serviço somente leitura', () => {
     await app.close();
   });
 
-  it.each(['POST', 'PUT', 'PATCH', 'DELETE'] as const)('recusa %s com 405', async (method) => {
-    const res = await app.inject({ method, url: '/health', payload: { qualquer: 'coisa' } });
+  it.each(['POST', 'PUT', 'PATCH', 'DELETE'] as const)('recusa %s com 405', async (metodo) => {
+    const resposta = await app.inject({
+      method: metodo,
+      url: '/health',
+      payload: { qualquer: 'coisa' },
+    });
 
-    expect(res.statusCode).toBe(405);
-    expect(res.json()).toMatchObject({ error: 'method_not_allowed' });
+    expect(resposta.statusCode).toBe(405);
+    expect(resposta.json()).toMatchObject({ error: 'method_not_allowed' });
   });
 
   it('recusa escrita também em caminho inexistente, antes do roteamento', async () => {
-    const res = await app.inject({ method: 'POST', url: '/qualquer/coisa' });
+    const resposta = await app.inject({ method: 'POST', url: '/qualquer/coisa' });
 
-    expect(res.statusCode).toBe(405);
+    expect(resposta.statusCode).toBe(405);
   });
 
   it('GET continua funcionando normalmente', async () => {
-    const res = await app.inject({ method: 'GET', url: '/health' });
+    const resposta = await app.inject({ method: 'GET', url: '/health' });
 
-    expect(res.statusCode).toBe(200);
+    expect(resposta.statusCode).toBe(200);
   });
 });
 
@@ -56,8 +60,8 @@ describe('superfície HTTP', () => {
   let app: FastifyInstance;
 
   beforeEach(async () => {
-    mocks.checkDbHealth.mockResolvedValue({ ok: true, latencyMs: 1 });
-    app = await buildApp();
+    mocks.verificarSaudeDb.mockResolvedValue({ ok: true, latenciaMs: 1 });
+    app = await construirApp();
     await app.ready();
   });
 
@@ -71,8 +75,8 @@ describe('superfície HTTP', () => {
   });
 
   it('não expõe nenhuma rota administrativa', async () => {
-    const res = await app.inject({ method: 'GET', url: '/admin/executions' });
+    const resposta = await app.inject({ method: 'GET', url: '/admin/executions' });
 
-    expect(res.statusCode).toBe(404);
+    expect(resposta.statusCode).toBe(404);
   });
 });

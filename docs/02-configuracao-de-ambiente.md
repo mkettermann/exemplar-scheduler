@@ -1,12 +1,14 @@
 # 02 — Configuração de ambiente
 
-[← TypeScript e build](01-typescript-e-build.md) · [Índice](README.md) · [Próximo: Logger →](03-logger.md)
+[← TypeScript e build](01-typescript-e-build.md) ·
+[Índice](README.md) ·
+[Próximo: Logger →](03-logger.md)
 
 ## Biblioteca
 
 | Pacote | Versão | Papel |
 | --- | --- | --- |
-| [`zod`](https://zod.dev/) | `^3.23` | Valida e converte as variáveis de ambiente, e deriva o tipo `Env` |
+| [`zod`](https://zod.dev/) | `^3.23` | Valida e converte as variáveis de ambiente, e deriva o tipo `Ambiente` |
 
 Nenhuma biblioteca de `.env` é usada. O Node ≥ 20.6 carrega arquivos `.env`
 nativamente via `--env-file`, e o script `dev` já usa
@@ -20,39 +22,39 @@ se a configuração estiver errada.
 
 ```ts
 // src/config/env.ts
-export const env = loadEnv();
+export const ambiente = carregarAmbiente();
 ```
 
-`loadEnv()` roda no momento do `import`. Se algo não bater com o schema, o
-processo imprime quais campos falharam e chama `process.exit(1)`. Isso é
-intencional: um serviço de jobs mal configurado que sobe "quase certo" só
-descobre o problema quando o cron dispara, possivelmente de madrugada,
+`carregarAmbiente()` roda no momento do `import`. Se algo não bater com o
+schema, o processo imprime quais campos falharam e chama `process.exit(1)`.
+Isso é intencional: um serviço de jobs mal configurado que sobe "quase certo"
+só descobre o problema quando o cron dispara, possivelmente de madrugada,
 possivelmente com efeito colateral já aplicado.
 
 ## Como funciona
 
 ```ts
-const envSchema = z.object({
+const esquemaAmbiente = z.object({
   NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
   DB_SERVER: z.string().min(1),
   HEALTH_DB_TIMEOUT_MS: z.coerce.number().int().positive().default(3000),
 });
 
-export type Env = z.infer<typeof envSchema>;
+export type Ambiente = z.infer<typeof esquemaAmbiente>;
 ```
 
 Três coisas acontecem de uma vez:
 
 1. **Validação** — `DB_SERVER` ausente derruba o boot com mensagem nominal.
 2. **Coerção** — variáveis de ambiente são sempre string. `z.coerce.number()`
-   entrega `PORT` já como `number`, então `app.listen({ port: env.PORT })`
+   entrega `PORT` já como `number`, então `app.listen({ port: ambiente.PORT })`
    não precisa de `Number(...)` espalhado pelo código.
-3. **Tipo** — `z.infer` deriva `Env` do schema. Não existe uma interface
+3. **Tipo** — `z.infer` deriva `Ambiente` do schema. Não existe uma interface
    escrita à mão para sair de sincronia com a validação.
 
-O resto do sistema só faz `import { env } from '../config/env.js'` e usa campos
-tipados. Ninguém lê `process.env` diretamente.
+O resto do sistema só faz `import { ambiente } from '../config/env.js'` e usa
+campos tipados. Ninguém lê `process.env` diretamente.
 
 ## Variáveis atuais
 
@@ -77,7 +79,7 @@ tipados. Ninguém lê `process.env` diretamente.
 
 **Adicionar uma variável nova** — o caminho de menor risco:
 
-1. Adicione o campo no `envSchema`, **com `.default(...)`** se o serviço puder
+1. Adicione o campo no `esquemaAmbiente`, **com `.default(...)`** se o serviço puder
    funcionar sem ele.
 2. Adicione a linha no [`.env.example`](../.env.example), comentada se for opcional.
 3. Registre na tabela acima.
@@ -102,16 +104,17 @@ DB_ENCRYPT: booleano,
 Aplique a mesma ideia em toda flag booleana futura.
 
 **Migrar para zod 4** — a API de erros mudou. O ponto de impacto aqui é único:
-`parsed.error.flatten().fieldErrors` em `loadEnv()`. Em zod 4 o equivalente é
-`z.treeifyError(parsed.error)`. Como todo o uso de zod está concentrado em
-`env.ts`, a migração é pequena — mas rode `npm run typecheck` antes de considerar pronta.
+`resultado.error.flatten().fieldErrors` em `carregarAmbiente()`. Em zod 4 o
+equivalente é `z.treeifyError(resultado.error)`. Como todo o uso de zod está
+concentrado em `env.ts`, a migração é pequena — mas rode `npm run typecheck`
+antes de considerar pronta.
 
-**Trocar por variáveis vindas do Azure Key Vault** — mantenha o `envSchema`
+**Trocar por variáveis vindas do Azure Key Vault** — mantenha o `esquemaAmbiente`
 como está e resolva os segredos **antes** de importar qualquer coisa de `src/`,
-escrevendo-os em `process.env`. A alternativa (tornar `env` assíncrono)
-contaminaria todos os módulos que hoje fazem `import { env }` no topo, e é o
-tipo de mudança que quebra o sistema inteiro de uma vez.
+escrevendo-os em `process.env`. A alternativa (tornar `ambiente` assíncrono)
+contaminaria todos os módulos que hoje fazem `import { ambiente }` no topo, e
+é o tipo de mudança que quebra o sistema inteiro de uma vez.
 
-**Nunca** logue o objeto `env` inteiro. O [logger](03-logger.md) já censura
+**Nunca** logue o objeto `ambiente` inteiro. O [logger](03-logger.md) já censura
 `DB_PASSWORD`, mas confiar no redact é a segunda linha de defesa, não a
 primeira.

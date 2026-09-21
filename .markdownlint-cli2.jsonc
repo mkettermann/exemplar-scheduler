@@ -1,0 +1,20 @@
+{
+  // Régua de formatação da documentação. Rode com `npm run lint:md`.
+  "config": {
+    "default": true,
+    // Tabelas, blocos de código e títulos não são quebrados em 80 colunas:
+    // quebrar uma linha de tabela muda a renderização, e quebrar um bloco de
+    // código muda o comando. A prosa continua limitada.
+    "MD013": {
+      "line_length": 80,
+      "tables": false,
+      "code_blocks": false,
+      "headings": false
+    },
+    // Títulos iguais em capítulos diferentes são intencionais
+    // ("Bibliotecas", "Responsabilidade", "Upgrades futuros...").
+    "MD024": { "siblings_only": true }
+  },
+  "globs": ["**/*.md"],
+  "ignores": ["node_modules", "coverage", "dist"]
+}

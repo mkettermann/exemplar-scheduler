@@ -1,16 +1,20 @@
 import sql from 'mssql';
-import { env } from '../config/env.js';
+import { ambiente } from '../config/env.js';
 import { logger } from '../logger/logger.js';
 
-const config: sql.config = {
-  server: env.DB_SERVER,
-  port: env.DB_PORT,
-  database: env.DB_NAME,
-  user: env.DB_USER,
-  password: env.DB_PASSWORD,
+/**
+ * Dono exclusivo da conexão com o MSSQL. Nenhum outro arquivo instancia
+ * `sql.ConnectionPool`. Ver `docs/04-banco-de-dados.md`.
+ */
+const configuracao: sql.config = {
+  server: ambiente.DB_SERVER,
+  port: ambiente.DB_PORT,
+  database: ambiente.DB_NAME,
+  user: ambiente.DB_USER,
+  password: ambiente.DB_PASSWORD,
   options: {
-    encrypt: env.DB_ENCRYPT,
-    trustServerCertificate: env.NODE_ENV !== 'production',
+    encrypt: ambiente.DB_ENCRYPT,
+    trustServerCertificate: ambiente.NODE_ENV !== 'production',
   },
   pool: {
     max: 10,
@@ -20,84 +24,81 @@ const config: sql.config = {
 };
 
 let pool: sql.ConnectionPool | undefined;
-let connecting: Promise<sql.ConnectionPool> | undefined;
+let conectando: Promise<sql.ConnectionPool> | undefined;
 
 /**
- * Retorna o pool de conexão único do processo.
- * Nunca crie `new sql.ConnectionPool()` fora daqui — um único pool
- * compartilhado é suficiente e evita esgotar conexões no MSSQL.
- *
- * A promise de conexão é memoizada: se dois jobs dispararem no mesmo
- * segundo durante o boot, os dois esperam a MESMA conexão em vez de
- * abrirem dois pools concorrentes.
+ * Pool único do processo. A promise de conexão é memoizada para que dois jobs
+ * disparados durante o boot esperem a mesma conexão — ver
+ * `docs/04-banco-de-dados.md`.
  */
-export async function getDbPool(): Promise<sql.ConnectionPool> {
+export async function obterPoolDb(): Promise<sql.ConnectionPool> {
   if (pool) {
     return pool;
   }
 
-  if (!connecting) {
-    connecting = new sql.ConnectionPool(config)
+  if (!conectando) {
+    conectando = new sql.ConnectionPool(configuracao)
       .connect()
-      .then((connected) => {
-        connected.on('error', (err: Error) => {
-          logger.error({ err }, 'Erro no pool de conexão MSSQL');
+      .then((conectado) => {
+        conectado.on('error', (erro: Error) => {
+          logger.error({ err: erro }, 'Erro no pool de conexão MSSQL');
         });
 
-        pool = connected;
+        pool = conectado;
         logger.info('Conectado ao MSSQL');
-        return connected;
+        return conectado;
       })
       .finally(() => {
-        // Libera a memoização para que uma falha possa ser tentada de novo.
-        connecting = undefined;
+        conectando = undefined;
       });
   }
 
-  return connecting;
+  return conectando;
 }
 
-export async function closeDbPool(): Promise<void> {
+export async function fecharPoolDb(): Promise<void> {
   if (pool) {
     await pool.close();
     pool = undefined;
   }
 }
 
-export interface DbHealth {
+export interface SaudeBanco {
   ok: boolean;
-  latencyMs: number;
-  error?: string;
+  latenciaMs: number;
+  erro?: string;
 }
 
 /**
- * Ping leve usado pelo readiness (`GET /health/ready`).
- *
- * Nunca lança: o endpoint de saúde precisa responder mesmo — aliás,
- * principalmente — quando o banco está fora. O erro vira parte do corpo
- * da resposta, não uma exceção que derruba a rota.
+ * Ping leve usado pelo readiness. Nunca lança: o erro vira corpo de resposta,
+ * não exceção. Ver `docs/04-banco-de-dados.md`.
  */
-export async function checkDbHealth(timeoutMs = env.HEALTH_DB_TIMEOUT_MS): Promise<DbHealth> {
-  const startedAt = Date.now();
-  let timer: NodeJS.Timeout | undefined;
+export async function verificarSaudeDb(
+  tempoLimiteMs = ambiente.HEALTH_DB_TIMEOUT_MS,
+): Promise<SaudeBanco> {
+  const iniciadoEm = Date.now();
+  let temporizador: NodeJS.Timeout | undefined;
 
   try {
-    const ping = getDbPool().then((connected) => connected.request().query('SELECT 1 AS ok'));
+    const ping = obterPoolDb().then((conectado) => conectado.request().query('SELECT 1 AS ok'));
 
-    const timeout = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => reject(new Error(`Timeout de ${timeoutMs}ms ao consultar o banco`)), timeoutMs);
+    const expiracao = new Promise<never>((_, rejeitar) => {
+      temporizador = setTimeout(
+        () => rejeitar(new Error(`Timeout de ${tempoLimiteMs}ms ao consultar o banco`)),
+        tempoLimiteMs,
+      );
     });
 
-    await Promise.race([ping, timeout]);
-    return { ok: true, latencyMs: Date.now() - startedAt };
-  } catch (err) {
+    await Promise.race([ping, expiracao]);
+    return { ok: true, latenciaMs: Date.now() - iniciadoEm };
+  } catch (erro) {
     return {
       ok: false,
-      latencyMs: Date.now() - startedAt,
-      error: err instanceof Error ? err.message : String(err),
+      latenciaMs: Date.now() - iniciadoEm,
+      erro: erro instanceof Error ? erro.message : String(erro),
     };
   } finally {
-    clearTimeout(timer);
+    clearTimeout(temporizador);
   }
 }
 

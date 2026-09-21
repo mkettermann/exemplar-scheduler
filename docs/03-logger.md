@@ -1,6 +1,8 @@
 # 03 — Logger
 
-[← Configuração de ambiente](02-configuracao-de-ambiente.md) · [Índice](README.md) · [Próximo: Banco de dados →](04-banco-de-dados.md)
+[← Configuração de ambiente](02-configuracao-de-ambiente.md) ·
+[Índice](README.md) ·
+[Próximo: Banco de dados →](04-banco-de-dados.md)
 
 ## Bibliotecas
 
@@ -16,17 +18,17 @@ Application Insights consiga indexar sem parser customizado.
 
 A escolha do pino sobre `console.log` tem uma razão concreta para este serviço:
 log estruturado permite **filtrar por campo**. Com
-`logger.info({ job: 'sync-x', executionId: 42 }, 'Job concluído')`, procurar
-todas as execuções do `sync-x` que falharam é uma query, não um grep em texto
-livre.
+`logger.info({ job: 'sync-x', status: 'falha', duracaoMs: 812 }, 'Job falhou')`,
+procurar todas as execuções do `sync-x` que falharam é uma query, não um grep
+em texto livre.
 
 ## Como funciona
 
 ```ts
 // src/logger/logger.ts
-export const logger = env.NODE_ENV === 'development'
-  ? pino({ ...baseOptions, transport: { target: 'pino-pretty' } })
-  : pino(baseOptions);
+export const logger = ambiente.NODE_ENV === 'development'
+  ? pino({ ...opcoesBase, transport: { target: 'pino-pretty' } })
+  : pino(opcoesBase);
 ```
 
 | Ambiente | Nível | Formato |
@@ -55,7 +57,7 @@ o redact só alcança as chaves listadas, e só nos níveis que o curinga cobre.
 
 ### O Fastify não usa este logger
 
-[`buildApp`](../src/server/app.ts) passa `logger: false` ao Fastify. O
+[`construirApp`](../src/server/app.ts) passa `logger: false` ao Fastify. O
 framework tem pino embutido, mas ligá-lo criaria uma segunda instância com
 configuração própria — dois formatos de log no mesmo serviço. Log de
 requisição HTTP, se necessário, entra como hook usando este `logger`.
@@ -64,10 +66,10 @@ requisição HTTP, se necessário, entra como hook usando este `logger`.
 
 ```ts
 // Certo: dado estruturado no primeiro argumento, mensagem fixa no segundo
-logger.info({ job: job.name, executionId }, 'Job iniciado');
+logger.info({ job: job.nome, status: 'sucesso', duracaoMs }, 'Job concluído');
 
 // Evite: dado interpolado na mensagem — não dá para filtrar depois
-logger.info(`Job ${job.name} iniciado com id ${executionId}`);
+logger.info(`Job ${job.nome} concluído em ${duracaoMs}ms`);
 ```
 
 | Nível | Quando usar |
@@ -86,12 +88,12 @@ Como só o modo `development` usa transport, um problema aqui nunca chega em
 produção — mas rode `npm run dev` depois de subir.
 
 **Adicionar log de requisição HTTP** — não ligue o logger do Fastify. Adicione
-um hook em [`buildApp`](../src/server/app.ts):
+um hook em [`construirApp`](../src/server/app.ts):
 
 ```ts
-app.addHook('onResponse', async (req, reply) => {
+app.addHook('onResponse', async (requisicao, resposta) => {
   logger.info(
-    { method: req.method, url: req.url, status: reply.statusCode, ms: reply.elapsedTime },
+    { metodo: requisicao.method, url: requisicao.url, status: resposta.statusCode },
     'requisicao',
   );
 });
@@ -112,8 +114,9 @@ substituto precisa aceitar a assinatura `(objeto, mensagem)` nos cinco níveis
 usados. Se ele aceitar só `(mensagem)`, escreva um adaptador dentro de
 `src/logger/logger.ts` em vez de reescrever as chamadas espalhadas.
 
-**Correlacionar logs de uma mesma execução** — hoje `executionId` já cumpre
-esse papel nos jobs. Se quiser algo mais amplo, use
-`logger.child({ executionId })` dentro do `job-runner` e passe o filho ao
-handler. Isso exige mudar a assinatura de `JobDefinition.handler`, que é um
-contrato público — leia o [capítulo 05](05-scheduler.md) antes.
+**Correlacionar logs de uma mesma execução** — hoje o campo `job` agrupa todas
+as linhas de um job, mas não separa uma execução da seguinte. Para isso, gere
+um identificador no `job-runner` e crie um `logger.child({ execucaoId })`,
+passando o filho ao handler. Isso exige mudar a assinatura de
+`DefinicaoJob.executar`, que é um contrato público — leia o
+[capítulo 05](05-scheduler.md) antes.
