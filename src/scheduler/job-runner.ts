@@ -1,7 +1,6 @@
 import schedule from 'node-schedule';
-import type { JobDefinition } from './job.types';
+import type { JobDefinition, JobStatus } from './job.types';
 import { withJobLock } from './lock';
-import { logJobStart, logJobFinish } from '../repository/execution-log.repository';
 import { logger } from '../logger/logger';
 
 async function runWithTimeout(fn: () => Promise<void>, timeoutMs: number): Promise<void> {
@@ -19,8 +18,8 @@ async function runWithTimeout(fn: () => Promise<void>, timeoutMs: number): Promi
 }
 
 /**
- * Executa um job aplicando, nesta ordem: lock distribuído -> log de início
- * -> handler com timeout -> log de fim (sucesso/falha/timeout).
+ * Executa um job aplicando, nesta ordem: lock distribuído -> handler com
+ * timeout -> log estruturado do desfecho (sucesso/falha/timeout) e da duração.
  *
  * Nenhum job individual precisa se preocupar com nada disso — só implementa
  * `handler`. Isso é o que mantém a migração dos jobs legados simples: a
@@ -28,20 +27,26 @@ async function runWithTimeout(fn: () => Promise<void>, timeoutMs: number): Promi
  */
 async function executeJob(job: JobDefinition): Promise<void> {
   const { ran } = await withJobLock(job.name, async () => {
-    const executionId = await logJobStart(job.name);
-    logger.info({ job: job.name, executionId }, 'Job iniciado');
+    const iniciadoEm = Date.now();
+    logger.info({ job: job.name }, 'Job iniciado');
 
     try {
       await runWithTimeout(job.handler, job.timeoutMs);
-      await logJobFinish(executionId, 'success');
-      logger.info({ job: job.name, executionId }, 'Job concluído com sucesso');
+
+      logger.info(
+        { job: job.name, status: 'success' satisfies JobStatus, durationMs: Date.now() - iniciadoEm },
+        'Job concluído com sucesso',
+      );
     } catch (err) {
       const isTimeout = err instanceof Error && err.message.startsWith('Timeout');
-      const status = isTimeout ? 'timeout' : 'failure';
-      const errorMessage = err instanceof Error ? err.message : String(err);
+      const status: JobStatus = isTimeout ? 'timeout' : 'failure';
 
-      await logJobFinish(executionId, status, errorMessage);
-      logger.error({ job: job.name, executionId, err }, `Job falhou (${status})`);
+      // O erro não é relançado: um job que falha não derruba o processo
+      // nem impede a próxima execução agendada.
+      logger.error(
+        { job: job.name, status, durationMs: Date.now() - iniciadoEm, err },
+        `Job falhou (${status})`,
+      );
     }
   });
 
@@ -52,7 +57,7 @@ async function executeJob(job: JobDefinition): Promise<void> {
 
 /**
  * Registra um job no scheduler do processo. Chamar uma vez por job,
- * na inicialização do serviço (ver `src/index.ts`).
+ * na inicialização do serviço (ver `src/server.ts`).
  */
 export function registerJob(job: JobDefinition): schedule.Job {
   logger.info({ job: job.name, cron: job.schedule }, 'Job registrado');

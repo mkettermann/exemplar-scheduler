@@ -1,14 +1,15 @@
 import type { FastifyInstance } from 'fastify';
-import { getHealth } from './routes/health.route';
-import { getExecutions } from './routes/executions.route';
-import { requireAdminKey } from './middlewares/require-admin-keu';
+import { getHealth, getReadiness } from './routes/health.route';
 
 /**
  * Mapa explícito de método + rota + handler. Todo endpoint do serviço
  * aparece aqui — não precisa entrar em cada arquivo de rota para saber
  * o que existe, só para saber COMO cada um funciona por dentro.
+ *
+ * Regra da casa: só GET, e só observabilidade. O health é a única
+ * superfície HTTP deste serviço.
  */
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
-	app.get('/health', getHealth);
-	app.get('/admin/executions', { preHandler: requireAdminKey }, getExecutions);
+  app.get('/health', getHealth);
+  app.get('/health/ready', getReadiness);
 }

@@ -1,0 +1,12 @@
+{
+  /* Checagem de tipos dos testes. O build de produção (tsconfig.json) ignora
+     `test/` de propósito, para nada de teste acabar dentro de `dist/`.
+     Aqui `noEmit` é true, então `rootDir` pode abrir para a raiz do repo. */
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": ".",
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}

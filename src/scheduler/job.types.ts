@@ -4,7 +4,7 @@
  * sabe nada sobre a regra de negócio de cada job, só sabe rodar este contrato.
  */
 export interface JobDefinition {
-  /** Identificador único e estável do job (usado no lock e nos logs de execução). */
+  /** Identificador único e estável do job (usado no lock e nos logs). */
   name: string;
 
   /**
@@ -21,12 +21,5 @@ export interface JobDefinition {
   handler: () => Promise<void>;
 }
 
+/** Desfecho de uma execução, usado no campo `status` do log estruturado. */
 export type JobStatus = 'success' | 'failure' | 'timeout';
-
-export interface JobExecutionRecord {
-  jobName: string;
-  startedAt: Date;
-  finishedAt: Date | null;
-  status: JobStatus | 'running';
-  errorMessage: string | null;
-}

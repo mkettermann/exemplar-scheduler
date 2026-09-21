@@ -1,10 +1,41 @@
 # Serviço de Agendamentos (Scheduler)
 
-Serviço isolado de jobs agendados. Roda com **réplica única fixa** (sem HPA) — o objetivo é justamente não escalar, para os jobs não rodarem em duplicidade.
+Estrutura base para um serviço isolado de jobs agendados. Roda com **réplica
+única fixa** (sem HPA) — o objetivo é justamente não escalar, para os jobs não
+rodarem em duplicidade.
 
 ## Por que existe
 
-Separado, permite escalar a API horizontalmente sem também multiplicar os jobs. Este serviço separa essa responsabilidade.
+Separado, permite escalar a API horizontalmente sem também multiplicar os jobs.
+Este serviço isola essa responsabilidade: um lugar só para inserir job agendado,
+com lock distribuído, timeout, log estruturado e health check já resolvidos.
+
+A superfície HTTP é mínima e somente leitura — o **health é o único endpoint**,
+e existe porque o Kubernetes precisa de um alvo para as probes. Nenhum job é
+disparado por requisição: o cron é a única origem de execução, e o que um job
+consome vem de fontes declaradas no próprio código.
+
+## 📚 Documentação
+
+A explicação de **cada peça instalada** — biblioteca escolhida, responsabilidade,
+como funciona e como evoluir sem quebrar o que existe — está em
+**[`docs/`](docs/README.md)**, que também traz a
+[tabela consolidada de bibliotecas](docs/README.md#bibliotecas-instaladas) com
+link para a documentação oficial de cada uma.
+
+| # | Capítulo | Cobre |
+| --- | --- | --- |
+| 01 | [TypeScript e build](docs/01-typescript-e-build.md) | `typescript`, `tsx`, `tsconfig` |
+| 02 | [Configuração de ambiente](docs/02-configuracao-de-ambiente.md) | `zod`, `.env` |
+| 03 | [Logger](docs/03-logger.md) | `pino`, `pino-pretty` |
+| 04 | [Banco de dados](docs/04-banco-de-dados.md) | `mssql`, pool |
+| 05 | [Scheduler](docs/05-scheduler.md) | `node-schedule`, contrato de job |
+| 06 | [Lock distribuído](docs/06-lock-distribuido.md) | `sp_getapplock` |
+| 07 | [Servidor HTTP](docs/07-servidor-http.md) | `fastify`, rotas, guarda somente-leitura |
+| 08 | [Health check](docs/08-health-check.md) | liveness, readiness, probes |
+| 09 | [Testes](docs/09-testes.md) | `vitest` |
+| 10 | [Utilitários](docs/10-utilitarios.md) | `src/util` |
+| 11 | [Exemplo de job e serviço](docs/11-exemplo-job-e-servico.md) | **descartável** |
 
 ## Setup local
 
@@ -16,48 +47,74 @@ npm run dev
 
 ## Scripts
 
-- `npm run dev` — roda com watch (tsx), sem precisar buildar.
-- `npm run build` — compila `src/` para `dist/`.
-- `npm start` — roda o build de produção (`dist/index.js`).
-- `npm run typecheck` — só checa tipos, sem gerar arquivos.
+| Script | O que faz |
+| --- | --- |
+| `npm run dev` | Roda com watch (tsx) e carrega o `.env`, sem precisar buildar |
+| `npm run build` | Compila `src/` para `dist/` |
+| `npm start` | Roda o build de produção (`dist/server.js`) |
+| `npm run typecheck` | Checa tipos de `src/` **e** de `test/`, sem gerar arquivos |
+| `npm test` | Roda a suíte de testes uma vez |
+| `npm run test:watch` | Re-roda os testes ao salvar |
+| `npm run test:coverage` | Relatório de cobertura |
+
+## Endpoints
+
+Somente leitura. Verbos de escrita são recusados com `405` por uma guarda
+global, mesmo em caminhos que não existem.
+
+| Método | Rota | Auth | Resposta |
+| --- | --- | --- | --- |
+| `GET` | `/health` | pública | `200` enquanto o processo está vivo |
+| `GET` | `/health/ready` | pública | `200` ou `503` conforme as dependências |
 
 ## Estrutura
 
 ```text
 src/
-  server.ts              # entrypoint único: conecta DB, registra jobs, sobe Fastify (https://fastify.dev/docs/latest/)
-  config/env.ts          # variáveis de ambiente validadas (zod) (https://zod.dev/)
-  db/mssql.ts            # pool de conexão MSSQL compartilhado
-  jobs/                  # um arquivo por job (ver example.job.ts como modelo)
-    jobs.ts              # lista central de jobs ativos — server.ts só importa isto
-  logger/logger.ts       # logger estruturado (pino) (https://getpino.io/#/docs/api)
-  repository/
-    execution-log.repository.ts  # histórico de execuções (tabela job_executions)
+  server.ts              # entrypoint: DB -> jobs -> HTTP -> shutdown ordenado
+  config/env.ts          # variáveis de ambiente validadas (zod)
+  logger/logger.ts       # logger estruturado (pino)
+  db/mssql.ts            # pool MSSQL compartilhado + checkDbHealth
   scheduler/
-    job.types.ts         # contrato que todo job deve seguir
-    job-runner.ts        # lock + log + timeout, genérico para qualquer job
+    job.types.ts         # contrato que todo job segue
+    job-runner.ts        # lock + timeout + log, genérico para qualquer job
     lock.ts              # trava via sp_getapplock (evita dupla execução)
-  server/routes.ts       # registro central de todas as rotas
-  server/routes/
-    health.route.ts      # GET /health (sem auth — usado pelas probes do AKS)
-    executions.route.ts  # GET /admin/executions (protegido por ADMIN_API_KEY)
+  jobs/
+    jobs.ts              # lista central de jobs ativos — server.ts só importa isto
+    example.job.ts       # MODELO — apagar ao implementar
+  services/
+    example.service.ts   # MODELO — apagar ao implementar
+  server/
+    app.ts               # monta o Fastify sem subir (usado pelos testes)
+    routes.ts            # registro central de todas as rotas
+    plugins/read-only.ts # recusa verbos de escrita
+    routes/
+      health.route.ts    # GET /health e GET /health/ready
+  util/util.ts
+test/
+  setup.ts
+  health.route.test.ts
+  read-only.guard.test.ts
 ```
 
-## Adicionando um job migrado do repositório legado
+## Adicionando um job
 
-1. Copie `src/scheduler/jobs/example.job.ts` com o nome do job real.
-2. Cole a lógica de negócio dentro de `handler`, tipando o que antes não tinha tipo.
-3. Ajuste `schedule` (cron) e `timeoutMs` (jobs pesados precisam de timeout maior).
-4. Rode em modo dry-run (só logar, sem efeito real) por um tempo antes de desativar
-   o job correspondente no repositório legado.
-5. Adicione o job ao array `jobs` em `src/index.ts`.
+1. Crie o serviço em `src/services/` com a regra de negócio.
+2. Crie o job em `src/jobs/` — o `handler` só chama o serviço.
+3. Adicione ao array em `src/jobs/jobs.ts`.
+
+`src/server.ts` não precisa ser tocado. Passo a passo completo, incluindo
+migração de job legado: [capítulo 11](docs/11-exemplo-job-e-servico.md).
 
 ## Banco de dados
 
-Antes do primeiro deploy, criar a tabela de controle de execuções (DDL de referência
-comentado em `src/repository/execution-log.repository.ts`).
+O MSSQL é usado apenas pelo [lock distribuído](docs/06-lock-distribuido.md) dos
+jobs, via `sp_getapplock`. Não há tabela nem schema a criar antes do primeiro
+deploy — o usuário configurado não precisa (e não deve ter) permissão de DDL.
 
 ## Variáveis de ambiente
 
-Ver `.env.example`. Em produção, os valores reais vêm da biblioteca de variáveis do
-Azure já usada pelo time, injetada pela pipeline no momento do deploy.
+Ver [`.env.example`](.env.example) e a tabela completa no
+[capítulo 02](docs/02-configuracao-de-ambiente.md). Em produção, os valores
+reais vêm da biblioteca de variáveis do Azure, injetada pela pipeline no
+momento do deploy.

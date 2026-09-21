@@ -1,0 +1,178 @@
+# 09 — Testes
+
+[← Health check](08-health-check.md) · [Índice](README.md) · [Próximo: Utilitários →](10-utilitarios.md)
+
+## Bibliotecas
+
+| Pacote | Versão | Papel |
+| --- | --- | --- |
+| [`vitest`](https://vitest.dev/) | `^5.0` | Runner de testes, com suporte nativo a TypeScript |
+| [`@vitest/coverage-v8`](https://vitest.dev/guide/coverage.html) | `^5.0` | Relatório de cobertura usando o coverage do próprio V8 |
+
+Por que vitest e não jest: ele executa TypeScript sem `ts-jest` nem configuração
+de transform, e a API de mock (`vi.mock`, `vi.hoisted`) resolve o caso central
+aqui — substituir o módulo do banco — em poucas linhas. O `node:test` nativo
+também serviria, mas o mock de módulo nele ainda é desconfortável.
+
+## Responsabilidade
+
+Provar automaticamente as afirmações que o resto da documentação faz. Em
+particular:
+
+- o health check existe, responde e **distingue online de offline**;
+- o serviço é de fato somente leitura;
+- as rotas administrativas exigem a chave.
+
+## Arquivos
+
+| Arquivo | Cobre |
+| --- | --- |
+| [`vitest.config.mts`](../vitest.config.mts) | Configuração do runner |
+| [`test/setup.ts`](../test/setup.ts) | Variáveis de ambiente dos testes |
+| [`test/health.route.test.ts`](../test/health.route.test.ts) | Liveness e readiness, banco online e offline |
+| [`test/read-only.guard.test.ts`](../test/read-only.guard.test.ts) | Verbos de escrita recusados, superfície HTTP mínima |
+
+## Como rodar
+
+```bash
+npm test             # roda uma vez (é o que o CI usa)
+npm run test:watch   # re-roda ao salvar
+npm run test:coverage
+npm run typecheck    # tipos de src/ E de test/
+```
+
+Nenhum teste precisa de banco, rede ou porta livre.
+
+## As três peças que fazem isso funcionar
+
+### 1. `setupFiles` preenche o ambiente antes de tudo
+
+```ts
+// vitest.config.mts
+setupFiles: ['./test/setup.ts'],
+```
+
+[`src/config/env.ts`](../src/config/env.ts) valida `process.env` **no momento
+do import** e chama `process.exit(1)` se faltar algo ([capítulo
+02](02-configuracao-de-ambiente.md)). Em teste isso mataria o worker do vitest
+sem mensagem clara. `setupFiles` roda antes dos imports de cada arquivo de
+teste, então as variáveis já estão lá.
+
+É também por isso que `NODE_ENV: 'test'` existe no `envSchema`: o vitest define
+`NODE_ENV=test` sozinho, e sem esse valor no enum a validação reprovaria. O
+[logger](03-logger.md) usa o mesmo valor para ficar silencioso.
+
+### 2. `buildApp()` dispensa servidor de verdade
+
+```ts
+const app = await buildApp();
+await app.ready();
+
+const res = await app.inject({ method: 'GET', url: '/health' });
+```
+
+`app.inject()` percorre todo o pipeline do Fastify — hooks, `preHandler`,
+serialização — sem abrir socket. Os testes rodam em centenas de milissegundos e
+não competem por porta quando o CI executa vários jobs em paralelo.
+
+### 3. O banco é mockado, e é isso que permite testar "offline"
+
+```ts
+const mocks = vi.hoisted(() => ({ checkDbHealth: vi.fn() }));
+
+vi.mock('../src/db/mssql', () => ({
+  checkDbHealth: mocks.checkDbHealth,
+  getDbPool: vi.fn(),
+  closeDbPool: vi.fn(),
+  sql: {},
+}));
+```
+
+Dois detalhes que costumam tropeçar:
+
+- **`vi.hoisted`** — o vitest iça as chamadas de `vi.mock` para antes dos
+  imports. Uma `const` declarada normalmente ainda não existe quando a fábrica
+  roda, e o teste falha com "Cannot access before initialization".
+  `vi.hoisted` é içado junto.
+- **A fábrica precisa exportar tudo** que qualquer módulo da árvore importa
+  daquele arquivo — não só o que o teste usa. Hoje só `checkDbHealth` é
+  chamado, mas `getDbPool`, `closeDbPool` e `sql` estão na fábrica porque são o
+  contrato público do módulo: quando um job novo importar `getDbPool`, o mock
+  já cobre.
+
+Com `checkDbHealth` mockado, "banco offline" vira uma linha:
+
+```ts
+mocks.checkDbHealth.mockResolvedValue({ ok: false, latencyMs: 3000, error: '...' });
+```
+
+Determinístico, instantâneo e sem precisar derrubar nada de verdade.
+
+## O que os testes garantem hoje
+
+| Asserção | Por que importa |
+| --- | --- |
+| `/health` responde `200` com `uptimeSeconds` numérico | O contrato da probe de liveness |
+| `/health` não exige autenticação | O kubelet não tem como enviar credencial |
+| `/health` continua `200` com o banco fora, **sem consultar o banco** | Impede a regressão que causaria `CrashLoopBackOff` |
+| `/health` responde a `HEAD` | Algumas probes e balanceadores usam `HEAD` |
+| `/health/ready` → `200`/`ok` com o banco online | Readiness positivo |
+| `/health/ready` → `503`/`degraded` com o banco offline | Readiness negativo |
+| O motivo da falha aparece fora de produção | Diagnóstico |
+| A rota não cai se o check lançar | Defesa contra quebra de contrato futura |
+| online → offline → online | O estado é reavaliado, não cacheado |
+| `POST`/`PUT`/`PATCH`/`DELETE` → `405` | A arquitetura somente-leitura |
+| Escrita em caminho inexistente → `405` | A guarda age antes do roteamento |
+| Só `/health` e `/health/ready` estão registradas | A superfície HTTP não cresce sem querer |
+| Qualquer outra rota → `404` | Idem |
+
+## Cobertura
+
+`npm run test:coverage`. `src/server.ts`, `src/jobs/`, `src/services/` e
+`src/util/` ficam fora da métrica: são, respectivamente, fiação de boot,
+material descartável do template e helpers de console.
+
+Não há limiar mínimo configurado, de propósito: em um template, um limiar alto
+transforma a primeira contribuição real em uma briga com a ferramenta. Ver
+upgrades.
+
+## Upgrades futuros sem quebrar o que existe
+
+**Testar um serviço novo** — é o teste de maior retorno, porque serviço é onde
+mora a regra de negócio. Como serviços não dependem de Fastify, o teste é
+direto: importe a função, mocke o repositório, verifique o resultado. Foi para
+isso que a lógica saiu do `handler` ([capítulo 11](11-exemplo-job-e-servico.md)).
+
+**Testar o `job-runner`** — hoje não coberto, e é o código mais crítico da
+estrutura. Mocke `lock.ts` e espie o `logger`, verificando que o campo `status`
+sai como `success` no caminho feliz, `failure` quando o handler lança e
+`timeout` quando estoura o prazo; e que o handler nem é chamado quando o lock
+não é adquirido. Use `vi.useFakeTimers()` para não esperar o timeout de
+verdade.
+
+**Adicionar testes de integração com banco real** — mantenha-os **separados**
+dos unitários, em `test/integration/**`, com um script próprio
+(`vitest run --dir test/integration`). Motivo: `npm test` precisa continuar
+rodando sem infraestrutura, ou deixa de ser executado localmente. Um
+[Testcontainers](https://node.testcontainers.org/) com a imagem do SQL Server
+resolve o provisionamento no CI.
+
+**Definir limiar de cobertura** — quando a estrutura tiver código real, ligue
+`coverage.thresholds` no `vitest.config.mts`. Comece pelo valor atual medido,
+não por um número redondo aspiracional: a função do limiar é impedir regressão,
+não forçar uma meta.
+
+**Rodar no CI** — o mínimo útil, em ordem:
+```bash
+npm ci
+npm run typecheck
+npm test
+npm run build
+```
+`typecheck` antes de `test` porque o vitest transpila sem checar tipos: um erro
+de tipo passaria pelos testes e só apareceria no `build`.
+
+**Subir a major do vitest** — as quebras costumam estar na configuração, não
+nos testes. Como a configuração é curta, o conserto é local. Rode
+`npm test` e `npm run test:coverage`: o provider de cobertura é a parte que
+mais muda entre majors.
