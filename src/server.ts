@@ -21,20 +21,17 @@ async function iniciar(): Promise<void> {
   if (ambiente.JOBS_ENABLED) {
     jobs.forEach(registrarJob);
   } else {
-    logger.warn(
-      { jobsDeclarados: jobs.length },
-      `${Util.corAmarelo('JOBS_ENABLED=false')} — nenhum job registrado; o serviço sobe apenas com o health`,
-    );
+    logger.warn(`${jobs.length} jobs, ${Util.corAmarelo('JOBS_ENABLED=false')} — nenhum job ativo`);
   }
 
   servidor = await construirApp();
   await servidor.listen({ port: ambiente.PORT, host: '0.0.0.0' });
 
-  const jobsRegistrados = ambiente.JOBS_ENABLED ? jobs.length : 0;
+  const jobsAtivos = ambiente.JOBS_ENABLED ? jobs.length : 0;
+  const jobsAtivosNames = ambiente.JOBS_ENABLED ? jobs.map(job => job.nome).join(', ') : '';
 
-  logger.info(
-    `[${ambiente.NODE_ENV.toUpperCase()}] ${Util.corVerde('Scheduler no ar em')} http://0.0.0.0:${ambiente.PORT} - ${Util.corVerde('Total de jobs:')} ${jobsRegistrados}`,
-  );
+  logger.info(`[${ambiente.NODE_ENV.toUpperCase()}] ${Util.corVerde('Scheduler no ar na porta')} ${ambiente.PORT}`);
+  logger.info(`[${ambiente.NODE_ENV.toUpperCase()}] ${Util.corVerde('JOBS ativos')} ${jobsAtivos}: ${jobsAtivosNames}`);
 }
 
 /**
@@ -45,13 +42,13 @@ async function encerrar(sinal: string): Promise<void> {
   if (encerrando) return;
   encerrando = true;
 
-  logger.info({ sinal }, 'Encerrando serviço...');
+  logger.info(`Encerrando sistema... ${sinal}`);
 
   try {
     await schedule.gracefulShutdown();
     await servidor?.close();
     await fecharPoolDb();
-    logger.info('Serviço encerrado com sucesso');
+    logger.info('Sistema encerrado com sucesso');
     process.exit(0);
   } catch (erro) {
     logger.error({ err: erro }, 'Falha durante o encerramento');
