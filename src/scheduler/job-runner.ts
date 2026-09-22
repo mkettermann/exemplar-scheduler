@@ -2,6 +2,7 @@ import schedule from 'node-schedule';
 import type { DefinicaoJob, StatusJob } from './job.types.js';
 import { executarComLock } from './lock.js';
 import { logger } from '../logger/logger.js';
+import { Util } from '../util/util.js';
 
 async function executarComTempoLimite(
   acao: () => Promise<void>,
@@ -31,28 +32,22 @@ async function executarComTempoLimite(
 async function executarJob(job: DefinicaoJob): Promise<void> {
   const { executou } = await executarComLock(job.nome, async () => {
     const iniciadoEm = Date.now();
-    logger.info({ job: job.nome }, 'Job iniciado');
+    logger.info(`Job iniciado: ${Util.corAmarelo(job.nome)}`);
 
     try {
       await executarComTempoLimite(job.executar, job.tempoLimiteMs);
 
-      logger.info(
-        { job: job.nome, status: 'sucesso' satisfies StatusJob, duracaoMs: Date.now() - iniciadoEm },
-        'Job concluído com sucesso',
-      );
+      logger.info(`Job concluido em ${Util.corAmarelo((Date.now() - iniciadoEm).toString() + 'ms')} com sucesso`);
     } catch (erro) {
       const expirou = erro instanceof Error && erro.message.startsWith('Timeout');
       const status: StatusJob = expirou ? 'timeout' : 'falha';
 
-      logger.error(
-        { job: job.nome, status, duracaoMs: Date.now() - iniciadoEm, err: erro },
-        `Job falhou (${status})`,
-      );
+      logger.error(`Job ${Util.corAmarelo(job.nome)} falhou (${status}) apos ${Util.corAmarelo((Date.now() - iniciadoEm).toString() + 'ms')}`);
     }
   });
 
   if (!executou) {
-    logger.debug({ job: job.nome }, 'Execução pulada — lock ocupado por outra instância');
+    logger.debug(`Lock de outra instancia pulou execucao do job ${Util.corAmarelo(job.nome)}`);
   }
 }
 
@@ -61,7 +56,7 @@ async function executarJob(job: DefinicaoJob): Promise<void> {
  * Ver `docs/05-scheduler.md`.
  */
 export function registrarJob(job: DefinicaoJob): schedule.Job {
-  logger.info({ job: job.nome, cron: job.agendamento }, 'Job registrado');
+  logger.info(`Job registrado: ${Util.corAmarelo(job.nome)} com agendamento ${Util.corAmarelo(job.agendamento)}`);
 
   return schedule.scheduleJob(job.nome, job.agendamento, () => {
     void executarJob(job).catch((erro) => {
