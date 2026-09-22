@@ -35,7 +35,7 @@ possivelmente com efeito colateral já aplicado.
 
 ```ts
 const esquemaAmbiente = z.object({
-  NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
+  NODE_ENV: z.enum(['development', 'test', 'qa', 'hml', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
   DB_SERVER: z.string().min(1),
   HEALTH_DB_TIMEOUT_MS: z.coerce.number().int().positive().default(3000),
@@ -60,7 +60,7 @@ campos tipados. Ninguém lê `process.env` diretamente.
 
 | Variável | Obrigatória | Default | Para quê |
 | --- | --- | --- | --- |
-| `NODE_ENV` | não | `development` | Decide formato de log, TLS do banco e verbosidade do readiness |
+| `NODE_ENV` | não | `development` | Ambiente de deploy: `development`, `qa`, `hml`, `production` — mais `test`, que só existe sob o vitest. Decide formato de log, TLS do banco e verbosidade do readiness |
 | `PORT` | não | `3000` | Porta HTTP |
 | `JOBS_ENABLED` | não | `true` | Registra ou não os jobs no boot — desligada, o serviço sobe só com o health |
 | `DB_SERVER` | **sim** | — | Host do MSSQL |

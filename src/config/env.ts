@@ -15,7 +15,12 @@ const booleano = z
  * motivo de o processo morrer no boot quando algo não bate com o schema.
  */
 const esquemaAmbiente = z.object({
-  NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
+  /**
+   * Os quatro ambientes de deploy, mais `test`: o vitest injeta `NODE_ENV=test`
+   * sozinho e sem ele no enum a validação mataria o worker — ver
+   * `docs/09-testes.md`. `test` não é um destino de deploy.
+   */
+  NODE_ENV: z.enum(['development', 'test', 'qa', 'hml', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
 
   /** Desligada, nenhum job é registrado no boot — ver `docs/05-scheduler.md`. */
@@ -32,6 +37,9 @@ const esquemaAmbiente = z.object({
 });
 
 export type Ambiente = z.infer<typeof esquemaAmbiente>;
+
+/** Ambientes reais de deploy — exclui `test`, que só existe sob o vitest. */
+export type AmbienteDeploy = Exclude<Ambiente['NODE_ENV'], 'test'>;
 
 function carregarAmbiente(): Ambiente {
   const resultado = esquemaAmbiente.safeParse(process.env);

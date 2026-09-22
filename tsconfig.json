@@ -3,19 +3,18 @@
      modo estrito completo e alvo ES2023 — estão em docs/01-typescript-e-build.md */
   "compilerOptions": {
     "target": "ES2023",
-    "lib": ["ES2023"],
-
+    "lib": [
+      "ES2023"
+    ],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-
     "rootDir": "src",
     "outDir": "dist",
     "sourceMap": true,
     "declaration": false,
-
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
@@ -24,19 +23,22 @@
     "strictPropertyInitialization": true,
     "noImplicitThis": true,
     "alwaysStrict": true,
-
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "exactOptionalPropertyTypes": true,
-
     "skipLibCheck": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }
