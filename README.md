@@ -134,10 +134,19 @@ Ver [`.env.example`](.env.example) e a tabela completa no
 reais vêm da biblioteca de variáveis do Azure, injetada pela pipeline no
 momento do deploy.
 
-`JOBS_ENABLED` decide se os jobs são registrados no boot: desligue
-(`false`/`0`) em qualidade e homologação, ligue em produção. Ausente, vale
-`true` — o serviço se comporta como antes da variável existir. Ver
-[capítulo 05](docs/05-scheduler.md#ligar-e-desligar-os-jobs-por-ambiente).
+Dois interruptores decidem o que roda, e eles respondem perguntas diferentes:
+
+- **`ambientes`**, obrigatório em cada `DefinicaoJob`, declara em quais
+  `NODE_ENV` aquele job roda. É o que impede DEV, QA e HML — que costumam
+  dividir o mesmo banco — de dispararem o mesmo job duas vezes sobre os mesmos
+  dados. O lock distribuído não cobre isso: ele impede a execução simultânea,
+  não a sequencial. Ver
+  [capítulo 05](docs/05-scheduler.md#um-job-um-ambiente).
+- **`JOBS_ENABLED`** decide se este processo registra **algum** job. Ausente,
+  vale `true` — o serviço se comporta como antes da variável existir.
+
+Por isso `NODE_ENV` precisa ser explícita e distinta em cada deploy, e o
+`Dockerfile` não a fixa: os quatro ambientes rodam a mesma imagem.
 
 ## Container e deploy no Azure
 

@@ -32,7 +32,25 @@ terminar de morrer. Nessa janela de alguns segundos existem dois processos
 vivos. Se um cron disparar exatamente ali, o job roda duas vezes.
 
 Para um job que envia e-mail, gera cobrança ou movimenta estoque, rodar duas
-vezes não é um detalhe. O lock fecha essa janela.
+vezes não é um detalhe. O lock fecha a **metade concorrente** dessa janela —
+leia "O que o lock não faz", abaixo, para a metade que sobra.
+
+### O escopo do applock é o database
+
+`sp_getapplock` trava por **banco de dados**, não por conexão nem por host.
+Duas consequências, as duas importantes:
+
+- Ambientes que **compartilham o mesmo banco** — tipicamente DEV, QA e HML —
+  disputam literalmente a mesma trava. Isso é o que se quer, já que os efeitos
+  colaterais caem nas mesmas tabelas. **Nunca** prefixe o `@Resource` com o
+  nome do ambiente: pareceria isolamento e seria o contrário.
+- Se um dia o scheduler apontar `DB_NAME` para um banco próprio enquanto os
+  jobs continuam escrevendo no banco compartilhado, a trava deixa de proteger
+  qualquer coisa — sem erro, sem log, sem sintoma até duplicar.
+
+Impedir que dois ambientes rodem o mesmo job é responsabilidade de
+`DefinicaoJob.ambientes`, não do lock ([capítulo 05](05-scheduler.md), seção
+"Um job, um ambiente").
 
 ## Como funciona
 
@@ -62,6 +80,37 @@ Três decisões merecem nota:
 - **A transação fica aberta durante todo o job.** É o preço do `LockOwner =
   Transaction`. Ver as limitações abaixo.
 
+## O que o lock não faz
+
+**Ele impede a execução simultânea, não a sequencial.** A trava vive enquanto a
+transação vive, ou seja, durante a execução — e só. Se o pod antigo dispara às
+10:00:00.000 e termina em 800 ms, o `commit` libera a trava; o pod novo,
+disparando às 10:00:00.300, encontra tudo livre e roda **a mesma ocorrência**
+de novo. Não há conflito, não há log de disputa: as duas execuções parecem
+legítimas.
+
+A diferença entre os dois instantes não é limitada por nada em especial. Não é
+só skew de relógio (sub-segundo com NTP): é jitter do timer do `node-schedule`,
+lag do event loop, espera por conexão do pool e o round trip do
+`sp_getapplock`. Um pod sob pressão de GC passa de um segundo sem esforço — por
+isso **não** adianta "segurar a trava mais um pouco" antes de liberar: seria um
+número arbitrário contra uma grandeza sem teto, que funciona em 99% dos
+disparos e falha sob carga, exatamente quando dói.
+
+Fechar essa janela de verdade exigiria estado **durável**: responder "alguém já
+rodou a ocorrência das 10:00?" depois que a trava foi liberada só é possível se
+algo tiver sobrevivido à liberação, e uma trava com `LockOwner = 'Transaction'`
+não sobrevive por construção. O desenho desse upgrade está no
+[capítulo 05](05-scheduler.md), em "Upgrades futuros".
+
+Enquanto ele não existir, a mitigação é a que
+[`job.types.ts`](../src/scheduler/job.types.ts) exige no contrato: **handlers
+idempotentes**. Não é recomendação, é requisito.
+
+**Ele não desfaz trabalho.** Se o processo morrer no meio, a trava é liberada
+mas o efeito parcial permanece. Mesma conclusão pelo outro caminho: a trava
+evita a execução simultânea, não a execução parcial.
+
 ## Limitações que você precisa conhecer
 
 **Transação longa.** Um job de 40 minutos mantém uma transação aberta por 40
@@ -74,11 +123,6 @@ não a da transação do lock. Ou seja: o trabalho do job **não** é transacion
 junto com o lock. Isso é proposital — o lock coordena, não dá atomicidade.
 Se um job precisa de atomicidade, ele abre a própria transação dentro do
 handler.
-
-**O lock não desfaz trabalho.** Se o processo morrer no meio, a trava é
-liberada mas o efeito parcial permanece. É por isso que
-[`job.types.ts`](../src/scheduler/job.types.ts) recomenda handlers idempotentes:
-a trava evita a execução simultânea, não a execução parcial.
 
 ## Upgrades futuros sem quebrar o que existe
 

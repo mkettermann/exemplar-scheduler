@@ -91,6 +91,22 @@ distribuído não consegue desfazer ([capítulo 06](06-lock-distribuido.md)).
   Apps e App Service usam as próprias probes e ignoram essa instrução — lá o
   caminho é configurado no serviço ([capítulo 08](08-health-check.md)).
 
+## `NODE_ENV` não é fixado na imagem
+
+A mesma imagem sobe nos quatro ambientes, e é `NODE_ENV` que decide **quais
+jobs cada um registra** ([capítulo 05](05-scheduler.md), seção "Um job, um
+ambiente"). Por isso o Dockerfile não a define.
+
+Fixá-la na imagem faria DEV, QA, HML e PRD se identificarem todos como
+`production` — e, como `production` é valor válido do enum, a validação passaria
+calada e os quatro disparariam os mesmos jobs sobre o banco compartilhado.
+
+Quem injeta o valor é o deploy: ConfigMap no Kubernetes, app setting no App
+Service, variável de ambiente no Container Apps. Se ela faltar, o
+`.default('development')` assume e o boot emite um `warn` nominal
+(`ambienteAssumido`, em [`env.ts`](../src/config/env.ts)) — nenhum job de outro
+ambiente é registrado, e isso aparece no log em vez de passar por normalidade.
+
 ## Configuração no Azure
 
 Todas as variáveis de [`.env.example`](../.env.example) precisam estar
@@ -101,11 +117,47 @@ definidas ([capítulo 02](02-configuracao-de-ambiente.md)), e mais:
 | Container Apps | `targetPort: 3000`; **réplicas mín. e máx. = 1** (sem isso os jobs duplicam) |
 | App Service for Containers | app setting `WEBSITES_PORT=3000` |
 | Probes | liveness em `GET /health`, readiness em `GET /health/ready` |
-| Jobs | `JOBS_ENABLED=false` em qualidade e homologação, `true` em produção ([capítulo 05](05-scheduler.md#ligar-e-desligar-os-jobs-por-ambiente)) |
+| Ambiente | `NODE_ENV` **sempre explícito e distinto por ambiente** — é o que separa os jobs (seção acima) |
+| Jobs | `JOBS_ENABLED=false` para subir sem job nenhum; qual job roda onde é decidido em código ([capítulo 05](05-scheduler.md#um-job-um-ambiente)) |
 | Segredos | `DB_PASSWORD` via Key Vault ou secret do Container App, nunca como app setting em texto |
 
 A réplica única não é detalhe de capacidade: é a premissa da arquitetura
 ([índice](README.md#1-réplica-única-e-o-processo-assume-isso)).
+
+### Variáveis vindas da Library do Azure Pipelines
+
+Não é preciso mudar nada no código para consumi-las. O `.env` é uma
+conveniência **só de desenvolvimento** — `npm run dev` usa
+`--env-file-if-exists=.env`, e o [`.dockerignore`](../.dockerignore) mantém o
+arquivo fora da imagem. Em deploy a cadeia é:
+
+```text
+variable group (Library)
+  -> variável da pipeline
+  -> ConfigMap (comuns) / Secret (sensíveis)
+  -> envFrom no deployment
+  -> process.env
+  -> esquemaAmbiente (zod)
+```
+
+[`env.ts`](../src/config/env.ts) lê `process.env` e não faz ideia de como os
+valores chegaram lá. Manifesto sem valor embutido, com substituição no momento
+do deploy, funciona sem ajuste nenhum.
+
+**Cuidado com a substituição de secret.** No Azure Pipelines, variáveis
+marcadas como secret **não** são exportadas automaticamente para o ambiente dos
+passos de script. Um manifesto com `${DB_PASSWORD}` resolvido por `envsubst`
+precisa do mapeamento explícito:
+
+```yaml
+- script: envsubst < k8s/2-secret.yml | kubectl apply -f -
+  env:
+    DB_PASSWORD: $(DB_PASSWORD)   # obrigatório: secret não vaza para o shell
+```
+
+Sem o bloco `env:`, `${DB_PASSWORD}` vira string vazia, o Secret é aplicado com
+senha em branco e o sintoma aparece só no boot, como falha de autenticação no
+banco.
 
 ## O que fica fora da imagem
 

@@ -102,6 +102,7 @@ Quatro pontos desse trecho valem como regra geral:
 // src/jobs/example.job.ts
 export const jobExemplo: DefinicaoJob = {
   nome: 'example-job',
+  ambientes: ['development'],
   agendamento: '*/5 * * * *',
   tempoLimiteMs: 30_000,
   executar: async () => {
@@ -115,6 +116,12 @@ O `executar` faz duas coisas: chama o serviço e loga o resultado. Não trata
 erro, não mede tempo, não adquire lock, não grava histórico — o
 [job-runner](05-scheduler.md) já faz tudo isso em volta.
 
+`ambientes: ['development']` é deliberado: sendo um modelo, o exemplo não deve
+disparar em nenhum ambiente compartilhado. No seu job, a lista é uma decisão de
+verdade — DEV, QA e HML dividem o mesmo banco, então o mesmo job não pode
+constar em dois deles. Ver [capítulo 05](05-scheduler.md), seção "Um job, um
+ambiente".
+
 Se o handler estiver com `try/catch`, medição de duração ou verificação de
 "já está rodando", ele está reimplementando o runner.
 
@@ -124,16 +131,19 @@ Se o handler estiver com `try/catch`, medição de duração ou verificação de
    negócio lá. Tipe as entradas e saídas que antes não tinham tipo — é o
    momento em que os contratos implícitos aparecem.
 2. **Crie o job** em `src/jobs/nome.job.ts`, com `executar` chamando o serviço.
-3. **Ajuste `tempoLimiteMs`** para algo realista. Olhe quanto o job legado leva
+3. **Declare `ambientes`** — o compilador não deixa passar sem. Se o job legado
+   roda em produção e você quer validá-lo antes, use um ambiente de teste por
+   vez, nunca dois que dividam banco.
+4. **Ajuste `tempoLimiteMs`** para algo realista. Olhe quanto o job legado leva
    no pior dia, não na média, e dê folga.
-4. **Ajuste `agendamento`**, atento ao fuso ([capítulo 05](05-scheduler.md) —
+5. **Ajuste `agendamento`**, atento ao fuso ([capítulo 05](05-scheduler.md) —
    container sem `TZ` roda em UTC).
-5. **Registre** em [`src/jobs/jobs.ts`](../src/jobs/jobs.ts).
-6. **Rode em dry-run** (logando o que faria, sem efeito real) em paralelo com o
+6. **Registre** em [`src/jobs/jobs.ts`](../src/jobs/jobs.ts).
+7. **Rode em dry-run** (logando o que faria, sem efeito real) em paralelo com o
    job legado por alguns ciclos. Compare os logs.
-7. **Só então** desative o job no repositório legado.
+8. **Só então** desative o job no repositório legado.
 
-O passo 6 é o que mais economiza tempo. Os dois sistemas coexistindo por
+O passo 7 é o que mais economiza tempo. Os dois sistemas coexistindo por
 alguns dias revelam diferença de fuso, de conexão e de dado — que aparecem
 sozinhas no comparativo, em vez de aparecerem como incidente.
 

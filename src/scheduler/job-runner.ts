@@ -1,4 +1,5 @@
 import schedule from 'node-schedule';
+import type { Ambiente } from '../config/env.js';
 import type { DefinicaoJob, StatusJob } from './job.types.js';
 import { executarComLock } from './lock.js';
 import { logger } from '../logger/logger.js';
@@ -51,8 +52,44 @@ async function executarJob(job: DefinicaoJob): Promise<void> {
   }
 }
 
+/** Saída de `separarJobsPorAmbiente`. */
+export interface JobsDoAmbiente {
+  /** Declaram o ambiente atual — estes serão registrados. */
+  ativos: DefinicaoJob[];
+
+  /** Pertencem a outro ambiente — pulados, mas logados no boot. */
+  ignorados: DefinicaoJob[];
+}
+
 /**
- * Registra um job no scheduler do processo. Chamar uma vez por job, no boot.
+ * Decide quais jobs pertencem a este ambiente. É a trava que impede DEV, QA e
+ * HML — que compartilham o mesmo banco — de dispararem o mesmo job sobre os
+ * mesmos dados. Ver `docs/05-scheduler.md`, seção "Um job, um ambiente".
+ *
+ * `test` não consta em `AmbienteDeploy`, então sob o vitest nenhum job fica
+ * ativo. É o comportamento correto: teste não é destino de deploy.
+ */
+export function separarJobsPorAmbiente(
+  todos: DefinicaoJob[],
+  ambienteAtual: Ambiente['NODE_ENV'],
+): JobsDoAmbiente {
+  const ativos: DefinicaoJob[] = [];
+  const ignorados: DefinicaoJob[] = [];
+
+  for (const job of todos) {
+    if (job.ambientes.some((declarado) => declarado === ambienteAtual)) {
+      ativos.push(job);
+    } else {
+      ignorados.push(job);
+    }
+  }
+
+  return { ativos, ignorados };
+}
+
+/**
+ * Registra um job no scheduler do processo. Chamar uma vez por job, no boot,
+ * e só para jobs já filtrados por `separarJobsPorAmbiente`.
  * Ver `docs/05-scheduler.md`.
  */
 export function registrarJob(job: DefinicaoJob): schedule.Job {

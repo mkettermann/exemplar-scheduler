@@ -31,20 +31,130 @@ Três arquivos, três papéis distintos:
 
 ```ts
 export interface DefinicaoJob {
-  nome: string;           // identificador estável — usado no lock e nos logs
-  agendamento: string;    // expressão cron
-  tempoLimiteMs: number;  // teto de duração de uma execução
+  nome: string;                  // identificador estável — lock e logs
+  ambientes: AmbienteDeploy[];   // onde este job roda — obrigatório
+  agendamento: string;           // expressão cron
+  tempoLimiteMs: number;         // teto de duração de uma execução
   executar: () => Promise<void>;
 }
 ```
 
-Quatro campos, e é isso. Um job **não** trata lock, não abre transação de log,
+Cinco campos, e é isso. Um job **não** trata lock, não abre transação de log,
 não mede tempo e não captura o próprio erro. Se um handler estiver fazendo
 qualquer uma dessas coisas, ele está duplicando o runner.
 
 Sobre `nome`: ele é a chave do lock distribuído e o campo `job` de todos os
 logs. Renomear um job libera o lock antigo e corta a continuidade das consultas
 de log. Trate como identificador imutável.
+
+Sobre `ambientes`: é a seção a seguir, inteira.
+
+## Um job, um ambiente
+
+DEV, QA e HML costumam **compartilhar o mesmo banco**. Nesse arranjo, dois
+ambientes com o mesmo job registrado disparam duas vezes sobre as mesmas
+linhas. O lock distribuído ([capítulo 06](06-lock-distribuido.md)) não resolve:
+ele impede a execução *simultânea*, não a *sequencial* — se DEV termina o job
+em 800 ms e HML dispara 300 ms depois, a trava já está livre e o trabalho roda
+de novo.
+
+`JOBS_ENABLED` também não resolve, porque ela é uma decisão **local de cada
+processo** enquanto o problema é **global ao banco**. Nada impede que dois
+ambientes a liguem ao mesmo tempo.
+
+Por isso todo job declara onde roda, e o campo é obrigatório:
+
+```ts
+export const jobCobranca: DefinicaoJob = {
+  nome: 'cobranca-diaria',
+  ambientes: ['hml', 'production'],
+  // ...
+};
+```
+
+O corte acontece no registro, em
+[`separarJobsPorAmbiente`](../src/scheduler/job-runner.ts):
+
+```ts
+const { ativos, ignorados } = separarJobsPorAmbiente(jobs, ambiente.NODE_ENV);
+```
+
+Lista, e não valor único, porque um job legitimamente roda em `production`
+**e** em um dos ambientes de teste — PRD tem banco próprio, não há conflito. O
+que não pode é o mesmo job constar em dois ambientes que dividem banco.
+
+Os dois interruptores respondem perguntas diferentes e se complementam:
+
+| Mecanismo | Pergunta | Onde mora |
+| --- | --- | --- |
+| `ambientes` | Este job pertence a este ambiente? | Código, revisado em PR |
+| `JOBS_ENABLED` | Este processo deve rodar jobs? | Variável de deploy |
+
+### Por que obrigatório, sem default
+
+Um campo opcional com default reintroduz o problema no primeiro job que alguém
+adiciona sem pensar no assunto. Sendo obrigatório, o **compilador** exige que
+todo job novo responda onde roda — a garantia deixa de depender de alguém
+lembrar.
+
+É por isso que [`test/jobs-ambiente.test.ts`](../test/jobs-ambiente.test.ts)
+tem um teste de tipo com `@ts-expect-error`: se alguém tornar o campo opcional,
+`npm run typecheck` quebra. A proteção não pode virar convenção.
+
+Para desligar um job em todos os ambientes, esvazie a lista (`ambientes: []`).
+É explícito e continua visível no diff.
+
+### Por que no código e não numa tabela de configuração
+
+Guardar o dono dos jobs numa tabela do banco compartilhado seria mais forte num
+ponto: ela é única para os três ambientes, então nem versões divergentes de
+código conseguiriam furá-la. O código não dá essa garantia — se DEV roda um
+branch onde alguém acrescentou `'development'` à lista, os dois disparam.
+
+A troca, ainda assim, compensa:
+
+- **Zero infraestrutura.** Nenhuma tabela para criar, migrar e manter em quatro
+  ambientes, e nenhum estado de runtime para alguém dessincronizar com um
+  `UPDATE` às três da manhã.
+- **O compilador cobre o caso comum**, que é o job novo sem declaração. Tabela
+  nenhuma faz isso.
+- **A mudança fica visível.** `JOBS_ENABLED=true` numa variável de pipeline é
+  invisível: sem review, sem diff, sem histórico. Uma lista de ambientes num
+  arquivo `.job.ts` aparece no PR e fica no `git blame`. A chave saiu de um
+  lugar que ninguém olha para um lugar que todo mundo lê.
+
+O preço é que trocar o ambiente de um job exige commit e deploy. Dado que o
+problema nasceu de alguém virar uma chave sem cerimônia, isso é mais recurso
+do que defeito.
+
+### A identidade do ambiente precisa ser real
+
+Tudo isso depende de `NODE_ENV` ser **genuinamente diferente em cada deploy**.
+Se os quatro ambientes se identificarem como `production`, o filtro é avaliado
+contra o mesmo valor em todo lugar e a duplicação volta inteira — agora com
+falsa sensação de proteção, porque `production` é valor válido do enum e a
+validação passa calada.
+
+Duas defesas, as duas já no código:
+
+- O [`Dockerfile`](../Dockerfile) **não** fixa `NODE_ENV`. A imagem é a mesma
+  nos quatro ambientes; quem define a identidade é o ConfigMap
+  ([capítulo 11](11-container-e-deploy.md)).
+- `ambienteAssumido`, em [`env.ts`](../src/config/env.ts), marca quando a
+  variável não foi injetada e o default assumiu. O boot emite um `warn`
+  nominal, para que "nenhum job rodou hoje" não passe por normalidade.
+
+### O que isto não resolve
+
+A janela de **rolling update**, que é a razão original do lock existir. Dois
+pods do *mesmo* ambiente, ambos com o job registrado: o pod velho dispara às
+10:00:00.000 e termina em 800 ms; o novo dispara às 10:00:00.300 e encontra a
+trava livre. Mesma ocorrência, duas execuções, em sequência.
+
+Responder "alguém já rodou a ocorrência das 10:00?" depois que a trava foi
+liberada exigiria estado durável — uma tabela de execuções, que este serviço
+decidiu não ter. A mitigação é a que o contrato já exige: **handlers
+idempotentes**. Ver [capítulo 06](06-lock-distribuido.md).
 
 ## O entorno
 
@@ -94,11 +204,13 @@ await fetch(url, { signal: AbortSignal.timeout(10_000) });
 
 1. Crie `src/services/meu-processo.service.ts` com a regra de negócio.
 2. Crie `src/jobs/meu-processo.job.ts` exportando um `DefinicaoJob` cujo
-   `executar` só chama o serviço e loga o resultado.
+   `executar` só chama o serviço e loga o resultado. **Decida `ambientes`
+   agora** — o compilador não deixa passar sem.
 3. Adicione ao array em [`src/jobs/jobs.ts`](../src/jobs/jobs.ts).
 
-`server.ts` não é tocado: ele importa o array e faz `jobs.forEach(registrarJob)`.
-Ver [capítulo 12](12-exemplo-job-e-servico.md) para o modelo completo.
+`server.ts` não é tocado: ele importa o array, filtra por ambiente e registra o
+que sobrou. Ver [capítulo 12](12-exemplo-job-e-servico.md) para o modelo
+completo.
 
 ## O entrypoint: boot e encerramento
 
@@ -110,8 +222,10 @@ No boot, `iniciar()` segue três passos:
 1. **`obterPoolDb()`** — falha rápido. Um serviço que sobe sem banco só
    descobriria o problema no primeiro disparo de cron, possivelmente de
    madrugada.
-2. **`jobs.forEach(registrarJob)`** — registra os jobs da lista central, e
-   só acontece se `JOBS_ENABLED` estiver ligada (seção seguinte).
+2. **`separarJobsPorAmbiente()` e `registrarJob`** — filtra a lista central
+   pelo `NODE_ENV` atual e registra o que pertence a este ambiente, e só
+   acontece se `JOBS_ENABLED` estiver ligada. Os jobs de outros ambientes
+   saem em log nominal, com a lista que declaram.
 3. **`construirApp()` e `listen()`** — a superfície HTTP entra por último, e é
    o que faz o readiness passar a responder.
 
@@ -133,19 +247,21 @@ Para que esse encerramento aconteça de fato no container, o `SIGTERM` precisa
 chegar ao processo Node — é o papel do `tini` como PID 1
 ([capítulo 11](11-container-e-deploy.md)).
 
-## Ligar e desligar os jobs por ambiente
+## Ligar e desligar todos os jobs de um processo
 
-Em qualidade e homologação é comum não querer job nenhum rodando: o serviço
-precisa subir, responder às probes e não disparar efeito colateral. Em produção
-eles ficam ligados. Quem decide isso é a variável `JOBS_ENABLED`
-([capítulo 02](02-configuracao-de-ambiente.md)):
+`ambientes` decide **quais** jobs pertencem a este ambiente. `JOBS_ENABLED`
+decide se este processo roda **algum**. É o interruptor geral, útil quando o
+serviço precisa subir, responder às probes e não disparar efeito colateral
+nenhum ([capítulo 02](02-configuracao-de-ambiente.md)):
 
 ```ts
 // src/server.ts
+const { ativos, ignorados } = separarJobsPorAmbiente(jobs, ambiente.NODE_ENV);
+
 if (ambiente.JOBS_ENABLED) {
-  jobs.forEach(registrarJob);
+  ativos.forEach(registrarJob);
 } else {
-  logger.warn({ jobsDeclarados: jobs.length }, 'JOBS_ENABLED=false — nenhum job registrado');
+  logger.warn(`${jobs.length} jobs, JOBS_ENABLED=false — nenhum job ativo`);
 }
 ```
 
@@ -155,15 +271,16 @@ Três decisões explicam o desenho:
   ao `node-schedule`: não há timer armado, não há disputa de lock e não há uma
   linha de log por disparo. O oposto — registrar tudo e abortar dentro do
   handler — encheria o log de ruído e ainda dependeria do banco para decidir
-  não fazer nada.
+  não fazer nada. Vale igual para o filtro de ambiente.
 - **O default é `true`.** Um deploy que não declara a variável se comporta
   exatamente como antes dela existir. Desligar é sempre um ato explícito.
 - **O estado mora no deploy, não em memória.** Não existe endpoint para ligar
   ou desligar job, porque a superfície HTTP é somente leitura por decisão de
   arquitetura ([índice](README.md#2-a-superfície-http-é-somente-leitura)).
 
-O log de boot conta a verdade nos dois casos: com a flag desligada sai um
-`warn` nominal e a linha final fecha com `Total de jobs: 0`.
+O log de boot conta a verdade nos dois casos, e distingue os dois motivos de um
+job não estar rodando: `JOBS_ENABLED=false` sai como `warn` único, enquanto job
+de outro ambiente sai como uma linha por job, com a lista declarada.
 
 A flag desliga os jobs, e só. O pool do banco continua sendo aberto no boot e o
 readiness continua dependendo dele — um scheduler sem jobs registrados ainda é
@@ -199,9 +316,10 @@ Isso exige alargar o tipo de `DefinicaoJob.agendamento` — ver upgrades abaixo.
 ## Upgrades futuros sem quebrar o que existe
 
 **Adicionar um campo opcional ao `DefinicaoJob`** — seguro, porque jobs
-existentes continuam válidos. É como adicionar `enabled?: boolean`,
-`description?: string` ou `tz?: string`. Regra: o comportamento quando o campo
-está ausente tem de ser exatamente o de hoje.
+existentes continuam válidos. É como adicionar `description?: string` ou
+`tz?: string`. Regra: o comportamento quando o campo está ausente tem de ser
+exatamente o de hoje. `ambientes` é a exceção deliberada a essa regra — ver
+"Por que obrigatório, sem default" acima.
 
 **Suportar fuso por job** — alargue o tipo e repasse ao `node-schedule`, que já
 aceita o objeto:
@@ -218,12 +336,17 @@ uma **quebra de contrato**: todo handler precisa ser revisado. Para migrar sem
 parada, torne o parâmetro opcional primeiro (`(ctx?: ContextoJob)`), migre os
 handlers um a um, e só depois torne obrigatório.
 
-**Ligar e desligar jobs individualmente** — o interruptor global já existe
-(`JOBS_ENABLED`, seção [acima](#ligar-e-desligar-os-jobs-por-ambiente)). Para
-granularidade por job, o caminho é o mesmo: uma variável validada no
-`esquemaAmbiente` — por exemplo `JOBS_DESABILITADOS`, lista separada por
-vírgula — filtrando o array antes do `forEach`. Resista a fazer isso por
-endpoint: o estado precisa ficar auditável no deploy, não em memória.
+**Fechar a janela de rolling update** — exige estado durável: uma tabela com
+chave primária em (job, ocorrência agendada), com o `INSERT` feito dentro da
+transação que já segura o applock. Violação de chave significa que a ocorrência
+já rodou, e a execução é pulada. O `fireDate` que o `node-schedule` entrega ao
+callback — hoje ignorado em `registrarJob` — é o instante agendado e serve de
+chave. Só vale a pena quando houver job cuja não-idempotência seja inevitável.
+
+**Expor quais jobs estão ativos por HTTP** — uma rota somente leitura listando
+nome, agendamento e ambientes declarados. Útil para responder "por que meu job
+não rodou?" sem abrir log. Respeite o [capítulo 07](07-servidor-http.md): é
+leitura, nunca um endpoint que registre ou cancele job.
 
 **Trocar `node-schedule` por `croner` ou `toad-scheduler`** — o acoplamento
 está em duas linhas de `registrarJob` e uma de `shutdown`. Requisitos para o

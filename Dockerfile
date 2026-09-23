@@ -66,7 +66,11 @@ RUN apk add --no-cache tini tzdata \
     && cp /usr/share/zoneinfo/${TZ} /etc/localtime \
     && echo "${TZ}" > /etc/timezone
 
-ENV NODE_ENV=production
+# NODE_ENV NÃO é fixado aqui de propósito: a mesma imagem sobe em DEV, QA, HML
+# e PRD, e é `NODE_ENV` que decide quais jobs cada ambiente registra
+# (`DefinicaoJob.ambientes`). Fixá-la faria os quatro se identificarem como
+# `production` e dispararem os mesmos jobs sobre o banco compartilhado.
+# A pipeline injeta o valor pelo ConfigMap — ver docs/11-container-e-deploy.md
 ENV PORT=3000
 
 COPY --from=prod-deps --chown=node:node /app/node_modules ./node_modules

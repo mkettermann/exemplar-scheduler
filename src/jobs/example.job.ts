@@ -11,6 +11,13 @@ import { coletarResumoDoProcesso } from '../services/example.service.js';
  */
 export const jobExemplo: DefinicaoJob = {
   nome: 'example-job',
+  /**
+   * Só `development` de propósito: sendo um modelo, não deve disparar em
+   * nenhum ambiente compartilhado. Troque pela lista real do seu job — e
+   * lembre que DEV, QA e HML dividem o mesmo banco, então o mesmo job não
+   * pode constar em dois deles. Ver `docs/05-scheduler.md`.
+   */
+  ambientes: ['development'],
   agendamento: '*/5 * * * *',
   tempoLimiteMs: 30_000,
   executar: async () => {

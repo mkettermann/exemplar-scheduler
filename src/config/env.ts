@@ -53,3 +53,12 @@ function carregarAmbiente(): Ambiente {
 }
 
 export const ambiente = carregarAmbiente();
+
+/**
+ * `true` quando `NODE_ENV` não foi injetada e o `.default('development')`
+ * assumiu por ela. Importa porque a identidade do ambiente passou a decidir
+ * quais jobs rodam (`DefinicaoJob.ambientes`): um deploy que esquece de
+ * injetá-la não dispara nada, e isso precisa aparecer no log do boot em vez
+ * de passar por "nenhum job agendado hoje". Ver `docs/05-scheduler.md`.
+ */
+export const ambienteAssumido = process.env.NODE_ENV === undefined;
