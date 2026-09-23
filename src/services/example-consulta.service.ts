@@ -35,16 +35,16 @@ interface LinhaAcionamento {
 
 const QUERY = `
   SELECT TOP (@limite)
-         a.ClienteID   AS ClienteID,
-         a.Notas       AS Notas,
-         a.InseridoEm  AS InseridoEm,
-         c.ClienteID   AS ClienteVinculadoID,
-         c.Nome        AS ClienteNome
-    FROM negociacoes.Acionamento AS a WITH (NOLOCK)
-    LEFT JOIN negociacoes.Clientes AS c WITH (NOLOCK)
+    a.ClienteID   AS ClienteID,
+    a.Notas       AS Notas,
+    a.InseridoEm  AS InseridoEm,
+    c.ClienteID   AS ClienteVinculadoID,
+    c.Nome        AS ClienteNome
+  FROM negociacoes.Acionamento AS a WITH (NOLOCK)
+  LEFT JOIN negociacoes.Clientes AS c WITH (NOLOCK)
       ON c.ClienteID = a.ClienteID
-   WHERE a.InseridoEm >= @inseridosApos
-   ORDER BY a.InseridoEm DESC;
+  WHERE a.InseridoEm >= @inseridosApos
+  ORDER BY a.InseridoEm DESC;
 `;
 
 function montar(linha: LinhaAcionamento): AcionamentoComCliente {
