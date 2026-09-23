@@ -1,6 +1,6 @@
 {
   "name": "exemplar-scheduler",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Serviço isolado de jobs agendados — não escala, réplica única.",
   "engines": {
     "node": ">=24.0.0"
