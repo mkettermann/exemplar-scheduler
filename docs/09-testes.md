@@ -36,6 +36,10 @@ particular:
 | [`test/health.route.test.ts`](../test/health.route.test.ts) | Liveness e readiness, banco online e offline |
 | [`test/read-only.guard.test.ts`](../test/read-only.guard.test.ts) | Verbos de escrita recusados, superfície HTTP mínima |
 | [`test/jobs-enabled.test.ts`](../test/jobs-enabled.test.ts) | Leitura da flag `JOBS_ENABLED`, incluindo valor inválido |
+| [`test/jobs-ambiente.test.ts`](../test/jobs-ambiente.test.ts) | `separarJobsPorAmbiente`: um job, um ambiente |
+| [`test/env-texto-obrigatorio.test.ts`](../test/env-texto-obrigatorio.test.ts) | Espaço e quebra de linha nas pontas dos campos de conexão |
+| [`test/job-runner.test.ts`](../test/job-runner.test.ts) | Registro, execução sob lock, classificação de falha e timeout |
+| [`test/lock-distribuido.test.ts`](../test/lock-distribuido.test.ts) | Commit, rollback, execução pulada e parâmetros do `sp_getapplock` |
 | [`.markdownlint-cli2.jsonc`](../.markdownlint-cli2.jsonc) | Régua de formatação da documentação |
 
 ## Como rodar
@@ -95,7 +99,7 @@ vi.mock('../src/db/mssql.js', () => ({
 }));
 ```
 
-Três detalhes que costumam tropeçar:
+Quatro detalhes que costumam tropeçar:
 
 - **O caminho do `vi.mock` leva `.js`**, igual a qualquer import do projeto
   ([capítulo 01](01-typescript-e-build.md)). O vitest resolve esse caminho até
@@ -111,6 +115,13 @@ Três detalhes que costumam tropeçar:
   chamado, mas `obterPoolDb`, `fecharPoolDb` e `sql` estão na fábrica porque
   são o contrato público do módulo: quando um job novo importar `obterPoolDb`,
   o mock já cobre.
+- **O que é chamado com `new` precisa ser `class`** — a partir do vitest 5,
+  `vi.fn().mockReturnValue(...)` invocado como construtor lança
+  "Cannot use `mockReturnValue` when called with `new`". É por isso que
+  [`test/lock-distribuido.test.ts`](../test/lock-distribuido.test.ts) declara
+  `sql.Transaction` e `sql.Request` como classes que devolvem o objeto falso
+  no construtor, com um `vi.fn()` à parte só para registrar o argumento
+  recebido.
 
 Com `verificarSaudeDb` mockado, "banco offline" vira uma linha:
 
@@ -137,12 +148,28 @@ Determinístico, instantâneo e sem precisar derrubar nada de verdade.
 | Escrita em caminho inexistente → `405` | A guarda age antes do roteamento |
 | Só `/health` e `/health/ready` estão registradas | A superfície HTTP não cresce sem querer |
 | Qualquer outra rota → `404` | Idem |
+| O job é registrado com o nome e o cron declarados | O agendamento é o que o código diz |
+| O handler roda sob lock, com o nome do job como chave | Duas instâncias não executam junto |
+| O handler nem é chamado quando o lock é negado | A execução é pulada, não enfileirada |
+| Erro do handler vira `(falha)` e não é relançado | Um job quebrado não derruba o processo |
+| Estouro de prazo vira `(timeout)` | Distinguir "quebrou" de "demorou" muda o diagnóstico |
+| Uma falha não impede a ocorrência seguinte | O scheduler não fica travado |
+| Falha do próprio lock vira `logger.fatal` | Alerta de infraestrutura, não de job |
+| O temporizador é liberado quando o handler termina antes | Um job rápido não segura o event loop |
+| Lock concedido → commit; negado ou erro → rollback | Nenhuma transação fica aberta |
+| `LockTimeout` é `0` e o recurso é `job:<nome>` | É o que faz o lock pular em vez de esperar |
+| `recordset` vazio é tratado como lock negado | Falta de resposta não pode virar execução |
 
 ## Cobertura
 
 `npm run test:coverage`. `src/server.ts`, `src/jobs/`, `src/services/` e
 `src/util/` ficam fora da métrica: são, respectivamente, fiação de boot,
 material descartável do template e helpers de console.
+
+Hoje a medida fica em torno de **75% das linhas**, com `src/scheduler/` e
+`src/server/` inteiros cobertos. O que sobra é `src/db/mssql.ts` — cujo teste
+unitário provaria pouco, porque o `mssql` inteiro estaria mockado — e a
+escolha de nível do logger, que depende do ambiente do processo.
 
 Não há limiar mínimo configurado, de propósito: em um template, um limiar alto
 transforma a primeira contribuição real em uma briga com a ferramenta. Ver
@@ -174,12 +201,13 @@ mora a regra de negócio. Como serviços não dependem de Fastify, o teste é
 direto: importe a função, mocke o repositório, verifique o resultado. Foi para
 isso que a lógica saiu do `handler` ([capítulo 12](12-exemplo-job-e-servico.md)).
 
-**Testar o `job-runner`** — hoje não coberto, e é o código mais crítico da
-estrutura. Mocke `lock.ts` e espie o `logger`, verificando que o campo `status`
-sai como `sucesso` no caminho feliz, `falha` quando o handler lança e
-`timeout` quando estoura o prazo; e que o handler nem é chamado quando o lock
-não é adquirido. Use `vi.useFakeTimers()` para não esperar o timeout de
-verdade.
+**Passar o desfecho do job para campos próprios** — hoje `status` e a duração
+vão dentro da linha de log, e
+[`test/job-runner.test.ts`](../test/job-runner.test.ts) os verifica por
+`stringMatching`. Se um dia a consulta no Log Analytics precisar de campo
+consultável, troque a interpolação por `logger.info({ job, status, duracaoMs
+}, 'Job concluido')` — e as asserções, por `objectContaining`. As duas coisas
+mudam juntas, e só elas.
 
 **Adicionar testes de integração com banco real** — mantenha-os **separados**
 dos unitários, em `test/integration/**`, com um script próprio

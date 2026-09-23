@@ -163,13 +163,19 @@ idempotentes**. Ver [capítulo 06](06-lock-distribuido.md).
 ```text
 executarComLock(nome)              <- só uma instância executa   (cap. 06)
   -> executarComTempoLimite(...)   <- Promise.race contra o timeout
-  -> logger.info/error             <- status + duracaoMs no log  (cap. 03)
+  -> logger.info/error             <- desfecho + duração no log  (cap. 03)
 ```
 
-O desfecho de cada execução sai como log estruturado, com `status`
-(`sucesso` | `falha` | `timeout`) e `duracaoMs` em campos próprios. É o que
-permite responder "esse job rodou?" e "quanto demorou?" por query no Log
+O desfecho de cada execução sai em **uma linha por evento**, em texto puro —
+`Job <nome> concluido em <n>ms com sucesso` ou `Job <nome> falhou (<status>)
+apos <n>ms`, com `status` sendo `sucesso`, `falha` ou `timeout`. É o que
+permite responder "esse job rodou?" e "quanto demorou?" por busca no Log
 Analytics, sem tabela de histórico.
+
+A linha única é uma escolha, não um descuido: ela é legível direto no `kubectl
+logs`. O custo é que `status` e `duracaoMs` não são campos consultáveis — para
+isso seria preciso passá-los como objeto ao pino, o que muda o formato de
+todas essas linhas. Ver upgrades.
 
 Dois detalhes que explicam o comportamento em falha:
 
