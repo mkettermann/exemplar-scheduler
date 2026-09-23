@@ -13,7 +13,7 @@ function jobFalso(nome: string, ambientes: DefinicaoJob['ambientes']): Definicao
     ambientes,
     agendamento: '*/5 * * * *',
     tempoLimiteMs: 1_000,
-    executar: async () => {},
+    executar: async () => { },
   };
 }
 
@@ -81,7 +81,7 @@ describe('contrato de DefinicaoJob', () => {
       nome: 'esquecido',
       agendamento: '*/5 * * * *',
       tempoLimiteMs: 1_000,
-      executar: async () => {},
+      executar: async () => { },
     };
 
     expect(semAmbientes.nome).toBe('esquecido');

@@ -21,7 +21,7 @@ FROM node:${NODE_VERSION} AS verify
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
-COPY package.json package-lock.json tsconfig.json tsconfig.test.json vitest.config.mts ./
+COPY package.json package-lock.json tsconfig.json tsconfig.build.json vitest.config.mts ./
 COPY src ./src
 COPY test ./test
 
@@ -29,16 +29,16 @@ COPY test ./test
 ARG SKIP_CHECKS=0
 
 RUN set -e; \
-    if [ "$SKIP_CHECKS" = "1" ]; then \
-      echo '>> AVISO: typecheck e testes PULADOS (SKIP_CHECKS=1)'; \
-      npm run build \
-        || echo '>> AVISO: build emitiu JS apesar de erros de tipo'; \
-    else \
-      npm run typecheck; \
-      npm test; \
-      npm run build; \
-    fi; \
-    test -f dist/server.js
+  if [ "$SKIP_CHECKS" = "1" ]; then \
+  echo '>> AVISO: typecheck e testes PULADOS (SKIP_CHECKS=1)'; \
+  npm run build \
+  || echo '>> AVISO: build emitiu JS apesar de erros de tipo'; \
+  else \
+  npm run typecheck; \
+  npm test; \
+  npm run build; \
+  fi; \
+  test -f dist/server.js
 
 # --------------------------------------------------------------------------
 # 3. prod-deps — só o que roda em produção
@@ -49,7 +49,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 
 RUN npm ci --omit=dev --ignore-scripts \
-    && npm cache clean --force
+  && npm cache clean --force
 
 # --------------------------------------------------------------------------
 # 4. runtime — imagem final
@@ -63,8 +63,8 @@ ARG TZ=America/Sao_Paulo
 ENV TZ=${TZ}
 
 RUN apk add --no-cache tini tzdata \
-    && cp /usr/share/zoneinfo/${TZ} /etc/localtime \
-    && echo "${TZ}" > /etc/timezone
+  && cp /usr/share/zoneinfo/${TZ} /etc/localtime \
+  && echo "${TZ}" > /etc/timezone
 
 # NODE_ENV NÃO é fixado aqui de propósito: a mesma imagem sobe em DEV, QA, HML
 # e PRD, e é `NODE_ENV` que decide quais jobs cada ambiente registra

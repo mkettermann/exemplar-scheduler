@@ -63,11 +63,11 @@ campos tipados. Ninguém lê `process.env` diretamente.
 | `NODE_ENV` | não | `development` | Ambiente de deploy: `development`, `qa`, `hml`, `production` — mais `test`, que só existe sob o vitest. Decide formato de log, TLS do banco e verbosidade do readiness |
 | `PORT` | não | `3000` | Porta HTTP |
 | `JOBS_ENABLED` | não | `true` | Registra ou não os jobs no boot — desligada, o serviço sobe só com o health |
-| `DB_SERVER` | **sim** | — | Host do MSSQL |
+| `DB_SERVER` | **sim** | — | Host do MSSQL. Sem espaço nem quebra de linha nas pontas |
 | `DB_PORT` | não | `1433` | Porta do MSSQL |
-| `DB_NAME` | **sim** | — | Base de dados |
-| `DB_USER` | **sim** | — | Usuário |
-| `DB_PASSWORD` | **sim** | — | Senha |
+| `DB_NAME` | **sim** | — | Base de dados. Sem espaço nem quebra de linha nas pontas |
+| `DB_USER` | **sim** | — | Usuário. Sem espaço nem quebra de linha nas pontas |
+| `DB_PASSWORD` | **sim** | — | Senha. Sem espaço nem quebra de linha nas pontas |
 | `DB_ENCRYPT` | não | `true` | TLS na conexão |
 | `HEALTH_DB_TIMEOUT_MS` | não | `3000` | Teto de espera do readiness pelo banco |
 
@@ -89,6 +89,88 @@ const booleano = z
 
 JOBS_ENABLED: booleano.default('true'),
 ```
+
+## `textoObrigatorio`: presença não é o bastante
+
+Os quatro campos de conexão usam um parser próprio, que recusa espaço e quebra
+de linha **nas pontas**:
+
+```ts
+const textoObrigatorio = z
+  .string()
+  .min(1)
+  .refine((valor) => valor === valor.trim(), {
+    message: 'não pode começar nem terminar com espaço ou quebra de linha — ...',
+  });
+```
+
+O `.min(1)` sozinho já cobre o caso barulhento: uma substituição que resultou
+em vazio derruba o boot com o nome do campo, antes de qualquer conexão. O
+`refine` existe para o caso que passaria **calado**.
+
+Num Secret do Kubernetes, o bloco `|` preserva a quebra de linha final; só o
+`|-` a remove:
+
+```yaml
+stringData:
+  DB_PASSWORD: |-    # correto: sem o newline final
+    ${DB_PASSWORD}
+```
+
+Com `|` no lugar de `|-`, o valor vira `'senha\n'` — seis caracteres, passa
+num `.min(1)` puro, e o banco recusa a conexão com uma mensagem que se lê como
+*senha errada*. Alguém vai conferir o valor no Key Vault e encontrá-lo
+correto. O `refine` transforma essa caça ao fantasma em um erro nomeado no
+boot.
+
+Ele **recusa em vez de aparar**, de propósito: um `.trim()` silencioso
+esconderia o manifesto errado em vez de apontá-lo. E o guard é só sobre as
+pontas — senha com espaço no meio é aceita sem ressalva.
+
+Vale para todo campo que chegue por substituição em manifesto, não só para a
+senha: `DB_USER` com `\n` no fim falha a autenticação exatamente igual.
+
+## O que merece default e o que não merece
+
+É tentador empurrar o máximo de variáveis para o `.default(...)` e reduzir o
+que cada ambiente precisa declarar. O critério para decidir é único:
+
+> Um default afirma que **"ausente" e "este valor" são igualmente seguros**.
+
+Onde isso é verdade, o default é um ganho puro — `PORT`, `DB_PORT`,
+`DB_ENCRYPT`, `HEALTH_DB_TIMEOUT_MS`, `JOBS_ENABLED`. Errar ali custa um
+aborrecimento local, nunca um dado errado.
+
+Onde é falso, o default troca uma falha barulhenta por uma silenciosa. Os
+quatro campos de conexão dizem **qual banco o serviço toca**, e por isso não
+têm default nem devem ganhar um:
+
+- `DB_SERVER`, `DB_NAME`, `DB_USER` — um default faria um deploy mal
+  configurado apontar em silêncio para o banco de outro ambiente. Num arranjo
+  em que DEV, QA e HML compartilham base ([capítulo 05](05-scheduler.md)), o
+  default seria justamente a base compartilhada — e uma produção mal
+  configurada escreveria nela sem reclamar de nada.
+- `DB_PASSWORD` — segredo não tem default em hipótese nenhuma.
+
+`NODE_ENV` é o caso de fronteira. Ela tem default porque `npm run dev` e o
+vitest precisam funcionar sem `.env`, e porque a falha é fechada: sem ela
+injetada, o serviço assume `development` e **não** registra os jobs dos outros
+ambientes ([capítulo 05](05-scheduler.md)). Ainda assim, por decidir quais jobs
+rodam, o boot avisa quando o default assumiu — é o que `ambienteAssumido`
+existe para marcar.
+
+Vale registrar o limite do schema: ele valida **presença e forma, nunca
+verdade**. `NODE_ENV=production` injetada por engano na homologação é valor
+válido do enum e passa calada. Nenhum `refine` resolve isso, porque o processo
+não tem como saber onde está — só o que lhe contaram.
+
+### O lugar certo de reduzir repetição
+
+Se o incômodo é manter o mesmo valor em quatro grupos de variáveis da
+pipeline, a solução é da pipeline, não do schema: um variable group comum para
+o que não muda entre ambientes, mais um por ambiente para o que muda. Isso
+reduz a repetição sem enfraquecer a validação — enquanto mover valores de
+identidade para o `.default(...)` faria o oposto.
 
 ## Upgrades futuros sem quebrar o que existe
 

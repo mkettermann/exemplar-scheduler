@@ -22,7 +22,7 @@ const opcoesBase: pino.LoggerOptions = {
 export const logger =
   ambiente.NODE_ENV === 'development'
     ? pino({
-        ...opcoesBase,
-        transport: { target: 'pino-pretty', options: { colorize: true, translateTime: 'SYS:standard' } },
-      })
+      ...opcoesBase,
+      transport: { target: 'pino-pretty', options: { colorize: true, translateTime: 'SYS:standard' } },
+    })
     : pino(opcoesBase);

@@ -21,7 +21,7 @@ async function iniciar(): Promise<void> {
   if (ambienteAssumido) {
     logger.warn(
       `${Util.corAmarelo('NODE_ENV não foi injetada')} — assumindo '${ambiente.NODE_ENV}'. ` +
-        'Os jobs de outros ambientes não serão registrados.',
+      'Os jobs de outros ambientes não serão registrados.',
     );
   }
 

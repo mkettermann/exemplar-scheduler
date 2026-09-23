@@ -54,7 +54,7 @@ describe('JOBS_ENABLED', () => {
       const saida = vi.spyOn(process, 'exit').mockImplementation((() => {
         throw new Error('process.exit');
       }) as never);
-      vi.spyOn(console, 'error').mockImplementation(() => {});
+      vi.spyOn(console, 'error').mockImplementation(() => { });
 
       await expect(carregarAmbienteCom(valor)).rejects.toThrow('process.exit');
       expect(saida).toHaveBeenCalledWith(1);

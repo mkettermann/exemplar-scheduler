@@ -13,8 +13,16 @@
     },
     // Títulos iguais em capítulos diferentes são intencionais
     // ("Bibliotecas", "Responsabilidade", "Upgrades futuros...").
-    "MD024": { "siblings_only": true }
+    "MD024": {
+      "siblings_only": true
+    }
   },
-  "globs": ["**/*.md"],
-  "ignores": ["node_modules", "coverage", "dist"]
+  "globs": [
+    "**/*.md"
+  ],
+  "ignores": [
+    "node_modules",
+    "coverage",
+    "dist"
+  ]
 }

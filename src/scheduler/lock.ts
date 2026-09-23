@@ -8,11 +8,7 @@ export interface ResultadoComLock<T> {
   resultado?: T;
 }
 
-/**
- * Trava de execução baseada em `sp_getapplock` do próprio MSSQL: garante que,
- * mesmo com dois processos vivos durante um rolling update, só um execute cada
- * job. Ver `docs/06-lock-distribuido.md`, inclusive para as limitações.
- */
+/** Ver `docs/06-lock-distribuido.md`. */
 export async function executarComLock<T>(
   nomeJob: string,
   acao: () => Promise<T>,

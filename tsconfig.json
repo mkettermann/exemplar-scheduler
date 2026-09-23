@@ -1,6 +1,5 @@
 {
-  /* Build de produção. As decisões por trás destas flags — ESM nativo,
-     modo estrito completo e alvo ES2023 — estão em docs/01-typescript-e-build.md */
+  /* As decisões por trás das flags — ESM nativo, modo estrito completo e alvo ES2023 — estão em docs/01-typescript-e-build.md */
   "compilerOptions": {
     "target": "ES2023",
     "lib": [
@@ -8,13 +7,13 @@
     ],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "types": [
+      "node"
+    ],
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "rootDir": "src",
-    "outDir": "dist",
-    "sourceMap": true,
-    "declaration": false,
+    "noEmit": true,
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
@@ -35,10 +34,13 @@
     "verbatimModuleSyntax": true
   },
   "include": [
-    "src/**/*.ts"
+    "src/**/*.ts",
+    "test/**/*.ts",
+    "vitest.config.mts"
   ],
   "exclude": [
     "node_modules",
-    "dist"
+    "dist",
+    "coverage"
   ]
 }

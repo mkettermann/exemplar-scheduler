@@ -1,0 +1,22 @@
+{
+  /* Build de produção. Herda as regras de tipo do `tsconfig.json` e acrescenta
+     o que diz respeito a emissão. O `include` cobre apenas `src/` de propósito:
+     o build não pode enxergar `test/`, senão os testes acabariam dentro de
+     `dist/`. Ver docs/01-typescript-e-build.md */
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rootDir": "src",
+    "outDir": "dist",
+    "sourceMap": true,
+    "declaration": false
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "coverage"
+  ]
+}

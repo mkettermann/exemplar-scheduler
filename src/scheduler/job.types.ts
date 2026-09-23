@@ -1,9 +1,6 @@
 import type { AmbienteDeploy } from '../config/env.js';
 
-/**
- * Contrato único que todo job implementa. É o que torna o job-runner genérico.
- * Ver `docs/05-scheduler.md`.
- */
+/** Ver `docs/05-scheduler.md`. */
 export interface DefinicaoJob {
   /** Identificador estável: chave do lock e campo `job` de todos os logs. */
   nome: string;
