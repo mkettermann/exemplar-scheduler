@@ -40,6 +40,7 @@ particular:
 | [`test/env-texto-obrigatorio.test.ts`](../test/env-texto-obrigatorio.test.ts) | Espaço e quebra de linha nas pontas dos campos de conexão |
 | [`test/job-runner.test.ts`](../test/job-runner.test.ts) | Registro, execução sob lock, classificação de falha e timeout |
 | [`test/lock-distribuido.test.ts`](../test/lock-distribuido.test.ts) | Commit, rollback, execução pulada e parâmetros do `sp_getapplock` |
+| [`test/mssql.test.ts`](../test/mssql.test.ts) | Pool único, memoização da conexão e o ping do readiness |
 | [`.markdownlint-cli2.jsonc`](../.markdownlint-cli2.jsonc) | Régua de formatação da documentação |
 
 ## Como rodar
@@ -159,6 +160,14 @@ Determinístico, instantâneo e sem precisar derrubar nada de verdade.
 | Lock concedido → commit; negado ou erro → rollback | Nenhuma transação fica aberta |
 | `LockTimeout` é `0` e o recurso é `job:<nome>` | É o que faz o lock pular em vez de esperar |
 | `recordset` vazio é tratado como lock negado | Falta de resposta não pode virar execução |
+| Dois jobs no boot esperam a mesma conexão | O pool é um só, e a promise é memoizada |
+| Falha de conexão libera a memoização | Senão o processo nunca mais tentaria conectar |
+| `fecharPoolDb` sem pool aberto não quebra | O shutdown não depende de ter conectado |
+| Erro emitido pelo pool é logado, não propagado | Queda de conexão não derruba o processo |
+| `verificarSaudeDb` devolve o erro no corpo, nunca lança | É o contrato de que a rota de readiness depende |
+| O ping é `SELECT 1 AS ok` | O readiness não pode custar uma consulta de negócio |
+| O prazo padrão é o `HEALTH_DB_TIMEOUT_MS` do ambiente | Banco lento não pode segurar a probe |
+| O temporizador é liberado quando o banco responde | Cada check limpa o que criou |
 
 ## Cobertura
 
@@ -166,10 +175,18 @@ Determinístico, instantâneo e sem precisar derrubar nada de verdade.
 `src/util/` ficam fora da métrica: são, respectivamente, fiação de boot,
 material descartável do template e helpers de console.
 
-Hoje a medida fica em torno de **75% das linhas**, com `src/scheduler/` e
-`src/server/` inteiros cobertos. O que sobra é `src/db/mssql.ts` — cujo teste
-unitário provaria pouco, porque o `mssql` inteiro estaria mockado — e a
-escolha de nível do logger, que depende do ambiente do processo.
+Hoje a medida fica em **99% das linhas e 100% das funções**. O que sobra é uma
+linha só: a escolha de nível em [`src/logger/logger.ts`](../src/logger/logger.ts),
+que depende do `NODE_ENV` do processo e exigiria recarregar o módulo para
+provar um ternário. Não vale o teste.
+
+Um aviso sobre o que esses 99% significam: em `src/db/mssql.ts` e
+`src/scheduler/lock.ts` o driver `mssql` está mockado, então o que os testes
+provam é o **wrapper** — pool único, memoização, commit e rollback nos lugares
+certos. Que o SQL Server aceite a conexão e que o `sp_getapplock` de fato
+exclua duas instâncias são afirmações sobre o banco, e nenhuma cobertura de
+linha as sustenta: isso é trabalho do teste de integração descrito nos
+upgrades.
 
 Não há limiar mínimo configurado, de propósito: em um template, um limiar alto
 transforma a primeira contribuição real em uma briga com a ferramenta. Ver
