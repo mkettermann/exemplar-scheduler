@@ -145,6 +145,7 @@ src/
     example.job.ts               # MODELO descartável                             -> cap. 12
   services/
     example.service.ts           # MODELO descartável                             -> cap. 12
+    example-consulta.service.ts  # MODELO descartável — consulta ao banco         -> cap. 12
   server/
     app.ts                       # monta o Fastify sem subir (testável)           -> cap. 07
     routes.ts                    # mapa explícito de rotas                        -> cap. 07

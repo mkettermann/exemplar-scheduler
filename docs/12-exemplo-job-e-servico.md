@@ -5,9 +5,10 @@
 
 > **Este capítulo documenta material descartável.**
 > [`example.job.ts`](../src/jobs/example.job.ts),
-> [`example.service.ts`](../src/services/example.service.ts) e **este arquivo**
-> existem para mostrar o formato. Ao implementar o sistema de verdade, apague
-> os três e remova a linha do índice.
+> [`example.service.ts`](../src/services/example.service.ts),
+> [`example-consulta.service.ts`](../src/services/example-consulta.service.ts)
+> e **este arquivo** existem para mostrar o formato. Ao implementar o
+> sistema de verdade, apague os quatro e remova a linha do índice.
 >
 > Jobs e serviços reais **não** ganham capítulo próprio — a documentação deles
 > é o código tipado mais o comentário no topo do arquivo. O que precisa estar
@@ -96,6 +97,97 @@ Quatro pontos desse trecho valem como regra geral:
   mudar o contrato sem avisar, e o TypeScript não protege contra o que vem da
   rede — `resposta.json()` é `any`.
 
+### Um segundo serviço: consulta ao banco
+
+[`example-consulta.service.ts`](../src/services/example-consulta.service.ts) é o
+outro modelo, e o que você vai copiar com mais frequência: ele lê o banco. Não
+tem job vinculado nem teste — é material de leitura, e sai junto com os demais
+exemplos.
+
+Um serviço, uma consulta, três peças:
+
+| Peça | Papel |
+| --- | --- |
+| `QUERY` | O SQL, constante do módulo |
+| `montar()` | Converte a linha crua do banco no objeto de saída |
+| `listarAcionamentos()` | Única função exportada: pega o pool, passa os parâmetros, devolve o resultado |
+
+As duas internas têm nome genérico de propósito: quem abrir o próximo serviço
+já sabe onde olhar sem ler o arquivo inteiro, e a forma se repete sem discussão
+de nomenclatura a cada consulta nova. A exportada é a exceção, e por um motivo
+prático — ela aparece fora do arquivo:
+
+```ts
+import { listarAcionamentos } from '../services/example-consulta.service.js';
+```
+
+Um `listar` genérico obrigaria todo mundo a apelidar no import, ou a conviver
+com uma chamada que não diz o que lista. Os tipos seguem a mesma lógica:
+`AcionamentoComCliente`, `ClienteDoAcionamento` e `FiltroAcionamentos` são
+específicos porque também atravessam a fronteira do módulo.
+
+Se um dia o serviço precisar de uma segunda consulta, ele não precisa: crie
+outro arquivo. Um serviço com duas funções de listagem já é dois serviços.
+
+O corpo do `listarAcionamentos()`:
+
+```ts
+const pool = await obterPoolDb();
+
+const retorno = await pool
+  .request()
+  .input('inseridosApos', sql.DateTime2, inseridosApos)
+  .input('limite', sql.Int, limite)
+  .query<LinhaAcionamento>(QUERY);
+
+return retorno.recordset.map(montar);
+```
+
+Quatro decisões que valem como regra para qualquer consulta desta estrutura:
+
+- **A conexão vem de `obterPoolDb()`.** O serviço não conhece host, usuário nem
+  configuração de TLS — só o pool ([capítulo 04](04-banco-de-dados.md)).
+- **Um `.input()` por parâmetro, com o tipo do driver.** É o que manda o valor
+  separado do texto da query no protocolo do SQL Server. Não é escapar aspas:
+  o valor nunca chega a ser texto de comando. Vale até para o `TOP`, que o
+  T-SQL aceita como `TOP (@limite)` — o que elimina a desculpa mais comum para
+  concatenar.
+- **`QUERY` é constante do módulo.** Fica legível, e fica evidente em revisão
+  que nada é montado em tempo de execução.
+- **O SQL devolve linha achatada; o serviço devolve objeto.** O `LEFT JOIN`
+  traz as colunas do cliente lado a lado com as do acionamento, e `montar()`
+  remonta o aninhamento antes de sair do serviço.
+
+Sobre o `WITH (NOLOCK)` da `QUERY`: é uma escolha, não um enfeite. Ele dispensa
+o bloqueio de leitura — a consulta não trava a escrita da aplicação — em troca
+de poder ler linha que ainda vai ser revertida. Serve para relatório e
+apuração; não serve para nada que decida escrita ou valor financeiro.
+
+O tipo do resultado carrega o que o `LEFT JOIN` significa:
+
+```ts
+export interface AcionamentoComCliente {
+  clienteId: number;
+  notas: string | null;
+  inseridoEm: Date;
+  cliente: ClienteDoAcionamento | null;
+}
+```
+
+`cliente` é anulável porque o `LEFT JOIN` pode não achar par — e quem chamar o
+serviço é obrigado pelo compilador a tratar o acionamento órfão, em vez de
+descobrir o caso em produção. Quem decide a ausência é a chave (o `ClienteID`
+vindo da tabela de clientes), não o nome: nome nulo com vínculo existindo é
+outra coisa, e `montar()` separa os dois casos.
+
+Já `LinhaAcionamento` — o formato cru, com as colunas do cliente apelidadas
+para não colidir com as do acionamento — não é exportado. Ele existe entre o
+`.query()` e o `montar()`, e some ali.
+
+O arquivo não tem comentário explicativo, de propósito: a explicação é este
+capítulo, e o cabeçalho do serviço aponta para cá. Um modelo que só se entende
+com dez linhas de comentário em volta não é um bom modelo para copiar.
+
 ## O job
 
 ```ts
@@ -151,6 +243,7 @@ sozinhas no comparativo, em vez de aparecerem como incidente.
 
 - [ ] `src/jobs/example.job.ts` removido
 - [ ] `src/services/example.service.ts` removido
+- [ ] `src/services/example-consulta.service.ts` removido
 - [ ] `jobExemplo` removido do array em `src/jobs/jobs.ts`
 - [ ] `docs/12-exemplo-job-e-servico.md` removido
 - [ ] Linha 12 removida do índice em `docs/README.md`
