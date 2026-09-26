@@ -28,32 +28,6 @@ particular:
 - o `openapi.yaml` descreve exatamente essa superfície, e as respostas reais;
 - a flag que desliga os jobs é lida sem ambiguidade — `false` é `false`.
 
-## Arquivos
-
-| Arquivo | Cobre |
-| --- | --- |
-| [`vitest.config.mts`](../vitest.config.mts) | Configuração do runner |
-| [`test/setup.ts`](../test/setup.ts) | Variáveis de ambiente dos testes |
-| [`test/health.route.test.ts`](../test/health.route.test.ts) | Liveness e readiness, banco online e offline |
-| [`test/read-only.guard.test.ts`](../test/read-only.guard.test.ts) | Verbos de escrita recusados, superfície HTTP mínima |
-| [`test/openapi.contrato.test.ts`](../test/openapi.contrato.test.ts) | `openapi.yaml` descreve as rotas e as respostas reais |
-| [`test/jobs-enabled.test.ts`](../test/jobs-enabled.test.ts) | Leitura da flag `JOBS_ENABLED`, incluindo valor inválido |
-| [`test/jobs-ambiente.test.ts`](../test/jobs-ambiente.test.ts) | `separarJobsPorAmbiente`: um job, um ambiente |
-| [`test/env-texto-obrigatorio.test.ts`](../test/env-texto-obrigatorio.test.ts) | Espaço e quebra de linha nas pontas dos campos de conexão |
-| [`test/job-runner.test.ts`](../test/job-runner.test.ts) | Registro, execução sob lock, classificação de falha e timeout, lock preso até o handler terminar |
-| [`test/lock-distribuido.test.ts`](../test/lock-distribuido.test.ts) | Commit, rollback, execução pulada e parâmetros do `sp_getapplock` |
-| [`test/mssql.test.ts`](../test/mssql.test.ts) | Pool único, memoização da conexão e o ping do readiness |
-| [`test/app-insights.test.ts`](../test/app-insights.test.ts) | Instância única, configurações antes do `start()` e `trackTrace` — ver [capítulo 13](13-application-insights.md) |
-| [`test/ciclo-de-vida.test.ts`](../test/ciclo-de-vida.test.ts) | Ordem do boot e do encerramento, `JOBS_ENABLED`, jobs de outro ambiente |
-| [`test/server.test.ts`](../test/server.test.ts) | Fiação do entrypoint: sinais e falha fatal no boot |
-| [`test/logger.test.ts`](../test/logger.test.ts) | Nível, formato e redação de segredos por ambiente |
-| [`test/util.test.ts`](../test/util.test.ts) | Helpers de cor e de objeto, inclusive a mutação herdada do legado |
-| [`test/jobs-lista.test.ts`](../test/jobs-lista.test.ts) | Regras que valem para todo job da lista central: nome único, prazo e agendamento |
-| [`test/example.job.test.ts`](../test/example.job.test.ts) | MODELO de teste de job — apagar junto com o exemplo |
-| [`test/example.service.test.ts`](../test/example.service.test.ts) | MODELO de teste de serviço — apagar junto com o exemplo |
-| [`test/example-consulta.service.test.ts`](../test/example-consulta.service.test.ts) | MODELO de teste de serviço com consulta ao banco — apagar junto com o exemplo |
-| [`.markdownlint-cli2.jsonc`](../.markdownlint-cli2.jsonc) | Régua de formatação da documentação |
-
 ## Como rodar
 
 ```bash
