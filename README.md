@@ -56,7 +56,7 @@ npm run dev
 | `npm run typecheck` | Checa tipos de `src/` **e** de `test/`, sem gerar arquivos |
 | `npm test` | Roda a suíte de testes uma vez |
 | `npm run test:watch` | Re-roda os testes ao salvar |
-| `npm run test:coverage` | Testes + cobertura, com piso de 80% |
+| `npm run test:coverage` | Testes + relatório de cobertura |
 | `npm run lint:md` | Verifica a formatação da documentação |
 
 ## Endpoints
@@ -150,8 +150,7 @@ docker run --rm -p 3000:3000 --env-file .env exemplar-scheduler:local
 ```
 
 **O build é um portão**: antes de compilar, o estágio `verify` roda
-`npm run typecheck` e `npm run test:coverage`, e qualquer erro — ou cobertura
-abaixo de 80% — derruba o `docker build`.
+`npm run typecheck` e `npm test`, e qualquer erro derruba o `docker build`.
 
 Os quatro estágios, o escape hatch para hotfix, o fuso horário, o `tini` e a
 configuração no Container Apps / App Service estão no

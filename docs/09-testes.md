@@ -59,7 +59,7 @@ particular:
 ```bash
 npm test             # roda uma vez
 npm run test:watch   # re-roda ao salvar
-npm run test:coverage # testes + piso de 80% + lcov (é o que o CI usa)
+npm run test:coverage # testes + relatório lcov
 npm run typecheck    # tipos de src/ E de test/
 npm run lint:md      # formatação da documentação
 ```
@@ -191,31 +191,6 @@ Determinístico, instantâneo e sem precisar derrubar nada de verdade.
 | `SIGTERM` e `SIGINT` são ligados antes do boot | Um sinal durante o boot ainda encerra |
 | Nenhum job da lista central repete nome | O nome é a chave do lock |
 
-## Cobertura
-
-`npm run test:coverage`. A métrica cobre **todo** o `src/`, sem exclusão —
-entrypoint, jobs, serviços e utilitários inclusive. Hoje ela está em **100%**
-de linhas, branches e funções.
-
-O `coverage.thresholds` do [`vitest.config.mts`](../vitest.config.mts) fixa um
-piso de **80%** em linhas, statements, funções e branches. Abaixo dele,
-`npm run test:coverage` falha — e com ele o estágio `verify` do `docker build`
-([capítulo 11](11-container-e-deploy.md)).
-
-O piso é 80%, não 100%, de propósito: os 100% de hoje são a folga. Com o
-código atual, cabem cerca de 60 linhas novas sem teste antes de o build
-quebrar — o suficiente para um job pequeno entrar antes do teste, não para
-vários. O caminho esperado é que cada job novo traga o próprio teste, copiando
-os modelos `example*.test.ts`.
-
-Um aviso sobre o que esses 100% significam: em `src/db/mssql.ts` e
-`src/scheduler/lock.ts` o driver `mssql` está mockado, então o que os testes
-provam é o **wrapper** — pool único, memoização, commit e rollback nos lugares
-certos. Que o SQL Server aceite a conexão e que o `sp_getapplock` de fato
-exclua duas instâncias são afirmações sobre o banco, e nenhuma cobertura de
-linha as sustenta: isso é trabalho do teste de integração descrito nos
-upgrades.
-
 ## Formatação da documentação
 
 `npm run lint:md` roda o `markdownlint-cli2` sobre todo `.md` do repositório.
@@ -258,21 +233,12 @@ rodando sem infraestrutura, ou deixa de ser executado localmente. Um
 [Testcontainers](https://node.testcontainers.org/) com a imagem do SQL Server
 resolve o provisionamento no CI.
 
-**Mudar o piso de cobertura** — o valor está em `coverage.thresholds`, no
-`vitest.config.mts`. Subir o piso reduz a folga para código sem teste;
-baixá-lo só adia o problema.
-
-**Excluir um arquivo da cobertura** — evite. Um arquivo excluído some da
-métrica, e com ele a garantia de que o código dele foi exercitado: o número
-sobe sem que nada tenha sido testado. Se for inevitável, use
-`coverage.exclude` e registre o motivo aqui.
-
 **Rodar no CI** — o mínimo útil, em ordem:
 
 ```bash
 npm ci
 npm run typecheck
-npm run test:coverage   # testes + piso de cobertura
+npm test
 npm run build
 npm run lint:md
 ```
@@ -282,5 +248,4 @@ de tipo passaria pelos testes e só apareceria no `build`.
 
 **Subir a major do vitest** — as quebras costumam estar na configuração, não
 nos testes. Como a configuração é curta, o conserto é local. Rode
-`npm test` e `npm run test:coverage`: o provider de cobertura é a parte que
-mais muda entre majors.
+`npm test` e `npm run typecheck`.

@@ -230,8 +230,7 @@ await fetch(url, { signal: AbortSignal.timeout(10_000) });
    agora** — o compilador não deixa passar sem.
 3. Adicione ao array em [`src/jobs/jobs.ts`](../src/jobs/jobs.ts).
 4. Escreva o teste do serviço e o do job em `test/`, copiando os modelos
-   `example*.test.ts`. O `npm run test:coverage` — e com ele o `docker build`
-   — reprova abaixo de 80% de cobertura ([capítulo 09](09-testes.md)).
+   `example*.test.ts` ([capítulo 09](09-testes.md)).
 
 O entrypoint não é tocado: [`ciclo-de-vida.ts`](../src/ciclo-de-vida.ts)
 importa o array, filtra por ambiente e registra o que sobrou. Ver

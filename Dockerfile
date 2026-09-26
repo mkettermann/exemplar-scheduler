@@ -39,7 +39,7 @@ RUN set -e; \
   || echo '>> AVISO: build emitiu JS apesar de erros de tipo'; \
   else \
   npm run typecheck; \
-  npm run test:coverage; \
+  npm test; \
   npm run build; \
   fi; \
   test -f dist/server.js

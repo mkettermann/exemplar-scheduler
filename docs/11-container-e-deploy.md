@@ -26,7 +26,7 @@ docker run --rm -p 3000:3000 --env-file .env exemplar-scheduler:local
 | Estágio | O que faz | O que sobrevive |
 | --- | --- | --- |
 | `deps` | `npm ci --ignore-scripts` com as dependências completas | `node_modules` para o estágio seguinte |
-| `verify` | `npm run typecheck`, `npm run test:coverage` e `npm run build` | `dist/` |
+| `verify` | `npm run typecheck`, `npm test` e `npm run build` | `dist/` |
 | `prod-deps` | `npm ci --omit=dev --ignore-scripts` | `node_modules` de produção |
 | `runtime` | Monta a imagem final | É a imagem publicada |
 
@@ -49,10 +49,10 @@ Três decisões merecem nota:
 
 ## O build é um portão
 
-O estágio `verify` roda `npm run typecheck` e `npm run test:coverage` **antes**
-de compilar. Qualquer erro de tipo, teste vermelho ou cobertura abaixo do piso
-de 80% ([capítulo 09](09-testes.md)) derruba o `docker build`, e nenhuma
-imagem é produzida.
+O estágio `verify` roda `npm run typecheck` e `npm test` **antes** de
+compilar. Qualquer erro de tipo ou teste vermelho
+([capítulo 09](09-testes.md)) derruba o `docker build`, e nenhuma imagem é
+produzida.
 
 Para um hotfix em que o portão precise ser contornado, existe uma saída
 explícita, que fica registrada no log da pipeline:

@@ -238,7 +238,7 @@ mostra o uso em volta de uma consulta
 ## Testes
 
 [`test/app-insights.test.ts`](../test/app-insights.test.ts) substitui o SDK
-inteiro por um falso e prova o wrapper, com 100% de cobertura do arquivo:
+inteiro por um falso e prova o wrapper:
 
 | Asserção | Por que importa |
 | --- | --- |

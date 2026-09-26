@@ -176,7 +176,7 @@ existe"** específica daquela peça. Antes de qualquer uma delas, o mesmo ritual
 
 ```bash
 npm run typecheck      # tipos de src/ e de test/
-npm run test:coverage  # suíte completa + piso de cobertura
+npm test               # suíte completa
 npm run build          # garante que dist/ ainda compila
 npm run lint:md        # formatação da documentação
 ```
