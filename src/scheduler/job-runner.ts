@@ -4,23 +4,63 @@ import type { DefinicaoJob, StatusJob } from './job.types.js';
 import { executarComLock } from './lock.js';
 import { logger } from '../logger/logger.js';
 
-async function executarComTempoLimite(
-  acao: () => Promise<void>,
+/**
+ * Estouro de `tempoLimiteMs`. Classe própria porque a classificação não pode
+ * depender da mensagem: o timeout de query do driver `mssql` também começa com
+ * "Timeout", e é uma `falha` do handler, não um estouro de prazo do job.
+ */
+class ErroTempoLimite extends Error {
+  constructor(tempoLimiteMs: number) {
+    super(`Timeout após ${tempoLimiteMs}ms`);
+    this.name = 'ErroTempoLimite';
+  }
+}
+
+async function aguardarComTempoLimite(
+  execucao: Promise<void>,
   tempoLimiteMs: number,
 ): Promise<void> {
-  let temporizador: NodeJS.Timeout;
+  let temporizador: NodeJS.Timeout | undefined;
 
   const expiracao = new Promise<never>((_, rejeitar) => {
-    temporizador = setTimeout(
-      () => rejeitar(new Error(`Timeout após ${tempoLimiteMs}ms`)),
-      tempoLimiteMs,
-    );
+    temporizador = setTimeout(() => rejeitar(new ErroTempoLimite(tempoLimiteMs)), tempoLimiteMs);
   });
 
   try {
-    await Promise.race([acao(), expiracao]);
+    await Promise.race([execucao, expiracao]);
   } finally {
-    clearTimeout(temporizador!);
+    clearTimeout(temporizador);
+  }
+}
+
+/** `async` converte um `throw` síncrono do handler em rejeição, classificada como as demais. */
+async function dispararHandler(job: DefinicaoJob): Promise<void> {
+  await job.executar();
+}
+
+/**
+ * O timeout para a espera, não o handler. Devolver agora faria o
+ * `executarComLock` dar commit e soltar a trava com o handler ainda rodando —
+ * e o disparo seguinte, ou o de outra réplica, executaria o mesmo job em
+ * paralelo. Então a trava fica presa até o handler terminar de fato.
+ * Ver `docs/05-scheduler.md`.
+ */
+async function aguardarFimAposTimeout(
+  job: DefinicaoJob,
+  execucao: Promise<void>,
+  iniciadoEm: number,
+): Promise<void> {
+  try {
+    await execucao;
+    logger.warn(
+      { job: job.nome },
+      `Job ${job.nome} terminou apos o timeout, em ${Date.now() - iniciadoEm}ms — lock liberado`,
+    );
+  } catch (error_) {
+    logger.warn(
+      { job: job.nome, err: error_ },
+      `Job ${job.nome} falhou apos o timeout, em ${Date.now() - iniciadoEm}ms — lock liberado`,
+    );
   }
 }
 
@@ -34,15 +74,23 @@ async function executarJob(job: DefinicaoJob): Promise<void> {
     const iniciadoEm = Date.now();
     logger.info(`Job iniciado: ${job.nome}`);
 
+    const execucao = dispararHandler(job);
+
     try {
-      await executarComTempoLimite(job.executar, job.tempoLimiteMs);
+      await aguardarComTempoLimite(execucao, job.tempoLimiteMs);
 
       logger.info(`Job ${job.nome} concluido em ${Date.now() - iniciadoEm}ms com sucesso`);
-    } catch (erro) {
-      const expirou = erro instanceof Error && erro.message.startsWith('Timeout');
-      const status: StatusJob = expirou ? 'timeout' : 'falha';
+    } catch (error_) {
+      const status: StatusJob = error_ instanceof ErroTempoLimite ? 'timeout' : 'falha';
 
-      logger.error(`Job ${job.nome} falhou (${status}) apos ${Date.now() - iniciadoEm}ms`);
+      logger.error(
+        { job: job.nome, status, err: error_ },
+        `Job ${job.nome} falhou (${status}) apos ${Date.now() - iniciadoEm}ms`,
+      );
+
+      if (status === 'timeout') {
+        await aguardarFimAposTimeout(job, execucao, iniciadoEm);
+      }
     }
   });
 
@@ -76,7 +124,8 @@ export function separarJobsPorAmbiente(
   const ignorados: DefinicaoJob[] = [];
 
   for (const job of todos) {
-    if (job.ambientes.some((declarado) => declarado === ambienteAtual)) {
+    // Alarga o tipo só para o `includes`: `ambienteAtual` pode ser `test`, que não é `AmbienteDeploy`.
+    if ((job.ambientes as readonly Ambiente['NODE_ENV'][]).includes(ambienteAtual)) {
       ativos.push(job);
     } else {
       ignorados.push(job);
@@ -95,8 +144,8 @@ export function registrarJob(job: DefinicaoJob): schedule.Job {
   logger.info(`Job registrado: ${job.nome} com agendamento ${job.agendamento}`);
 
   return schedule.scheduleJob(job.nome, job.agendamento, () => {
-    void executarJob(job).catch((erro) => {
-      logger.fatal({ job: job.nome, err: erro }, 'Falha inesperada no job-runner');
+    void executarJob(job).catch((error_) => {
+      logger.fatal({ job: job.nome, err: error_ }, 'Falha inesperada no job-runner');
     });
   });
 }

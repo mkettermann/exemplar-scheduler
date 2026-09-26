@@ -12,7 +12,7 @@ export function aplicarGuardaSomenteLeitura(app: FastifyInstance): void {
     if (!METODOS_PERMITIDOS.has(requisicao.method)) {
       await resposta.code(405).send({
         error: 'method_not_allowed',
-        message: 'Este serviço é somente leitura — apenas GET e HEAD são aceitos.',
+        message: 'Este serviço é somente leitura — apenas GET, HEAD e OPTIONS são aceitos.',
       });
     }
   });

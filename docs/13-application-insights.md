@@ -104,8 +104,9 @@ recusa quebra de linha nas pontas, como nos campos de conexão).
 
 ### Onde a instância é criada
 
-A criação acontece no `import`. O [entrypoint](../src/server.ts) importa o
-módulo **logo depois do `env.ts`**, antes de qualquer coisa que carregue o
+A criação acontece no `import`. O [entrypoint](../src/server.ts) importa
+primeiro o [`ciclo-de-vida.ts`](../src/ciclo-de-vida.ts), e é este que importa
+o módulo **logo depois do `env.ts`**, antes de qualquer coisa que carregue o
 Fastify:
 
 ```ts
@@ -212,9 +213,9 @@ classifica e loga a falha do job continua sendo o
 ```ts
 try {
   await pool.request().execute('sp_ProcessarCobranca');
-} catch (erro) {
+} catch (error_) {
   appInsightsInstance.trackTrace('sp_ProcessarCobranca: falhou', 3);
-  throw erro;
+  throw error_;
 }
 ```
 

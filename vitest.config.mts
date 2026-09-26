@@ -1,7 +1,7 @@
 import { defineConfig } from 'vitest/config';
 
 /* Configuração do runner. Ver docs/09-testes.md, em especial o papel do
-   `setupFiles` e o motivo de cada exclusão da cobertura. */
+   `setupFiles` e por que a cobertura não exclui nada de `src/`. */
 export default defineConfig({
   test: {
     environment: 'node',
@@ -11,7 +11,15 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],
-      exclude: ['src/server.ts', 'src/jobs/**', 'src/services/**', 'src/util/**'],
+      reporter: ['text', 'html', 'lcov'],
+      // Piso que reprova `test:coverage` e o `docker build`. Ver
+      // docs/09-testes.md, seção "Cobertura".
+      thresholds: {
+        lines: 80,
+        statements: 80,
+        functions: 80,
+        branches: 80,
+      },
     },
   },
 });

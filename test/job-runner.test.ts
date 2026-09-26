@@ -68,9 +68,37 @@ async function aguardarCiclo(): Promise<void> {
   await Promise.resolve();
 }
 
-/** Primeiro argumento de cada chamada, que é onde vai a linha de log. */
+/**
+ * A linha de log de cada chamada. No formato do pino, ela é o primeiro
+ * argumento quando vem sozinha e o segundo quando vem depois do objeto de
+ * campos — é o caso das linhas de falha, que carregam o `err`.
+ */
 function linhasDe(espiao: Mock): string[] {
-  return espiao.mock.calls.map(([primeiro]) => String(primeiro));
+  return espiao.mock.calls.map(([primeiro, segundo]) =>
+    String(typeof primeiro === 'string' ? primeiro : segundo),
+  );
+}
+
+/**
+ * Deixa a cadeia de promises andar sem esperar o fim do ciclo. Usado quando o
+ * ciclo **não deve** terminar ainda — o lock preso depois de um timeout.
+ */
+async function esvaziarMicrotarefas(): Promise<void> {
+  for (let i = 0; i < 10; i += 1) {
+    await Promise.resolve();
+  }
+}
+
+/** Promise controlada pelo teste, para decidir quando o handler termina. */
+function handlerControlado() {
+  let resolver!: () => void;
+  let rejeitar!: (erro: unknown) => void;
+  const promessa = new Promise<void>((res, rej) => {
+    resolver = res;
+    rejeitar = rej;
+  });
+
+  return { executar: vi.fn(() => promessa), resolver, rejeitar };
 }
 
 beforeEach(() => {
@@ -173,6 +201,61 @@ describe('execução disparada pelo scheduler', () => {
     expect(mocks.logger.fatal).not.toHaveBeenCalled();
   });
 
+  it('o erro do handler vai para o log, com stack — não só a linha de desfecho', async () => {
+    const erro = new Error('fornecedor fora do ar');
+    const job = jobFalso({
+      nome: 'cobranca',
+      executar: vi.fn(async () => {
+        throw erro;
+      }),
+    });
+    const disparar = registrarECapturarDisparo(job);
+
+    disparar();
+    await aguardarCiclo();
+
+    expect(mocks.logger.error).toHaveBeenCalledWith(
+      { job: 'cobranca', status: 'falha', err: erro },
+      expect.any(String),
+    );
+  });
+
+  it('timeout de query do driver é falha do handler, não estouro de prazo do job', async () => {
+    const job = jobFalso({
+      nome: 'cobranca',
+      executar: vi.fn(async () => {
+        // A mensagem que o driver `mssql` (tedious) usa no timeout de query.
+        throw new Error('Timeout: Request failed to complete in 15000ms');
+      }),
+    });
+    const disparar = registrarECapturarDisparo(job);
+
+    disparar();
+    await aguardarCiclo();
+
+    expect(linhasDe(mocks.logger.error)).toEqual([
+      expect.stringMatching(/^Job cobranca falhou \(falha\) apos \d+ms$/),
+    ]);
+  });
+
+  it('handler que lança de forma síncrona é classificado como falha, não como fatal', async () => {
+    const job = jobFalso({
+      nome: 'cobranca',
+      executar: vi.fn(() => {
+        throw new Error('configuração ausente');
+      }),
+    });
+    const disparar = registrarECapturarDisparo(job);
+
+    disparar();
+    await aguardarCiclo();
+
+    expect(linhasDe(mocks.logger.error)).toEqual([
+      expect.stringMatching(/^Job cobranca falhou \(falha\) apos \d+ms$/),
+    ]);
+    expect(mocks.logger.fatal).not.toHaveBeenCalled();
+  });
+
   it('um handler que falha não impede a ocorrência seguinte', async () => {
     let chamadas = 0;
     const job = jobFalso({
@@ -221,20 +304,72 @@ describe('tempo limite do handler', () => {
   });
 
   it('classifica como timeout o handler que passa de tempoLimiteMs', async () => {
-    const job = jobFalso({
-      nome: 'cobranca',
-      tempoLimiteMs: 3_000,
-      executar: vi.fn(() => new Promise<void>(() => { })),
-    });
-    const disparar = registrarECapturarDisparo(job);
+    const handler = handlerControlado();
+    const disparar = registrarECapturarDisparo(
+      jobFalso({ nome: 'cobranca', tempoLimiteMs: 3_000, executar: handler.executar }),
+    );
 
     disparar();
     await vi.advanceTimersByTimeAsync(3_000);
-    await aguardarCiclo();
+    await esvaziarMicrotarefas();
 
     expect(linhasDe(mocks.logger.error)).toEqual([
       expect.stringMatching(/^Job cobranca falhou \(timeout\) apos \d+ms$/),
     ]);
+    expect(mocks.logger.error).toHaveBeenCalledWith(
+      expect.objectContaining({ job: 'cobranca', status: 'timeout' }),
+      expect.any(String),
+    );
+  });
+
+  /**
+   * O cenário que motivou a espera: se o runner devolvesse no timeout, o
+   * `executarComLock` daria commit e soltaria a trava com o handler ainda
+   * rodando — e o disparo seguinte executaria o mesmo job em paralelo.
+   */
+  it('depois do timeout, segura o lock até o handler terminar de fato', async () => {
+    const handler = handlerControlado();
+    const disparar = registrarECapturarDisparo(
+      jobFalso({ nome: 'cobranca', tempoLimiteMs: 3_000, executar: handler.executar }),
+    );
+    let lockLiberado = false;
+
+    disparar();
+    void mocks.executarComLock.mock.results.at(-1)?.value.then(() => {
+      lockLiberado = true;
+    });
+    await vi.advanceTimersByTimeAsync(3_000);
+    await esvaziarMicrotarefas();
+
+    expect(linhasDe(mocks.logger.error)).toHaveLength(1);
+    expect(lockLiberado).toBe(false);
+
+    handler.resolver();
+    await aguardarCiclo();
+
+    expect(lockLiberado).toBe(true);
+    expect(linhasDe(mocks.logger.warn)).toEqual([
+      expect.stringMatching(/^Job cobranca terminou apos o timeout, em \d+ms — lock liberado$/),
+    ]);
+  });
+
+  it('handler que falha depois do timeout também solta o lock, e o erro vai para o log', async () => {
+    const handler = handlerControlado();
+    const erro = new Error('conexão perdida');
+    const disparar = registrarECapturarDisparo(
+      jobFalso({ nome: 'cobranca', tempoLimiteMs: 3_000, executar: handler.executar }),
+    );
+
+    disparar();
+    await vi.advanceTimersByTimeAsync(3_000);
+    handler.rejeitar(erro);
+    await aguardarCiclo();
+
+    expect(mocks.logger.warn).toHaveBeenCalledWith(
+      { job: 'cobranca', err: erro },
+      expect.stringMatching(/^Job cobranca falhou apos o timeout, em \d+ms — lock liberado$/),
+    );
+    expect(mocks.logger.fatal).not.toHaveBeenCalled();
   });
 
   it('ainda não desistiu um milissegundo antes do prazo', async () => {

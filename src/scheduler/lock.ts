@@ -47,8 +47,21 @@ export async function executarComLock<T>(
 
     await transacao.commit();
     return { executou: true, resultado };
-  } catch (erro) {
+  } catch (error_) {
+    await desfazerSemMascarar(transacao, nomeJob);
+    throw error_;
+  }
+}
+
+/**
+ * Um `rollback` que falha — transação já abortada pelo servidor, conexão
+ * caída — não pode substituir o erro original, que é o que o runner precisa
+ * classificar. A falha do rollback vai para o log e o erro original segue.
+ */
+async function desfazerSemMascarar(transacao: sql.Transaction, nomeJob: string): Promise<void> {
+  try {
     await transacao.rollback();
-    throw erro;
+  } catch (rollbackError) {
+    logger.error({ job: nomeJob, err: rollbackError }, 'Falha no rollback da transação do lock');
   }
 }

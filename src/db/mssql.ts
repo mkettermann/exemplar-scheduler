@@ -36,22 +36,20 @@ export async function obterPoolDb(): Promise<sql.ConnectionPool> {
     return pool;
   }
 
-  if (!conectando) {
-    conectando = new sql.ConnectionPool(configuracao)
-      .connect()
-      .then((conectado) => {
-        conectado.on('error', (erro: Error) => {
-          logger.error({ err: erro }, 'Erro no pool de conexão MSSQL');
-        });
-
-        pool = conectado;
-        logger.info('Conectado ao MSSQL');
-        return conectado;
-      })
-      .finally(() => {
-        conectando = undefined;
+  conectando ??= new sql.ConnectionPool(configuracao)
+    .connect()
+    .then((conectado) => {
+      conectado.on('error', (erro: Error) => {
+        logger.error({ err: erro }, 'Erro no pool de conexão MSSQL');
       });
-  }
+
+      pool = conectado;
+      logger.info('Conectado ao MSSQL');
+      return conectado;
+    })
+    .finally(() => {
+      conectando = undefined;
+    });
 
   return conectando;
 }
@@ -91,11 +89,11 @@ export async function verificarSaudeDb(
 
     await Promise.race([ping, expiracao]);
     return { ok: true, latenciaMs: Date.now() - iniciadoEm };
-  } catch (erro) {
+  } catch (error_) {
     return {
       ok: false,
       latenciaMs: Date.now() - iniciadoEm,
-      erro: erro instanceof Error ? erro.message : String(erro),
+      erro: error_ instanceof Error ? error_.message : String(error_),
     };
   } finally {
     clearTimeout(temporizador);

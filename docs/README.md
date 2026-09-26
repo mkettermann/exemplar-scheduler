@@ -136,7 +136,8 @@ aqui, onde pode ser lida inteira; o código fica com uma linha e um endereço.
 
 ```text
 src/
-  server.ts                      # entrypoint: DB -> jobs -> HTTP -> encerramento -> cap. 05
+  server.ts                      # entrypoint: liga os sinais e chama iniciar()   -> cap. 05
+  ciclo-de-vida.ts               # boot DB -> jobs -> HTTP, e o encerramento      -> cap. 05
   config/env.ts                  # variáveis de ambiente validadas (zod)          -> cap. 02
   config/appInsights.ts          # instância única do Application Insights        -> cap. 13
   logger/logger.ts               # logger estruturado (pino)                      -> cap. 03
@@ -163,6 +164,8 @@ test/
   health.route.test.ts           # health online/offline                          -> cap. 09
   read-only.guard.test.ts        # trava de somente-leitura e da superfície       -> cap. 09
   app-insights.test.ts           # setup, configurações e trackTrace              -> cap. 13
+  ciclo-de-vida.test.ts          # ordem do boot e do encerramento                -> cap. 09
+  example*.test.ts               # MODELOS de teste de job e serviço              -> cap. 12
 Dockerfile                       # build multi-stage com portão de verificação    -> cap. 11
 ```
 
@@ -172,10 +175,10 @@ Cada capítulo termina com uma seção **"Upgrades futuros sem quebrar o que
 existe"** específica daquela peça. Antes de qualquer uma delas, o mesmo ritual:
 
 ```bash
-npm run typecheck   # tipos de src/ e de test/
-npm test            # suíte completa
-npm run build       # garante que dist/ ainda compila
-npm run lint:md     # formatação da documentação
+npm run typecheck      # tipos de src/ e de test/
+npm run test:coverage  # suíte completa + piso de cobertura
+npm run build          # garante que dist/ ainda compila
+npm run lint:md        # formatação da documentação
 ```
 
 Um upgrade que passa nos quatro e não exigiu editar nenhum arquivo fora da peça

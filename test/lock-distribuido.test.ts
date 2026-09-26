@@ -222,4 +222,21 @@ describe('executarComLock — ação que falha', () => {
 
     expect(mocks.transacao.rollback).toHaveBeenCalledTimes(1);
   });
+
+  it('rollback que também falha não esconde o erro original — vai para o log', async () => {
+    const erroDaAcao = new Error('fornecedor fora do ar');
+    const erroDoRollback = new Error('transação já abortada pelo servidor');
+    mocks.transacao.rollback.mockRejectedValue(erroDoRollback);
+
+    await expect(
+      executarComLock('cobranca', async () => {
+        throw erroDaAcao;
+      }),
+    ).rejects.toThrow(erroDaAcao);
+
+    expect(mocks.logger.error).toHaveBeenCalledWith(
+      { job: 'cobranca', err: erroDoRollback },
+      'Falha no rollback da transação do lock',
+    );
+  });
 });

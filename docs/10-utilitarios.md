@@ -20,14 +20,15 @@ Helpers de uso geral, hoje em dois grupos.
 de códigos ANSI:
 
 ```ts
-static corVerde = (texto: string, semFundo?: boolean) => {
+static readonly corVerde = (texto: string, semFundo?: boolean) => {
   const colorido = `\x1b[32m${texto}\x1b[0m`;
   return semFundo ? colorido : Util.fundoPreto(colorido);
 };
 ```
 
-Usados em [`server.ts`](../src/server.ts) para destacar a linha de boot e a
-falha fatal — os dois momentos em que alguém está de fato olhando o terminal.
+Usados em [`ciclo-de-vida.ts`](../src/ciclo-de-vida.ts) e em
+[`server.ts`](../src/server.ts) para destacar a linha de boot e a falha
+fatal — os dois momentos em que alguém está de fato olhando o terminal.
 
 > **Cuidado:** esses códigos ANSI vão junto com a string para o pino. Em
 > produção o log é JSON e os escapes aparecem **dentro** do campo `msg`, o que
@@ -44,7 +45,12 @@ falha fatal — os dois momentos em que alguém está de fato olhando o terminal
 
 Duas advertências sobre `limparOA`: ela **muta** o objeto recebido (não devolve
 cópia) e é rasa (não desce em objetos aninhados). Ambas são herança do código
-legado, mantidas para compatibilidade de comportamento.
+legado, mantidas para compatibilidade de comportamento — e fixadas em
+[`test/util.test.ts`](../test/util.test.ts), para que mudá-las seja uma decisão
+e não um acidente.
+
+Os membros de `Util` são `static readonly`: o legado os declarava
+reatribuíveis, e nada no projeto os reatribui.
 
 ## Por que isso não é tipado como o resto
 
@@ -71,7 +77,7 @@ cor devolverem o texto puro quando a saída não for um TTY ou quando
 
 ```ts
 const usaCor = process.stdout.isTTY && ambiente.NODE_ENV !== 'production';
-static corVerde = (t: string) => (usaCor ? `\x1b[32m${t}\x1b[0m` : t);
+static readonly corVerde = (t: string) => (usaCor ? `\x1b[32m${t}\x1b[0m` : t);
 ```
 
 Nenhuma chamada existente muda; o log de produção fica limpo. Atenção a um

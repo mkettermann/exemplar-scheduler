@@ -40,18 +40,26 @@ particular:
 | [`test/jobs-enabled.test.ts`](../test/jobs-enabled.test.ts) | Leitura da flag `JOBS_ENABLED`, incluindo valor inválido |
 | [`test/jobs-ambiente.test.ts`](../test/jobs-ambiente.test.ts) | `separarJobsPorAmbiente`: um job, um ambiente |
 | [`test/env-texto-obrigatorio.test.ts`](../test/env-texto-obrigatorio.test.ts) | Espaço e quebra de linha nas pontas dos campos de conexão |
-| [`test/job-runner.test.ts`](../test/job-runner.test.ts) | Registro, execução sob lock, classificação de falha e timeout |
+| [`test/job-runner.test.ts`](../test/job-runner.test.ts) | Registro, execução sob lock, classificação de falha e timeout, lock preso até o handler terminar |
 | [`test/lock-distribuido.test.ts`](../test/lock-distribuido.test.ts) | Commit, rollback, execução pulada e parâmetros do `sp_getapplock` |
 | [`test/mssql.test.ts`](../test/mssql.test.ts) | Pool único, memoização da conexão e o ping do readiness |
 | [`test/app-insights.test.ts`](../test/app-insights.test.ts) | Instância única, configurações antes do `start()` e `trackTrace` — ver [capítulo 13](13-application-insights.md) |
+| [`test/ciclo-de-vida.test.ts`](../test/ciclo-de-vida.test.ts) | Ordem do boot e do encerramento, `JOBS_ENABLED`, jobs de outro ambiente |
+| [`test/server.test.ts`](../test/server.test.ts) | Fiação do entrypoint: sinais e falha fatal no boot |
+| [`test/logger.test.ts`](../test/logger.test.ts) | Nível, formato e redação de segredos por ambiente |
+| [`test/util.test.ts`](../test/util.test.ts) | Helpers de cor e de objeto, inclusive a mutação herdada do legado |
+| [`test/jobs-lista.test.ts`](../test/jobs-lista.test.ts) | Regras que valem para todo job da lista central: nome único, prazo e agendamento |
+| [`test/example.job.test.ts`](../test/example.job.test.ts) | MODELO de teste de job — apagar junto com o exemplo |
+| [`test/example.service.test.ts`](../test/example.service.test.ts) | MODELO de teste de serviço — apagar junto com o exemplo |
+| [`test/example-consulta.service.test.ts`](../test/example-consulta.service.test.ts) | MODELO de teste de serviço com consulta ao banco — apagar junto com o exemplo |
 | [`.markdownlint-cli2.jsonc`](../.markdownlint-cli2.jsonc) | Régua de formatação da documentação |
 
 ## Como rodar
 
 ```bash
-npm test             # roda uma vez (é o que o CI usa)
+npm test             # roda uma vez
 npm run test:watch   # re-roda ao salvar
-npm run test:coverage
+npm run test:coverage # testes + piso de 80% + lcov (é o que o CI usa)
 npm run typecheck    # tipos de src/ E de test/
 npm run lint:md      # formatação da documentação
 ```
@@ -156,7 +164,11 @@ Determinístico, instantâneo e sem precisar derrubar nada de verdade.
 | O handler roda sob lock, com o nome do job como chave | Duas instâncias não executam junto |
 | O handler nem é chamado quando o lock é negado | A execução é pulada, não enfileirada |
 | Erro do handler vira `(falha)` e não é relançado | Um job quebrado não derruba o processo |
+| O erro do handler vai para o log como `err` | Sem ele, a linha diz que falhou, mas não por quê |
 | Estouro de prazo vira `(timeout)` | Distinguir "quebrou" de "demorou" muda o diagnóstico |
+| Timeout de query do driver vira `(falha)`, não `(timeout)` | A mensagem do `mssql` também começa com `Timeout` |
+| Depois do timeout, o lock só sai quando o handler termina | Senão o disparo seguinte roda em paralelo |
+| Rollback que falha não esconde o erro original | O runner classifica o erro certo |
 | Uma falha não impede a ocorrência seguinte | O scheduler não fica travado |
 | Falha do próprio lock vira `logger.fatal` | Alerta de infraestrutura, não de job |
 | O temporizador é liberado quando o handler termina antes | Um job rápido não segura o event loop |
@@ -173,28 +185,35 @@ Determinístico, instantâneo e sem precisar derrubar nada de verdade.
 | O temporizador é liberado quando o banco responde | Cada check limpa o que criou |
 | O Application Insights é configurado uma vez, antes do `start()` | A configuração fica num lugar só, e o SDK não admite dois `setup()` |
 | `trackTrace` sem severidade envia `Information` e nunca lança | Telemetria não derruba job |
+| Boot: banco, jobs e HTTP, nessa ordem; sem banco, nada sobe | Falha rápido, em vez de no primeiro cron |
+| Encerramento: jobs, HTTP, banco e telemetria, nessa ordem | Um job não é cortado com o pool fechado |
+| Dois sinais seguidos encerram uma vez só | O procedimento não roda em dobro |
+| `SIGTERM` e `SIGINT` são ligados antes do boot | Um sinal durante o boot ainda encerra |
+| Nenhum job da lista central repete nome | O nome é a chave do lock |
 
 ## Cobertura
 
-`npm run test:coverage`. `src/server.ts`, `src/jobs/`, `src/services/` e
-`src/util/` ficam fora da métrica: são, respectivamente, fiação de boot,
-material descartável do template e helpers de console.
+`npm run test:coverage`. A métrica cobre **todo** o `src/`, sem exclusão —
+entrypoint, jobs, serviços e utilitários inclusive. Hoje ela está em **100%**
+de linhas, branches e funções.
 
-Hoje a medida fica em **99% das linhas e 100% das funções**. O que sobra é uma
-linha só: a escolha de nível em [`src/logger/logger.ts`](../src/logger/logger.ts),
-que depende do `NODE_ENV` do processo e exigiria recarregar o módulo para
-provar um ternário. Não vale o teste.
+O `coverage.thresholds` do [`vitest.config.mts`](../vitest.config.mts) fixa um
+piso de **80%** em linhas, statements, funções e branches. Abaixo dele,
+`npm run test:coverage` falha — e com ele o estágio `verify` do `docker build`
+([capítulo 11](11-container-e-deploy.md)).
 
-Um aviso sobre o que esses 99% significam: em `src/db/mssql.ts` e
+O piso é 80%, não 100%, de propósito: os 100% de hoje são a folga. Com o
+código atual, cabem cerca de 60 linhas novas sem teste antes de o build
+quebrar — o suficiente para um job pequeno entrar antes do teste, não para
+vários. O caminho esperado é que cada job novo traga o próprio teste, copiando
+os modelos `example*.test.ts`.
+
+Um aviso sobre o que esses 100% significam: em `src/db/mssql.ts` e
 `src/scheduler/lock.ts` o driver `mssql` está mockado, então o que os testes
 provam é o **wrapper** — pool único, memoização, commit e rollback nos lugares
 certos. Que o SQL Server aceite a conexão e que o `sp_getapplock` de fato
 exclua duas instâncias são afirmações sobre o banco, e nenhuma cobertura de
 linha as sustenta: isso é trabalho do teste de integração descrito nos
-upgrades.
-
-Não há limiar mínimo configurado, de propósito: em um template, um limiar alto
-transforma a primeira contribuição real em uma briga com a ferramenta. Ver
 upgrades.
 
 ## Formatação da documentação
@@ -223,8 +242,9 @@ mora a regra de negócio. Como serviços não dependem de Fastify, o teste é
 direto: importe a função, mocke o repositório, verifique o resultado. Foi para
 isso que a lógica saiu do `handler` ([capítulo 12](12-exemplo-job-e-servico.md)).
 
-**Passar o desfecho do job para campos próprios** — hoje `status` e a duração
-vão dentro da linha de log, e
+**Passar o desfecho do job para campos próprios** — a linha de falha já leva
+`{ job, status, err }` como objeto; a de sucesso ainda tem `status` e duração
+só dentro do texto, e
 [`test/job-runner.test.ts`](../test/job-runner.test.ts) os verifica por
 `stringMatching`. Se um dia a consulta no Log Analytics precisar de campo
 consultável, troque a interpolação por `logger.info({ job, status, duracaoMs
@@ -238,17 +258,21 @@ rodando sem infraestrutura, ou deixa de ser executado localmente. Um
 [Testcontainers](https://node.testcontainers.org/) com a imagem do SQL Server
 resolve o provisionamento no CI.
 
-**Definir limiar de cobertura** — quando a estrutura tiver código real, ligue
-`coverage.thresholds` no `vitest.config.mts`. Comece pelo valor atual medido,
-não por um número redondo aspiracional: a função do limiar é impedir regressão,
-não forçar uma meta.
+**Mudar o piso de cobertura** — o valor está em `coverage.thresholds`, no
+`vitest.config.mts`. Subir o piso reduz a folga para código sem teste;
+baixá-lo só adia o problema.
+
+**Excluir um arquivo da cobertura** — evite. Um arquivo excluído some da
+métrica, e com ele a garantia de que o código dele foi exercitado: o número
+sobe sem que nada tenha sido testado. Se for inevitável, use
+`coverage.exclude` e registre o motivo aqui.
 
 **Rodar no CI** — o mínimo útil, em ordem:
 
 ```bash
 npm ci
 npm run typecheck
-npm test
+npm run test:coverage   # testes + piso de cobertura
 npm run build
 npm run lint:md
 ```

@@ -74,8 +74,8 @@ export class AppInsights {
 
     try {
       this.cliente.trackTrace({ message: mensagem, severity: severidade });
-    } catch (erro) {
-      logger.warn({ err: erro }, 'Falha ao enviar trace ao Application Insights');
+    } catch (error_) {
+      logger.warn({ err: error_ }, 'Falha ao enviar trace ao Application Insights');
     }
   }
 
@@ -91,8 +91,8 @@ export class AppInsights {
       await new Promise<void>((resolver) => {
         cliente.flush({ callback: () => resolver() });
       });
-    } catch (erro) {
-      logger.warn({ err: erro }, 'Falha ao descarregar o Application Insights');
+    } catch (error_) {
+      logger.warn({ err: error_ }, 'Falha ao descarregar o Application Insights');
     }
   }
 }

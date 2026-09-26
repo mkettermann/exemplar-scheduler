@@ -56,7 +56,7 @@ npm run dev
 | `npm run typecheck` | Checa tipos de `src/` **e** de `test/`, sem gerar arquivos |
 | `npm test` | Roda a suíte de testes uma vez |
 | `npm run test:watch` | Re-roda os testes ao salvar |
-| `npm run test:coverage` | Relatório de cobertura |
+| `npm run test:coverage` | Testes + cobertura, com piso de 80% |
 | `npm run lint:md` | Verifica a formatação da documentação |
 
 ## Endpoints
@@ -73,7 +73,8 @@ global, mesmo em caminhos que não existem.
 
 ```text
 src/
-  server.ts              # entrypoint: DB -> jobs -> HTTP -> encerramento ordenado
+  server.ts              # entrypoint: liga os sinais e chama iniciar()
+  ciclo-de-vida.ts       # boot DB -> jobs -> HTTP, e o encerramento ordenado
   config/env.ts          # variáveis de ambiente validadas (zod)
   logger/logger.ts       # logger estruturado (pino)
   db/mssql.ts            # pool MSSQL compartilhado + verificarSaudeDb
@@ -82,7 +83,7 @@ src/
     job-runner.ts        # lock + timeout + log, genérico para qualquer job
     lock.ts              # trava via sp_getapplock (evita dupla execução)
   jobs/
-    jobs.ts              # lista central de jobs ativos — server.ts só importa isto
+    jobs.ts              # lista central de jobs ativos — o boot só importa isto
     example.job.ts       # MODELO — apagar ao implementar
   services/
     example.service.ts   # MODELO — apagar ao implementar
@@ -100,25 +101,14 @@ test/
   jobs-enabled.test.ts
 ```
 
-## Convenções de código
-
-Variáveis, funções, tipos e propriedades internas são nomeados **em português,
-sem acentos** (`obterPoolDb`, `executarComLock`, `tempoLimiteMs`). Ficam em
-inglês apenas os contratos com o mundo de fora: nomes de variáveis de ambiente,
-corpo das respostas HTTP, parâmetros de stored procedure e nomes de arquivo.
-
-Comentário no código diz **o quê** e aponta o capítulo que explica **o
-porquê** — a explicação longa mora em `docs/`, onde pode ser lida inteira.
-Detalhes em
-[Os quatro princípios](docs/README.md#os-quatro-princípios-que-explicam-o-resto).
-
 ## Adicionando um job
 
 1. Crie o serviço em `src/services/` com a regra de negócio.
 2. Crie o job em `src/jobs/` — o `executar` só chama o serviço.
 3. Adicione ao array em `src/jobs/jobs.ts`.
+4. Escreva os testes do serviço e do job, a partir dos modelos `test/example*`.
 
-`src/server.ts` não precisa ser tocado. Passo a passo completo, incluindo
+O entrypoint não precisa ser tocado. Passo a passo completo, incluindo
 migração de job legado: [capítulo 12](docs/12-exemplo-job-e-servico.md).
 
 ## Banco de dados
@@ -160,7 +150,8 @@ docker run --rm -p 3000:3000 --env-file .env exemplar-scheduler:local
 ```
 
 **O build é um portão**: antes de compilar, o estágio `verify` roda
-`npm run typecheck` e `npm test`, e qualquer erro derruba o `docker build`.
+`npm run typecheck` e `npm run test:coverage`, e qualquer erro — ou cobertura
+abaixo de 80% — derruba o `docker build`.
 
 Os quatro estágios, o escape hatch para hotfix, o fuso horário, o `tini` e a
 configuração no Container Apps / App Service estão no

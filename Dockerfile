@@ -12,7 +12,9 @@ WORKDIR /app
 
 COPY package.json package-lock.json ./
 
-RUN npm ci
+# Sem scripts de instalação: nenhuma dependência do build precisa deles, e
+# pacote comprometido não executa nada aqui. Ver docs/11-container-e-deploy.md
+RUN npm ci --ignore-scripts
 
 # --------------------------------------------------------------------------
 # 2. verify — typecheck + testes + compilação
@@ -37,7 +39,7 @@ RUN set -e; \
   || echo '>> AVISO: build emitiu JS apesar de erros de tipo'; \
   else \
   npm run typecheck; \
-  npm test; \
+  npm run test:coverage; \
   npm run build; \
   fi; \
   test -f dist/server.js

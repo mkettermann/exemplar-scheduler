@@ -67,6 +67,9 @@ O fluxo:
 4. Se não conseguiu: `rollback`, devolve `{ executou: false }`, e o runner só
    loga em `debug`. **A execução é pulada, não enfileirada.**
 5. Se conseguiu: executa a função e dá `commit`, o que libera a trava.
+6. Se algo lançou: `rollback` e relança **o erro original**. Um `rollback` que
+   também falhe (transação já abortada pelo servidor, conexão caída) vai para o
+   log em `error`, sem substituir o erro que o runner precisa classificar.
 
 Três decisões merecem nota:
 
@@ -117,6 +120,13 @@ evita a execução simultânea, não a execução parcial.
 minutos. Ela não escreve nada (só segura o applock), então não bloqueia linhas
 — mas ocupa uma conexão do pool e aparece nos relatórios de transação longa do
 DBA. Alinhe isso com quem administra o banco antes de subir jobs demorados.
+
+**O timeout não solta a trava.** Estourar `tempoLimiteMs` marca a execução
+como `timeout`, mas a trava só é liberada quando o handler termina de fato —
+senão o disparo seguinte rodaria em paralelo com o handler que ainda não
+parou. Um handler que nunca termina segura a trava, e a transação, até o
+processo reiniciar. Ver [capítulo 05](05-scheduler.md), "O timeout interrompe
+a espera, não o trabalho".
 
 **A conexão do job é outra.** O handler recebe uma conexão diferente do pool,
 não a da transação do lock. Ou seja: o trabalho do job **não** é transacional

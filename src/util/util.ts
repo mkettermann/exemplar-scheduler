@@ -5,17 +5,16 @@
  */
 export class Util {
 
-  static classOf = (valor: any): "string" | "number" | "nan" | "object" | "array" | "boolean" | "undefined" | "null" | "function" | "date" | "regexp" | "error" | "symbol" | "bigint" => {
+  static readonly classOf = (valor: any): "string" | "number" | "nan" | "object" | "array" | "boolean" | "undefined" | "null" | "function" | "date" | "regexp" | "error" | "symbol" | "bigint" => {
     let nomeClasse = Object.prototype.toString.call(valor).slice(8, -1).toLowerCase();
-    if (nomeClasse == "number") {
-      if (valor.toString() == "NaN") {
-        nomeClasse = "nan";
-      }
+    // `Number(valor)` desembrulha o `new Number(NaN)`, que o `Number.isNaN` sozinho não reconhece.
+    if (nomeClasse === "number" && Number.isNaN(Number(valor))) {
+      nomeClasse = "nan";
     }
     return nomeClasse as any;
   };
 
-  static limparOA = (objetoOuArray: object | object[]) => {
+  static readonly limparOA = (objetoOuArray: object | object[]) => {
     const removerVazios = (objeto: any) => {
       for (const propriedade in objeto) {
         if (
@@ -32,10 +31,10 @@ export class Util {
     return Util.aCadaObjExecuta(objetoOuArray, removerVazios);
   };
 
-  static aCadaObjExecuta = (objetoOuArray: object | object[], funcao: any): object | object[] => {
+  static readonly aCadaObjExecuta = (objetoOuArray: object | object[], funcao: any): object | object[] => {
     if (Array.isArray(objetoOuArray)) {
-      for (let i = 0; i < objetoOuArray.length; i++) {
-        funcao(objetoOuArray[i]);
+      for (const item of objetoOuArray) {
+        funcao(item);
       }
     } else {
       funcao(objetoOuArray);
@@ -43,79 +42,79 @@ export class Util {
     return objetoOuArray;
   };
 
-  static corVermelho = (texto: string, semFundo?: boolean) => {
+  static readonly corVermelho = (texto: string, semFundo?: boolean) => {
     const colorido = `\x1b[31m${texto}\x1b[0m`;
     return semFundo ? colorido : `${Util.fundoPreto(colorido)}`;
   };
 
-  static corVerde = (texto: string, semFundo?: boolean) => {
+  static readonly corVerde = (texto: string, semFundo?: boolean) => {
     const colorido = `\x1b[32m${texto}\x1b[0m`;
     return semFundo ? colorido : `${Util.fundoPreto(colorido)}`;
   };
 
-  static corAmarelo = (texto: string, semFundo?: boolean) => {
+  static readonly corAmarelo = (texto: string, semFundo?: boolean) => {
     const colorido = `\x1b[33m${texto}\x1b[0m`;
     return semFundo ? colorido : `${Util.fundoPreto(colorido)}`;
   };
 
-  static corAzul = (texto: string, semFundo?: boolean) => {
+  static readonly corAzul = (texto: string, semFundo?: boolean) => {
     const colorido = `\x1b[34m${texto}\x1b[0m`;
     return semFundo ? colorido : `${Util.fundoPreto(colorido)}`;
   };
 
-  static corMagenta = (texto: string, semFundo?: boolean) => {
+  static readonly corMagenta = (texto: string, semFundo?: boolean) => {
     const colorido = `\x1b[35m${texto}\x1b[0m`;
     return semFundo ? colorido : `${Util.fundoPreto(colorido)}`;
   };
 
-  static corCiano = (texto: string, semFundo?: boolean) => {
+  static readonly corCiano = (texto: string, semFundo?: boolean) => {
     const colorido = `\x1b[36m${texto}\x1b[0m`;
     return semFundo ? colorido : `${Util.fundoPreto(colorido)}`;
   };
 
-  static corBranco = (texto: string, semFundo?: boolean) => {
+  static readonly corBranco = (texto: string, semFundo?: boolean) => {
     const colorido = `\x1b[37m${texto}\x1b[0m`;
     return semFundo ? colorido : `${Util.fundoPreto(colorido)}`;
   };
 
-  static corCinza = (texto: string, semFundo?: boolean) => {
+  static readonly corCinza = (texto: string, semFundo?: boolean) => {
     const colorido = `\x1b[90m${texto}\x1b[0m`;
     return semFundo ? colorido : `${Util.fundoPreto(colorido)}`;
   };
 
-  static fundoPreto = (texto: string) => {
+  static readonly fundoPreto = (texto: string) => {
     return `\x1b[40m${texto}\x1b[0m`;
   };
 
-  static fundoVermelho = (texto: string) => {
+  static readonly fundoVermelho = (texto: string) => {
     return `\x1b[41m${texto}\x1b[0m`;
   };
 
-  static fundoVerde = (texto: string) => {
+  static readonly fundoVerde = (texto: string) => {
     return `\x1b[42m${texto}\x1b[0m`;
   };
 
-  static fundoAmarelo = (texto: string) => {
+  static readonly fundoAmarelo = (texto: string) => {
     return `\x1b[43m${texto}\x1b[0m`;
   };
 
-  static fundoAzul = (texto: string) => {
+  static readonly fundoAzul = (texto: string) => {
     return `\x1b[44m${texto}\x1b[0m`;
   };
 
-  static fundoMagenta = (texto: string) => {
+  static readonly fundoMagenta = (texto: string) => {
     return `\x1b[45m${texto}\x1b[0m`;
   };
 
-  static fundoCiano = (texto: string) => {
+  static readonly fundoCiano = (texto: string) => {
     return `\x1b[46m${texto}\x1b[0m`;
   };
 
-  static fundoBranco = (texto: string) => {
+  static readonly fundoBranco = (texto: string) => {
     return `\x1b[47m${texto}\x1b[0m`;
   };
 
-  static fundoCinza = (texto: string) => {
+  static readonly fundoCinza = (texto: string) => {
     return `\x1b[100m${texto}\x1b[0m`;
   };
 }

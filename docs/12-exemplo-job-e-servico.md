@@ -229,6 +229,21 @@ ambiente".
 Se o handler estiver com `try/catch`, medição de duração ou verificação de
 "já está rodando", ele está reimplementando o runner.
 
+## Os testes do exemplo
+
+O par job + serviço vem com três testes-modelo, no mesmo espírito
+descartável:
+
+| Teste | O que mostra |
+| --- | --- |
+| [`test/example.service.test.ts`](../test/example.service.test.ts) | Serviço sem banco: controla a entrada e verifica o resultado |
+| [`test/example-consulta.service.test.ts`](../test/example-consulta.service.test.ts) | Serviço com banco: mocka `mssql.ts`, verifica parâmetros, defaults e mapeamento |
+| [`test/example.job.test.ts`](../test/example.job.test.ts) | Job: ambientes, agendamento e a chamada ao serviço — lock e timeout ficam com o runner |
+
+Copie-os junto com o código. Um job sem teste ainda passa pelo build enquanto
+houver folga acima do piso de 80% de cobertura, mas cada um que entra assim
+gasta a folga do próximo ([capítulo 09](09-testes.md)).
+
 ## Migrando um job do repositório legado
 
 1. **Crie o serviço** em `src/services/nome.service.ts` e cole a lógica de
@@ -257,9 +272,12 @@ sozinhas no comparativo, em vez de aparecerem como incidente.
 - [ ] `src/services/example.service.ts` removido
 - [ ] `src/services/example-consulta.service.ts` removido
 - [ ] `jobExemplo` removido do array em `src/jobs/jobs.ts`
+- [ ] `test/example.job.test.ts`, `test/example.service.test.ts` e
+  `test/example-consulta.service.test.ts` removidos — copie-os antes, como
+  ponto de partida dos testes do seu job
 - [ ] `docs/12-exemplo-job-e-servico.md` removido
 - [ ] Linha 12 removida do índice em `docs/README.md`
-- [ ] `npm run typecheck && npm test && npm run build` passando
+- [ ] `npm run typecheck && npm run test:coverage && npm run build` passando
 
 Nada mais referencia o exemplo: ele foi mantido nas pontas da estrutura
 justamente para sair sem deixar rastro.

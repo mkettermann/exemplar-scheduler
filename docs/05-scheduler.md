@@ -162,7 +162,7 @@ idempotentes**. Ver [capítulo 06](06-lock-distribuido.md).
 
 ```text
 executarComLock(nome)              <- só uma instância executa   (cap. 06)
-  -> executarComTempoLimite(...)   <- Promise.race contra o timeout
+  -> aguardarComTempoLimite(...)   <- Promise.race contra o timeout
   -> logger.info/error             <- desfecho + duração no log  (cap. 03)
 ```
 
@@ -173,15 +173,20 @@ permite responder "esse job rodou?" e "quanto demorou?" por busca no Log
 Analytics, sem tabela de histórico.
 
 A linha única é uma escolha, não um descuido: ela é legível direto no `kubectl
-logs`. O custo é que `status` e `duracaoMs` não são campos consultáveis — para
-isso seria preciso passá-los como objeto ao pino, o que muda o formato de
-todas essas linhas. Ver upgrades.
+logs`. A linha de falha leva junto, como objeto do pino, `{ job, status, err }`
+— sem o `err`, a mensagem e o stack do erro se perderiam, e a linha só diria
+*que* o job falhou. Na linha de sucesso, `status` e `duracaoMs` ainda não são
+campos consultáveis. Ver upgrades.
 
 Dois detalhes que explicam o comportamento em falha:
 
-- **O erro do handler não é relançado.** Ele é classificado (`timeout` se a
-  mensagem começa com `Timeout`, senão `falha`) e logado. Um job que falha
-  não derruba o processo nem impede a próxima execução agendada.
+- **O erro do handler não é relançado.** Ele é classificado e logado: `timeout`
+  quando é o `ErroTempoLimite` do próprio runner, `falha` em qualquer outro
+  caso — inclusive um `throw` síncrono do handler. A classificação é por
+  classe, não por mensagem, porque o timeout de query do driver `mssql` também
+  começa com `"Timeout: "`, e ele é uma `falha` do handler, não um estouro de
+  `tempoLimiteMs`. Um job que falha não derruba o processo nem impede a
+  próxima execução agendada.
 - **`registrarJob` envolve tudo em `.catch()` com `logger.fatal`.** Chegar ali
   significa que o próprio runner falhou (o banco recusou a transação do lock,
   por exemplo), não que o job falhou. É um alerta de infraestrutura.
@@ -189,17 +194,28 @@ Dois detalhes que explicam o comportamento em falha:
 ### O timeout interrompe a espera, não o trabalho
 
 ```ts
-await Promise.race([acao(), expiracao]);
+await Promise.race([execucao, expiracao]);
 ```
 
 Quando o timeout vence, o runner para de **esperar** o handler — mas o handler
 continua rodando em segundo plano até terminar sozinho. O JavaScript não tem
 como abortar uma função arbitrária.
 
-A consequência prática: um job que trava em uma query de 20 minutos será
-marcado como `timeout` no histórico, e ainda assim manterá a conexão ocupada.
-Para que o timeout realmente interrompa o trabalho, o handler precisa cooperar,
-propagando um `AbortSignal`:
+Por isso o runner **não solta o lock no timeout**. Ele loga a linha de
+`timeout` na hora e depois continua aguardando o handler; só quando o handler
+termina de fato é que o `executarComLock` dá `commit` e libera a trava, com uma
+linha de `warn` (`Job <nome> terminou apos o timeout...` ou `falhou apos o
+timeout...`). Se devolvesse no timeout, a trava sairia com o handler ainda
+rodando, e o disparo seguinte — ou o de outra réplica — executaria o mesmo job
+**em paralelo**, que é justamente o que o lock existe para impedir
+([capítulo 06](06-lock-distribuido.md)).
+
+A consequência prática: um job que trava em uma query de 20 minutos é marcado
+como `timeout` aos `tempoLimiteMs`, mantém a conexão e a trava ocupadas até a
+query terminar, e os disparos desse job nesse meio-tempo são pulados. Um
+handler que nunca termina segura a trava até o processo reiniciar — o `warn`
+que falta no log é o sinal. Para que o timeout realmente interrompa o trabalho,
+o handler precisa cooperar, propagando um `AbortSignal`:
 
 ```ts
 // no handler, para chamadas HTTP
@@ -213,15 +229,22 @@ await fetch(url, { signal: AbortSignal.timeout(10_000) });
    `executar` só chama o serviço e loga o resultado. **Decida `ambientes`
    agora** — o compilador não deixa passar sem.
 3. Adicione ao array em [`src/jobs/jobs.ts`](../src/jobs/jobs.ts).
+4. Escreva o teste do serviço e o do job em `test/`, copiando os modelos
+   `example*.test.ts`. O `npm run test:coverage` — e com ele o `docker build`
+   — reprova abaixo de 80% de cobertura ([capítulo 09](09-testes.md)).
 
-`server.ts` não é tocado: ele importa o array, filtra por ambiente e registra o
-que sobrou. Ver [capítulo 12](12-exemplo-job-e-servico.md) para o modelo
-completo.
+O entrypoint não é tocado: [`ciclo-de-vida.ts`](../src/ciclo-de-vida.ts)
+importa o array, filtra por ambiente e registra o que sobrou. Ver
+[capítulo 12](12-exemplo-job-e-servico.md) para o modelo completo.
 
 ## O entrypoint: boot e encerramento
 
-[`src/server.ts`](../src/server.ts) é o único arquivo que amarra as peças, e a
-ordem em que ele faz isso não é arbitrária.
+[`src/ciclo-de-vida.ts`](../src/ciclo-de-vida.ts) é o único arquivo que amarra
+as peças, e a ordem em que ele faz isso não é arbitrária. O
+[`src/server.ts`](../src/server.ts) é só a fiação: liga `SIGTERM` e `SIGINT` a
+`encerrar` e chama `iniciar` com top-level await, transformando falha no boot
+em `logger.fatal` e saída com código 1. A separação existe para os testes:
+`iniciar` e `encerrar` são exercitados sem subir processo, porta nem banco.
 
 No boot, `iniciar()` segue três passos:
 
@@ -264,7 +287,7 @@ serviço precisa subir, responder às probes e não disparar efeito colateral
 nenhum ([capítulo 02](02-configuracao-de-ambiente.md)):
 
 ```ts
-// src/server.ts
+// src/ciclo-de-vida.ts
 const { ativos, ignorados } = separarJobsPorAmbiente(jobs, ambiente.NODE_ENV);
 
 if (ambiente.JOBS_ENABLED) {

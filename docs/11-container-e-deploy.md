@@ -25,8 +25,8 @@ docker run --rm -p 3000:3000 --env-file .env exemplar-scheduler:local
 
 | Estágio | O que faz | O que sobrevive |
 | --- | --- | --- |
-| `deps` | `npm ci` com as dependências completas | `node_modules` para o estágio seguinte |
-| `verify` | `npm run typecheck`, `npm test` e `npm run build` | `dist/` |
+| `deps` | `npm ci --ignore-scripts` com as dependências completas | `node_modules` para o estágio seguinte |
+| `verify` | `npm run typecheck`, `npm run test:coverage` e `npm run build` | `dist/` |
 | `prod-deps` | `npm ci --omit=dev --ignore-scripts` | `node_modules` de produção |
 | `runtime` | Monta a imagem final | É a imagem publicada |
 
@@ -41,11 +41,17 @@ Três decisões merecem nota:
 - **`prod-deps` é um estágio separado**, e não um `npm prune --omit=dev` sobre
   a árvore completa: o prune deixa resíduo, a instalação limpa a partir do
   lockfile não deixa.
+- **Os dois `npm ci` usam `--ignore-scripts`.** Nenhuma dependência precisa de
+  script de instalação para o build funcionar, e sem eles um pacote
+  comprometido não executa nada durante o build. Se uma dependência nova
+  passar a exigir o próprio `postinstall`, o `verify` quebra, e a decisão de
+  liberá-lo fica explícita no diff.
 
 ## O build é um portão
 
-O estágio `verify` roda `npm run typecheck` e `npm test` **antes** de compilar.
-Qualquer erro de tipo ou teste vermelho derruba o `docker build`, e nenhuma
+O estágio `verify` roda `npm run typecheck` e `npm run test:coverage` **antes**
+de compilar. Qualquer erro de tipo, teste vermelho ou cobertura abaixo do piso
+de 80% ([capítulo 09](09-testes.md)) derruba o `docker build`, e nenhuma
 imagem é produzida.
 
 Para um hotfix em que o portão precise ser contornado, existe uma saída
@@ -75,7 +81,8 @@ ENTRYPOINT ["/sbin/tini", "--"]
 ```
 
 O `tini` encaminha o `SIGTERM` ao Node e recolhe processos órfãos. Importa aqui
-porque o encerramento ordenado de [`server.ts`](../src/server.ts) espera os
+porque o encerramento ordenado de
+[`ciclo-de-vida.ts`](../src/ciclo-de-vida.ts) espera os
 jobs em andamento terminarem ([capítulo 05](05-scheduler.md)): um `SIGKILL` no
 lugar do `SIGTERM` cortaria um job pela metade, que é exatamente o que o lock
 distribuído não consegue desfazer ([capítulo 06](06-lock-distribuido.md)).
