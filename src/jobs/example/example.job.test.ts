@@ -24,7 +24,7 @@ vi.mock('../src/services/example.service.js', () => ({
 vi.mock('../src/logger/logger.js', () => ({ logger: mocks.logger }));
 
 import { jobExemplo } from '../src/jobs/example.job.js';
-import { jobs } from '../src/jobs/jobs.js';
+import { jobs } from '../jobs.js';
 
 describe('jobExemplo', () => {
   it('só roda em desenvolvimento — um modelo não dispara em ambiente compartilhado', () => {

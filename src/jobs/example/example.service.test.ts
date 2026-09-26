@@ -18,7 +18,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('../src/logger/logger.js', () => ({ logger: mocks.logger }));
 
-import { coletarResumoDoProcesso } from '../src/services/example.service.js';
+import { coletarResumoDoProcesso } from './example.service.js';
 
 const MB = 1024 * 1024;
 
