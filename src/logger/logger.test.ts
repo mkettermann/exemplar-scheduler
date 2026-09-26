@@ -13,13 +13,13 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('pino', () => ({ default: mocks.pino }));
 
-vi.mock('../src/config/env.js', () => ({ ambiente: mocks.ambiente }));
+vi.mock('../config/env.js', () => ({ ambiente: mocks.ambiente }));
 
 /** Opções com que o `pino` foi criado, sob o `NODE_ENV` pedido. */
 async function opcoesDoLoggerEm(nodeEnv: string): Promise<Record<string, any>> {
   vi.resetModules();
   mocks.ambiente.NODE_ENV = nodeEnv;
-  await import('../src/logger/logger.js');
+  await import('./logger.js');
 
   return mocks.pino.mock.calls.at(-1)?.[0] as Record<string, any>;
 }

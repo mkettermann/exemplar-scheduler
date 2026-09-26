@@ -53,7 +53,7 @@ npm run dev
 | `npm run dev` | Roda com watch (tsx) e carrega o `.env`, sem precisar buildar |
 | `npm run build` | Compila `src/` para `dist/` |
 | `npm start` | Roda o build de produção (`dist/server.js`) |
-| `npm run typecheck` | Checa tipos de `src/` **e** de `test/`, sem gerar arquivos |
+| `npm run typecheck` | Checa tipos do código **e** dos testes, sem gerar arquivos |
 | `npm test` | Roda a suíte de testes uma vez |
 | `npm run test:watch` | Re-roda os testes ao salvar |
 | `npm run test:coverage` | Testes + relatório de cobertura |
@@ -84,9 +84,12 @@ src/
     lock.ts              # trava via sp_getapplock (evita dupla execução)
   jobs/
     jobs.ts              # lista central de jobs ativos — o boot só importa isto
-    example.job.ts       # MODELO — apagar ao implementar
-  services/
-    example.service.ts   # MODELO — apagar ao implementar
+    jobs.test.ts         # regras que valem para todo job da lista
+    example/             # MODELO — apagar ao implementar
+      example.job.ts     #   quando rodar
+      example.service.ts #   o que fazer
+      example.test.ts    #   testes do job e do serviço
+    example-consulta/    # MODELO de serviço com consulta ao banco
   server/
     app.ts               # monta o Fastify sem subir (usado pelos testes)
     routes.ts            # registro central de todas as rotas
@@ -95,18 +98,18 @@ src/
       health.route.ts    # GET /health e GET /health/ready
   util/util.ts
 test/
-  setup.ts
-  health.route.test.ts
-  read-only.guard.test.ts
-  jobs-enabled.test.ts
+  setup.ts               # env dos testes; cada *.test.ts mora ao lado do que testa
 ```
 
 ## Adicionando um job
 
-1. Crie o serviço em `src/services/` com a regra de negócio.
-2. Crie o job em `src/jobs/` — o `executar` só chama o serviço.
+1. Crie a pasta `src/jobs/<nome>/` com o serviço (`<nome>.service.ts`), que
+   guarda a regra de negócio.
+2. Crie o job na mesma pasta (`<nome>.job.ts`) — o `executar` só chama o
+   serviço.
 3. Adicione ao array em `src/jobs/jobs.ts`.
-4. Escreva os testes do serviço e do job, a partir dos modelos `test/example*`.
+4. Escreva `<nome>.test.ts` na mesma pasta, cobrindo serviço e job, a partir
+   dos modelos em `src/jobs/example*/`.
 
 O entrypoint não precisa ser tocado. Passo a passo completo, incluindo
 migração de job legado: [capítulo 12](docs/12-exemplo-job-e-servico.md).

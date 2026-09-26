@@ -16,18 +16,18 @@ const mocks = vi.hoisted(() => ({
   trackTrace: vi.fn(),
 }));
 
-vi.mock('../src/db/mssql.js', () => ({
+vi.mock('../../db/mssql.js', () => ({
   obterPoolDb: mocks.obterPoolDb,
   fecharPoolDb: vi.fn(),
   verificarSaudeDb: vi.fn(),
   sql: { DateTime2: 'DateTime2', Int: 'Int' },
 }));
 
-vi.mock('../src/config/appInsights.js', () => ({
+vi.mock('../../config/appInsights.js', () => ({
   appInsightsInstance: { trackTrace: mocks.trackTrace },
 }));
 
-import { listarAcionamentos } from '../src/services/example-consulta.service.js';
+import { listarAcionamentos } from './example-consulta.service.js';
 
 const AGORA = new Date('2026-09-26T12:00:00.000Z');
 

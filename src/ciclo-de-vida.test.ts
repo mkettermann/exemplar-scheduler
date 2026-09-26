@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DefinicaoJob } from '../src/scheduler/job.types.js';
+import type { DefinicaoJob } from './scheduler/job.types.js';
 
 /**
  * Boot e encerramento com todas as peças falsas: o que se prova é a **ordem**
@@ -34,32 +34,32 @@ const mocks = vi.hoisted(() => ({
 
 // Getter porque a fábrica roda uma vez só: um booleano copiado aqui ficaria
 // congelado no valor do primeiro import.
-vi.mock('../src/config/env.js', () => ({
+vi.mock('./config/env.js', () => ({
   ambiente: mocks.ambiente,
   get ambienteAssumido() {
     return mocks.ambienteAssumido;
   },
 }));
 
-vi.mock('../src/config/appInsights.js', () => ({
+vi.mock('./config/appInsights.js', () => ({
   appInsightsInstance: { descarregar: mocks.descarregar },
 }));
 
-vi.mock('../src/logger/logger.js', () => ({ logger: mocks.logger }));
+vi.mock('./logger/logger.js', () => ({ logger: mocks.logger }));
 
-vi.mock('../src/db/mssql.js', () => ({
+vi.mock('./db/mssql.js', () => ({
   obterPoolDb: mocks.obterPoolDb,
   fecharPoolDb: mocks.fecharPoolDb,
 }));
 
-vi.mock('../src/scheduler/job-runner.js', () => ({
+vi.mock('./scheduler/job-runner.js', () => ({
   registrarJob: mocks.registrarJob,
   separarJobsPorAmbiente: mocks.separarJobsPorAmbiente,
 }));
 
-vi.mock('../src/jobs/jobs.js', () => ({ jobs: mocks.jobs }));
+vi.mock('./jobs/jobs.js', () => ({ jobs: mocks.jobs }));
 
-vi.mock('../src/server/app.js', () => ({
+vi.mock('./server/app.js', () => ({
   construirApp: async () => mocks.servidor,
 }));
 
@@ -81,7 +81,7 @@ function anotaOrdem(espiao: ReturnType<typeof vi.fn>, nome: string): void {
 /** Devolve um `ciclo-de-vida.ts` recém-carregado, sem servidor nem flag herdados. */
 async function carregarCicloDeVida() {
   vi.resetModules();
-  return import('../src/ciclo-de-vida.js');
+  return import('./ciclo-de-vida.js');
 }
 
 /** Todas as linhas de log de um nível, juntas, para busca por trecho. */

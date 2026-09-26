@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { jobs } from '../src/jobs/jobs.js';
+import { jobs } from './jobs.js';
 
 /**
  * Regras que valem para **todo** job da lista central, não só para o exemplo:

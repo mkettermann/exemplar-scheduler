@@ -4,11 +4,10 @@
 [Índice](README.md)
 
 > **Este capítulo documenta material descartável.**
-> [`example.job.ts`](../src/jobs/example.job.ts),
-> [`example.service.ts`](../src/services/example.service.ts),
-> [`example-consulta.service.ts`](../src/services/example-consulta.service.ts)
-> e **este arquivo** existem para mostrar o formato. Ao implementar o
-> sistema de verdade, apague os quatro e remova a linha do índice.
+> As pastas [`src/jobs/example/`](../src/jobs/example/) e
+> [`src/jobs/example-consulta/`](../src/jobs/example-consulta/) e **este
+> arquivo** existem para mostrar o formato. Ao implementar o sistema de
+> verdade, apague os três e remova a linha do índice.
 >
 > Jobs e serviços reais **não** ganham capítulo próprio — a documentação deles
 > é o código tipado mais o comentário no topo do arquivo. O que precisa estar
@@ -21,17 +20,32 @@ legado:
 
 | Peça | Responde | Arquivo |
 | --- | --- | --- |
-| **Job** | *Quando* rodar, por quanto tempo, sob qual nome | `src/jobs/*.job.ts` |
-| **Serviço** | *O que* fazer | `src/services/*.service.ts` |
+| **Job** | *Quando* rodar, por quanto tempo, sob qual nome | `src/jobs/<nome>/<nome>.job.ts` |
+| **Serviço** | *O que* fazer | `src/jobs/<nome>/<nome>.service.ts` |
+| **Teste** | Que os dois fazem o que dizem | `src/jobs/<nome>/<nome>.test.ts` |
 
 A separação tem um efeito prático imediato: a regra de negócio fica testável sem
 esperar o cron e sem subir o Fastify. É a diferença entre um teste de 3ms e um
 teste que não existe.
 
+Os três arquivos moram na mesma pasta, com o nome do job. Separar em arquivos
+não é separar em lugares: quem abre a pasta vê o job inteiro, e apagar um job é
+apagar uma pasta — mais a linha dele em [`jobs.ts`](../src/jobs/jobs.ts).
+
+```text
+src/jobs/
+  jobs.ts                  # lista central — o boot só importa isto
+  jobs.test.ts             # regras que valem para todo job da lista
+  example/
+    example.job.ts
+    example.service.ts
+    example.test.ts
+```
+
 ## O serviço
 
 ```ts
-// src/services/example.service.ts
+// src/jobs/example/example.service.ts
 const LIMITE_MEMORIA_MB = 512;
 
 export async function coletarResumoDoProcesso(): Promise<ResumoDoProcesso> {
@@ -99,10 +113,10 @@ Quatro pontos desse trecho valem como regra geral:
 
 ### Um segundo serviço: consulta ao banco
 
-[`example-consulta.service.ts`](../src/services/example-consulta.service.ts) é o
-outro modelo, e o que você vai copiar com mais frequência: ele lê o banco. Não
-tem job vinculado nem teste — é material de leitura, e sai junto com os demais
-exemplos.
+[`example-consulta.service.ts`](../src/jobs/example-consulta/example-consulta.service.ts)
+é o outro modelo, e o que você vai copiar com mais frequência: ele lê o banco.
+Não tem job vinculado — a pasta traz só o serviço e o teste dele. É material de
+leitura, e sai junto com os demais exemplos.
 
 Um serviço, uma consulta, três peças:
 
@@ -118,7 +132,8 @@ de nomenclatura a cada consulta nova. A exportada é a exceção, e por um motiv
 prático — ela aparece fora do arquivo:
 
 ```ts
-import { listarAcionamentos } from '../services/example-consulta.service.js';
+// no job da mesma pasta: src/jobs/example-consulta/example-consulta.job.ts
+import { listarAcionamentos } from './example-consulta.service.js';
 ```
 
 Um `listar` genérico obrigaria todo mundo a apelidar no import, ou a conviver
@@ -203,7 +218,7 @@ com dez linhas de comentário em volta não é um bom modelo para copiar.
 ## O job
 
 ```ts
-// src/jobs/example.job.ts
+// src/jobs/example/example.job.ts
 export const jobExemplo: DefinicaoJob = {
   nome: 'example-job',
   ambientes: ['development'],
@@ -231,23 +246,30 @@ Se o handler estiver com `try/catch`, medição de duração ou verificação de
 
 ## Os testes do exemplo
 
-O par job + serviço vem com três testes-modelo, no mesmo espírito
+Cada pasta de exemplo vem com **um** arquivo de teste, no mesmo espírito
 descartável:
 
 | Teste | O que mostra |
 | --- | --- |
-| [`test/example.service.test.ts`](../test/example.service.test.ts) | Serviço sem banco: controla a entrada e verifica o resultado |
-| [`test/example-consulta.service.test.ts`](../test/example-consulta.service.test.ts) | Serviço com banco: mocka `mssql.ts`, verifica parâmetros, defaults e mapeamento |
-| [`test/example.job.test.ts`](../test/example.job.test.ts) | Job: ambientes, agendamento e a chamada ao serviço — lock e timeout ficam com o runner |
+| [`example/example.test.ts`](../src/jobs/example/example.test.ts) | Serviço sem banco (controla a entrada e verifica o resultado) e job (ambientes, agendamento, registro na lista e a execução passando pelo serviço) — lock e timeout ficam com o runner |
+| [`example-consulta/example-consulta.test.ts`](../src/jobs/example-consulta/example-consulta.test.ts) | Serviço com banco: mocka `mssql.ts`, verifica parâmetros, defaults e mapeamento |
 
-Copie-os junto com o código ([capítulo 09](09-testes.md)).
+Job e serviço dividem o arquivo, e por isso o mock fica só na fronteira de
+infraestrutura — logger, `mssql.ts`, Application Insights —, nunca no
+serviço. Um `vi.mock` vale para o arquivo inteiro: mockar o serviço para
+testar o job esvaziaria os testes do próprio serviço. O teste do job, então,
+controla a mesma entrada que o do serviço e verifica o que o job faz com o
+resultado. Mais em [capítulo 09](09-testes.md#onde-os-testes-moram).
+
+Copie-os junto com o código.
 
 ## Migrando um job do repositório legado
 
-1. **Crie o serviço** em `src/services/nome.service.ts` e cole a lógica de
-   negócio lá. Tipe as entradas e saídas que antes não tinham tipo — é o
-   momento em que os contratos implícitos aparecem.
-2. **Crie o job** em `src/jobs/nome.job.ts`, com `executar` chamando o serviço.
+1. **Crie a pasta** `src/jobs/nome/` e, nela, o serviço `nome.service.ts`
+   com a lógica de negócio. Tipe as entradas e saídas que antes não tinham
+   tipo — é o momento em que os contratos implícitos aparecem.
+2. **Crie o job** em `src/jobs/nome/nome.job.ts`, com `executar` chamando o
+   serviço, e o teste em `src/jobs/nome/nome.test.ts`.
 3. **Declare `ambientes`** — o compilador não deixa passar sem. Se o job legado
    roda em produção e você quer validá-lo antes, use um ambiente de teste por
    vez, nunca dois que dividam banco.
@@ -266,13 +288,10 @@ sozinhas no comparativo, em vez de aparecerem como incidente.
 
 ## Checklist antes de apagar o exemplo
 
-- [ ] `src/jobs/example.job.ts` removido
-- [ ] `src/services/example.service.ts` removido
-- [ ] `src/services/example-consulta.service.ts` removido
-- [ ] `jobExemplo` removido do array em `src/jobs/jobs.ts`
-- [ ] `test/example.job.test.ts`, `test/example.service.test.ts` e
-  `test/example-consulta.service.test.ts` removidos — copie-os antes, como
-  ponto de partida dos testes do seu job
+- [ ] `jobExemplo` e o import dele removidos de `src/jobs/jobs.ts`
+- [ ] Pastas `src/jobs/example/` e `src/jobs/example-consulta/` removidas,
+  com os testes dentro — copie os `*.test.ts` antes, como ponto de partida
+  dos testes do seu job
 - [ ] `docs/12-exemplo-job-e-servico.md` removido
 - [ ] Linha 12 removida do índice em `docs/README.md`
 - [ ] `npm run typecheck && npm test && npm run build` passando

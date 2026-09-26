@@ -33,17 +33,20 @@ no CI. Sem ele, um erro de tipo só apareceria no build de deploy.
 | Arquivo | Para quê |
 | --- | --- |
 | [`tsconfig.json`](../tsconfig.json) | Só checagem (`noEmit`), cobre `src/`, `test/` e `vitest.config.mts`. É o que o editor carrega |
-| [`tsconfig.build.json`](../tsconfig.build.json) | Build de produção. Herda o de cima e acrescenta a emissão. `include` cobre apenas `src/` |
+| [`tsconfig.build.json`](../tsconfig.build.json) | Build de produção. Herda o de cima e acrescenta a emissão. `include` cobre apenas `src/`, e `exclude` tira `src/**/*.test.ts` |
 | [`package.json`](../package.json) | `"type": "module"` — é o que faz o Node tratar `dist/*.js` como ESM |
 
 Os dois `tsconfig` são separados de propósito: o build de produção não pode
-enxergar `test/`, senão os testes acabariam dentro de `dist/`.
+enxergar teste nenhum, senão os testes acabariam dentro de `dist/`. Como cada
+teste mora ao lado do arquivo que testa
+([capítulo 09](09-testes.md#onde-os-testes-moram)), quem os tira do build é o
+`exclude`; o `include` só em `src/` deixa de fora o `test/setup.ts`.
 
 Quem cobre o repositório inteiro é o `tsconfig.json`, e não o de build, porque o
 VS Code só descobre `tsconfig.json` automaticamente — nomes como
 `tsconfig.test.json` ele ignora. Arquivo fora do `include` do `tsconfig.json`
 cai num projeto inferido, sem as opções daqui, e o editor passa a acusar
-`Não é possível encontrar o nome 'process'` (TS2591) em `test/` mesmo com
+`Não é possível encontrar o nome 'process'` (TS2591) no arquivo mesmo com
 `@types/node` instalado e o `npm run typecheck` passando limpo. Ao criar uma
 pasta nova de `.ts` fora de `src/` e `test/`, acrescente-a ao `include`.
 

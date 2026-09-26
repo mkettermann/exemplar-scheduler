@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
-import type { DefinicaoJob } from '../src/scheduler/job.types.js';
+import type { DefinicaoJob } from './job.types.js';
 
 /**
  * O job-runner é exercitado pelo callback que ele entrega ao node-schedule —
@@ -24,17 +24,17 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('../src/scheduler/lock.js', () => ({
+vi.mock('./lock.js', () => ({
   executarComLock: mocks.executarComLock,
 }));
 
-vi.mock('../src/logger/logger.js', () => ({ logger: mocks.logger }));
+vi.mock('../logger/logger.js', () => ({ logger: mocks.logger }));
 
 vi.mock('node-schedule', () => ({
   default: { scheduleJob: mocks.scheduleJob },
 }));
 
-import { registrarJob } from '../src/scheduler/job-runner.js';
+import { registrarJob, separarJobsPorAmbiente } from './job-runner.js';
 
 const JOB_DO_SCHEDULER = { name: 'job-falso' };
 
@@ -409,5 +409,81 @@ describe('tempo limite do handler', () => {
     await aguardarCiclo();
 
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+/**
+ * `DefinicaoJob.ambientes` é o que impede DEV, QA e HML — que compartilham o
+ * mesmo banco — de dispararem o mesmo job duas vezes sobre os mesmos dados.
+ * Ver `docs/05-scheduler.md`, seção "Um job, um ambiente".
+ */
+describe('separarJobsPorAmbiente', () => {
+  it('registra o job que declara o ambiente atual', () => {
+    const job = jobFalso({ nome: 'cobranca', ambientes: ['hml'] });
+
+    const { ativos, ignorados } = separarJobsPorAmbiente([job], 'hml');
+
+    expect(ativos).toEqual([job]);
+    expect(ignorados).toEqual([]);
+  });
+
+  it('o cenário que motivou o campo: job de HML não é registrado em DEV', () => {
+    const job = jobFalso({ nome: 'cobranca', ambientes: ['hml'] });
+
+    const { ativos, ignorados } = separarJobsPorAmbiente([job], 'development');
+
+    expect(ativos).toEqual([]);
+    expect(ignorados).toEqual([job]);
+  });
+
+  it('um job pode rodar em HML e PRD, que não dividem banco', () => {
+    const job = jobFalso({ nome: 'cobranca', ambientes: ['hml', 'production'] });
+
+    expect(separarJobsPorAmbiente([job], 'hml').ativos).toEqual([job]);
+    expect(separarJobsPorAmbiente([job], 'production').ativos).toEqual([job]);
+    expect(separarJobsPorAmbiente([job], 'qa').ativos).toEqual([]);
+  });
+
+  it('lista vazia nunca registra — desligar um job é apagar seus ambientes', () => {
+    const job = jobFalso({ nome: 'cobranca', ambientes: [] });
+
+    for (const alvo of ['development', 'qa', 'hml', 'production'] as const) {
+      expect(separarJobsPorAmbiente([job], alvo).ativos).toEqual([]);
+    }
+  });
+
+  it('sob `NODE_ENV=test` nenhum job fica ativo: teste não é destino de deploy', () => {
+    const jobsFalsos = [jobFalso({ nome: 'a', ambientes: ['development'] }), jobFalso({ nome: 'b', ambientes: ['production'] })];
+
+    const { ativos, ignorados } = separarJobsPorAmbiente(jobsFalsos, 'test');
+
+    expect(ativos).toEqual([]);
+    expect(ignorados).toEqual(jobsFalsos);
+  });
+
+  it('separa a lista mista preservando a ordem de declaração', () => {
+    const doQa = jobFalso({ nome: 'a', ambientes: ['qa'] });
+    const daHml = jobFalso({ nome: 'b', ambientes: ['hml'] });
+    const deAmbos = jobFalso({ nome: 'c', ambientes: ['qa', 'hml'] });
+
+    const { ativos, ignorados } = separarJobsPorAmbiente([doQa, daHml, deAmbos], 'qa');
+
+    expect(ativos.map((job) => job.nome)).toEqual(['a', 'c']);
+    expect(ignorados.map((job) => job.nome)).toEqual(['b']);
+  });
+});
+
+describe('contrato de DefinicaoJob', () => {
+  it('`ambientes` é obrigatório — o compilador recusa um job que não declare', () => {
+    // @ts-expect-error `ambientes` ausente. Se este erro sumir, alguém tornou o
+    // campo opcional e a proteção contra disparo duplicado virou convenção.
+    const semAmbientes: DefinicaoJob = {
+      nome: 'esquecido',
+      agendamento: '*/5 * * * *',
+      tempoLimiteMs: 1_000,
+      executar: async () => { },
+    };
+
+    expect(semAmbientes.nome).toBe('esquecido');
   });
 });

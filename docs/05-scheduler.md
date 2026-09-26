@@ -97,7 +97,7 @@ adiciona sem pensar no assunto. Sendo obrigatório, o **compilador** exige que
 todo job novo responda onde roda — a garantia deixa de depender de alguém
 lembrar.
 
-É por isso que [`test/jobs-ambiente.test.ts`](../test/jobs-ambiente.test.ts)
+É por isso que [`job-runner.test.ts`](../src/scheduler/job-runner.test.ts)
 tem um teste de tipo com `@ts-expect-error`: se alguém tornar o campo opcional,
 `npm run typecheck` quebra. A proteção não pode virar convenção.
 
@@ -224,13 +224,15 @@ await fetch(url, { signal: AbortSignal.timeout(10_000) });
 
 ## Registrar um job novo
 
-1. Crie `src/services/meu-processo.service.ts` com a regra de negócio.
-2. Crie `src/jobs/meu-processo.job.ts` exportando um `DefinicaoJob` cujo
-   `executar` só chama o serviço e loga o resultado. **Decida `ambientes`
-   agora** — o compilador não deixa passar sem.
+1. Crie a pasta `src/jobs/meu-processo/` e, nela,
+   `meu-processo.service.ts` com a regra de negócio.
+2. Crie `src/jobs/meu-processo/meu-processo.job.ts` exportando um
+   `DefinicaoJob` cujo `executar` só chama o serviço e loga o resultado.
+   **Decida `ambientes` agora** — o compilador não deixa passar sem.
 3. Adicione ao array em [`src/jobs/jobs.ts`](../src/jobs/jobs.ts).
-4. Escreva o teste do serviço e o do job em `test/`, copiando os modelos
-   `example*.test.ts` ([capítulo 09](09-testes.md)).
+4. Escreva `src/jobs/meu-processo/meu-processo.test.ts`, cobrindo serviço e
+   job num arquivo só, a partir dos modelos em `src/jobs/example*/`
+   ([capítulo 09](09-testes.md#onde-os-testes-moram)).
 
 O entrypoint não é tocado: [`ciclo-de-vida.ts`](../src/ciclo-de-vida.ts)
 importa o array, filtra por ambiente e registra o que sobrou. Ver

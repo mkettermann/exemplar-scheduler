@@ -85,7 +85,7 @@ responderia `404`. A redundância é o ponto: a regra deixa de depender da
 disciplina de quem escreve a próxima rota. Se daqui a um ano alguém adicionar
 um `app.post('/rodar-job')` para "facilitar um teste", o hook derruba a
 requisição antes do handler, e o teste em
-[`read-only.guard.test.ts`](../test/read-only.guard.test.ts) falha no CI
+[`read-only.test.ts`](../src/server/plugins/read-only.test.ts) falha no CI
 explicando o porquê.
 
 O hook é chamado **diretamente** em `construirApp`, não via `app.register()`.
@@ -119,7 +119,7 @@ O padrão da casa é todo serviço ter o seu Swagger, e este tem:
 ### Por que ele não fica desatualizado
 
 Documentação que não é executada apodrece. O teste
-[`openapi.contrato.test.ts`](../test/openapi.contrato.test.ts) trava o spec à
+[`routes.test.ts`](../src/server/routes.test.ts) trava o spec à
 realidade de dois jeitos:
 
 1. **Rotas** — registra `registrarRotas` numa instância limpa, coleta as rotas
@@ -197,7 +197,7 @@ a partir de `components.schemas` do `openapi.yaml`, mantendo uma fonte só.
 **Servir o Swagger UI** — se um dia for exigido, `@fastify/swagger` com
 `mode: 'static'` apontando para o `openapi.yaml`, mais `@fastify/swagger-ui`.
 Isso adiciona rotas: atualize o teste de superfície em
-[`read-only.guard.test.ts`](../test/read-only.guard.test.ts) e prefira expor
+[`routes.test.ts`](../src/server/routes.test.ts) e prefira expor
 só fora de produção.
 
 **Cabeçalhos de segurança** — `@fastify/helmet`. Ganho pequeno para duas rotas
@@ -212,5 +212,5 @@ orquestrador.
 **Subir o Fastify para a v6** — os pontos de atenção históricos são a assinatura
 dos hooks e o encapsulamento de plugins, o que aqui afeta um arquivo só:
 `plugins/read-only.ts`. Os testes em
-[`test/read-only.guard.test.ts`](../test/read-only.guard.test.ts) cobrem esse
+[`plugins/read-only.test.ts`](../src/server/plugins/read-only.test.ts) cobrem esse
 caminho, então uma quebra aparece no `npm test` antes de chegar ao deploy.

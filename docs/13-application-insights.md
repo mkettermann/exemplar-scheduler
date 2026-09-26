@@ -231,13 +231,13 @@ try {
   Application Insights. Os dois convivem.
 
 O modelo em
-[`example-consulta.service.ts`](../src/services/example-consulta.service.ts)
+[`example-consulta.service.ts`](../src/jobs/example-consulta/example-consulta.service.ts)
 mostra o uso em volta de uma consulta
 ([capítulo 12](12-exemplo-job-e-servico.md)).
 
 ## Testes
 
-[`test/app-insights.test.ts`](../test/app-insights.test.ts) substitui o SDK
+[`appInsights.test.ts`](../src/config/appInsights.test.ts) substitui o SDK
 inteiro por um falso e prova o wrapper:
 
 | Asserção | Por que importa |
@@ -252,7 +252,7 @@ inteiro por um falso e prova o wrapper:
 | O `descarregar()` espera o callback do `flush`, inclusive quando ele traz erro de rede | Endpoint fora do ar não trava o encerramento |
 | Erro do SDK no trace ou no flush vira `warn`, não exceção | Telemetria não derruba job nem encerramento |
 
-Como em [`mssql.test.ts`](../test/mssql.test.ts), a instância é estado de
+Como em [`mssql.test.ts`](../src/db/mssql.test.ts), a instância é estado de
 módulo: cada teste recarrega `appInsights.ts` com `vi.resetModules()`. Que a telemetria
 chegue de fato ao portal é afirmação sobre o Azure, e só se confere num
 ambiente com a chave real.
@@ -271,7 +271,7 @@ cliente.addTelemetryProcessor((envelope) => {
 });
 ```
 
-Atualize o valor esperado em `test/app-insights.test.ts` e confira no portal
+Atualize o valor esperado em `src/config/appInsights.test.ts` e confira no portal
 que só as rotas novas aparecem como `request`.
 
 **Trace automático em todo job** — se a convenção virar "todo job tem início e

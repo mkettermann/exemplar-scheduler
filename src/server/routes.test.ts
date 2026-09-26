@@ -8,15 +8,15 @@ const mocks = vi.hoisted(() => ({
   verificarSaudeDb: vi.fn(),
 }));
 
-vi.mock('../src/db/mssql.js', () => ({
+vi.mock('../db/mssql.js', () => ({
   verificarSaudeDb: mocks.verificarSaudeDb,
   obterPoolDb: vi.fn(),
   fecharPoolDb: vi.fn(),
   sql: {},
 }));
 
-import { construirApp } from '../src/server/app.js';
-import { registrarRotas } from '../src/server/routes.js';
+import { construirApp } from './app.js';
+import { registrarRotas } from './routes.js';
 
 interface Operacao {
   responses: Record<string, { content?: { 'application/json'?: { schema: object } } }>;
@@ -28,7 +28,7 @@ interface Especificacao {
 }
 
 const especificacao = parse(
-  readFileSync(new URL('../openapi.yaml', import.meta.url), 'utf8'),
+  readFileSync(new URL('../../openapi.yaml', import.meta.url), 'utf8'),
 ) as Especificacao;
 
 /** "GET /health", "GET /health/ready"... — o mesmo formato dos dois lados. */
@@ -83,6 +83,35 @@ function validarContraSpec(caminho: string, status: number, corpo: unknown): voi
 
   expect(validar(corpo), JSON.stringify(validar.errors, null, 2)).toBe(true);
 }
+
+/**
+ * Trava automatizada de uma regra de arquitetura: o health é a única
+ * superfície HTTP do serviço. Ver `docs/07-servidor-http.md`.
+ */
+describe('superfície HTTP', () => {
+  let app: FastifyInstance;
+
+  beforeEach(async () => {
+    mocks.verificarSaudeDb.mockResolvedValue({ ok: true, latenciaMs: 1 });
+    app = await construirApp();
+    await app.ready();
+  });
+
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('expõe exatamente duas rotas, ambas de health', () => {
+    expect(app.hasRoute({ method: 'GET', url: '/health' })).toBe(true);
+    expect(app.hasRoute({ method: 'GET', url: '/health/ready' })).toBe(true);
+  });
+
+  it('não expõe nenhuma rota administrativa', async () => {
+    const resposta = await app.inject({ method: 'GET', url: '/admin/executions' });
+
+    expect(resposta.statusCode).toBe(404);
+  });
+});
 
 /**
  * Trava a documentação OpenAPI à superfície HTTP real: rota nova sem

@@ -34,11 +34,56 @@ particular:
 npm test             # roda uma vez
 npm run test:watch   # re-roda ao salvar
 npm run test:coverage # testes + relatório lcov
-npm run typecheck    # tipos de src/ E de test/
+npm run typecheck    # tipos do código E dos testes
 npm run lint:md      # formatação da documentação
 ```
 
 Nenhum teste precisa de banco, rede ou porta livre.
+
+## Onde os testes moram
+
+Ao lado do arquivo que testam, como o `.spec.ts` do Angular: `lock.ts` e
+`lock.test.ts` na mesma pasta. Um arquivo de código tem **um** arquivo de
+teste — dois testes do mesmo módulo são um só, com um `describe` por assunto
+(o [`env.test.ts`](../src/config/env.test.ts), por exemplo, tem um para
+`textoObrigatorio` e outro para `JOBS_ENABLED`).
+
+| Teste | Prova |
+| --- | --- |
+| `src/jobs/<nome>/<nome>.test.ts` | Job e serviço daquela pasta, num arquivo só ([capítulo 12](12-exemplo-job-e-servico.md)) |
+| [`src/jobs/jobs.test.ts`](../src/jobs/jobs.test.ts) | Regras que valem para todo job da lista central |
+| [`src/scheduler/job-runner.test.ts`](../src/scheduler/job-runner.test.ts) | Lock, timeout e log em volta do handler; filtro por ambiente; o contrato de `DefinicaoJob` |
+| [`src/server/routes.test.ts`](../src/server/routes.test.ts) | Quais rotas existem: a superfície HTTP e o contrato com o `openapi.yaml` |
+| Demais `src/**/*.test.ts` | O módulo de mesmo nome |
+
+A pasta [`test/`](../test/) guarda só o [`setup.ts`](../test/setup.ts), que
+não é teste e não pode ir para o build.
+
+A vantagem é a mesma do Angular: quem abre a pasta vê código e teste juntos, e
+apagar um módulo — um job inteiro, por exemplo — é apagar uma pasta, sem caçar
+o teste em outro lugar.
+
+Três configurações sustentam isso, e as três precisam andar juntas:
+
+- **[`vitest.config.mts`](../vitest.config.mts)** procura `*.test.ts` só em
+  `src/`, e tira esses arquivos da cobertura — senão o relatório mediria os
+  próprios testes.
+- **[`tsconfig.build.json`](../tsconfig.build.json)** exclui
+  `src/**/*.test.ts`, senão os testes iriam para `dist/`
+  ([capítulo 01](01-typescript-e-build.md)).
+- **[`tsconfig.json`](../tsconfig.json)** já cobre `src/` inteiro, então o
+  `typecheck` checa os testes sem ajuste.
+
+Os caminhos de `vi.mock` são relativos ao arquivo de teste, como qualquer
+import: ao lado de `lock.ts`, o banco é `'../db/mssql.js'`.
+
+Dentro de uma pasta de job, job e serviço dividem o arquivo de teste, e isso
+tem uma consequência: **o mock fica na fronteira de infraestrutura** (logger,
+`mssql.ts`, Application Insights), **nunca no serviço**. Um `vi.mock` vale para
+o arquivo inteiro — mockar o serviço para isolar o job trocaria o serviço
+também nos testes dele, que passariam a testar o mock. O teste do job controla
+a mesma entrada que o do serviço (o banco falso, o `process`) e verifica o que
+o job faz com o resultado.
 
 ## As três peças que fazem isso funcionar
 
@@ -104,7 +149,7 @@ Quatro detalhes que costumam tropeçar:
 - **O que é chamado com `new` precisa ser `class`** — a partir do vitest 5,
   `vi.fn().mockReturnValue(...)` invocado como construtor lança
   "Cannot use `mockReturnValue` when called with `new`". É por isso que
-  [`test/lock-distribuido.test.ts`](../test/lock-distribuido.test.ts) declara
+  [`lock.test.ts`](../src/scheduler/lock.test.ts) declara
   `sql.Transaction` e `sql.Request` como classes que devolvem o objeto falso
   no construtor, com um `vi.fn()` à parte só para registrar o argumento
   recebido.
@@ -194,16 +239,19 @@ isso que a lógica saiu do `handler` ([capítulo 12](12-exemplo-job-e-servico.md
 **Passar o desfecho do job para campos próprios** — a linha de falha já leva
 `{ job, status, err }` como objeto; a de sucesso ainda tem `status` e duração
 só dentro do texto, e
-[`test/job-runner.test.ts`](../test/job-runner.test.ts) os verifica por
+[`job-runner.test.ts`](../src/scheduler/job-runner.test.ts) os verifica por
 `stringMatching`. Se um dia a consulta no Log Analytics precisar de campo
 consultável, troque a interpolação por `logger.info({ job, status, duracaoMs
 }, 'Job concluido')` — e as asserções, por `objectContaining`. As duas coisas
 mudam juntas, e só elas.
 
 **Adicionar testes de integração com banco real** — mantenha-os **separados**
-dos unitários, em `test/integration/**`, com um script próprio
-(`vitest run --dir test/integration`). Motivo: `npm test` precisa continuar
-rodando sem infraestrutura, ou deixa de ser executado localmente. Um
+dos unitários, em `test/integration/**`, com configuração e script próprios
+(um `vitest.integration.config.mts` com `include: ['test/integration/**/*.test.ts']`,
+chamado por `vitest run -c vitest.integration.config.mts`). É a exceção à regra
+de morar ao lado do código, e o `include` do `vitest.config.mts` só em `src/`
+é o que a garante: `npm test` precisa continuar rodando sem infraestrutura, ou
+deixa de ser executado localmente. Um
 [Testcontainers](https://node.testcontainers.org/) com a imagem do SQL Server
 resolve o provisionamento no CI.
 

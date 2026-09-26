@@ -148,10 +148,9 @@ src/
     lock.ts                      # trava via sp_getapplock                        -> cap. 06
   jobs/
     jobs.ts                      # lista central de jobs ativos                   -> cap. 05
-    example.job.ts               # MODELO descartável                             -> cap. 12
-  services/
-    example.service.ts           # MODELO descartável                             -> cap. 12
-    example-consulta.service.ts  # MODELO descartável — consulta ao banco         -> cap. 12
+    jobs.test.ts                 # regras que valem para todo job da lista        -> cap. 09
+    example/                     # MODELO descartável: job, serviço e teste       -> cap. 12
+    example-consulta/            # MODELO descartável — consulta ao banco         -> cap. 12
   server/
     app.ts                       # monta o Fastify sem subir (testável)           -> cap. 07
     routes.ts                    # mapa explícito de rotas                        -> cap. 07
@@ -161,11 +160,6 @@ src/
   util/util.ts                   # helpers de console e objeto                    -> cap. 10
 test/
   setup.ts                       # env dos testes                                 -> cap. 09
-  health.route.test.ts           # health online/offline                          -> cap. 09
-  read-only.guard.test.ts        # trava de somente-leitura e da superfície       -> cap. 09
-  app-insights.test.ts           # setup, configurações e trackTrace              -> cap. 13
-  ciclo-de-vida.test.ts          # ordem do boot e do encerramento                -> cap. 09
-  example*.test.ts               # MODELOS de teste de job e serviço              -> cap. 12
 Dockerfile                       # build multi-stage com portão de verificação    -> cap. 11
 ```
 
@@ -175,7 +169,7 @@ Cada capítulo termina com uma seção **"Upgrades futuros sem quebrar o que
 existe"** específica daquela peça. Antes de qualquer uma delas, o mesmo ritual:
 
 ```bash
-npm run typecheck      # tipos de src/ e de test/
+npm run typecheck      # tipos do código e dos testes
 npm test               # suíte completa
 npm run build          # garante que dist/ ainda compila
 npm run lint:md        # formatação da documentação

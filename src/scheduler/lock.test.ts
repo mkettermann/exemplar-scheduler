@@ -31,7 +31,7 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('../src/db/mssql.js', () => ({
+vi.mock('../db/mssql.js', () => ({
   obterPoolDb: mocks.obterPoolDb,
   fecharPoolDb: vi.fn(),
   verificarSaudeDb: vi.fn(),
@@ -54,9 +54,9 @@ vi.mock('../src/db/mssql.js', () => ({
   },
 }));
 
-vi.mock('../src/logger/logger.js', () => ({ logger: mocks.logger }));
+vi.mock('../logger/logger.js', () => ({ logger: mocks.logger }));
 
-import { executarComLock } from '../src/scheduler/lock.js';
+import { executarComLock } from './lock.js';
 
 const POOL = { identificador: 'pool-unico' };
 

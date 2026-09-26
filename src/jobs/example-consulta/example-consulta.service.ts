@@ -1,5 +1,5 @@
-import { appInsightsInstance } from '../config/appInsights.js';
-import { obterPoolDb, sql } from '../db/mssql.js';
+import { appInsightsInstance } from '../../config/appInsights.js';
+import { obterPoolDb, sql } from '../../db/mssql.js';
 
 /**
  * MODELO de serviço com consulta ao banco — um serviço, uma consulta, três

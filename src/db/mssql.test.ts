@@ -47,12 +47,12 @@ vi.mock('mssql', () => ({
   },
 }));
 
-vi.mock('../src/logger/logger.js', () => ({ logger: mocks.logger }));
+vi.mock('../logger/logger.js', () => ({ logger: mocks.logger }));
 
 /** Devolve um `mssql.ts` recém-carregado, sem pool herdado de outro teste. */
 async function carregarModuloDb() {
   vi.resetModules();
-  return import('../src/db/mssql.js');
+  return import('./mssql.js');
 }
 
 /** Configuração com que o driver foi instanciado na n-ésima conexão. */
@@ -121,7 +121,7 @@ describe('obterPoolDb', () => {
    */
   it('repassa ao driver o valor de TLS que o ambiente decidiu', async () => {
     const { obterPoolDb } = await carregarModuloDb();
-    const { ambiente } = await import('../src/config/env.js');
+    const { ambiente } = await import('../config/env.js');
 
     await obterPoolDb();
 

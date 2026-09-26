@@ -57,7 +57,7 @@ vi.mock('applicationinsights', () => ({
   },
 }));
 
-vi.mock('../src/logger/logger.js', () => ({ logger: mocks.logger }));
+vi.mock('../logger/logger.js', () => ({ logger: mocks.logger }));
 
 const CHAVE_ORIGINAL = process.env.APPINSIGHTSKEY;
 const CONNECTION_STRING =
@@ -73,7 +73,7 @@ async function carregarCom(chave?: string) {
     process.env.APPINSIGHTSKEY = chave;
   }
 
-  return import('../src/config/appInsights.js');
+  return import('./appInsights.js');
 }
 
 function metodo(nome: MetodoDeConfiguracao) {

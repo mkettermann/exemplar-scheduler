@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Util } from '../src/util/util.js';
+import { Util } from './util.js';
 
 /**
  * Helpers puros, sem mock. O que se prova aqui é o comportamento herdado do

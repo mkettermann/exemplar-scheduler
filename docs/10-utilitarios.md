@@ -46,7 +46,7 @@ fatal — os dois momentos em que alguém está de fato olhando o terminal.
 Duas advertências sobre `limparOA`: ela **muta** o objeto recebido (não devolve
 cópia) e é rasa (não desce em objetos aninhados). Ambas são herança do código
 legado, mantidas para compatibilidade de comportamento — e fixadas em
-[`test/util.test.ts`](../test/util.test.ts), para que mudá-las seja uma decisão
+[`util.test.ts`](../src/util/util.test.ts), para que mudá-las seja uma decisão
 e não um acidente.
 
 Os membros de `Util` são `static readonly`: o legado os declarava

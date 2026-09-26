@@ -20,12 +20,12 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-vi.mock('../src/ciclo-de-vida.js', () => ({
+vi.mock('./ciclo-de-vida.js', () => ({
   iniciar: mocks.iniciar,
   encerrar: mocks.encerrar,
 }));
 
-vi.mock('../src/logger/logger.js', () => ({ logger: mocks.logger }));
+vi.mock('./logger/logger.js', () => ({ logger: mocks.logger }));
 
 const SINAIS = new Set(['SIGTERM', 'SIGINT']);
 const tratadores = new Map<string, () => void>();
@@ -34,7 +34,7 @@ const saidaDoProcesso = vi.fn();
 /** Executa o entrypoint do zero e espera o top-level await terminar. */
 async function carregarEntrypoint(): Promise<void> {
   vi.resetModules();
-  await import('../src/server.js');
+  await import('./server.js');
 }
 
 beforeEach(() => {

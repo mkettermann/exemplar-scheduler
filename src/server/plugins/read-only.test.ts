@@ -5,19 +5,19 @@ const mocks = vi.hoisted(() => ({
   verificarSaudeDb: vi.fn(),
 }));
 
-vi.mock('../src/db/mssql.js', () => ({
+vi.mock('../../db/mssql.js', () => ({
   verificarSaudeDb: mocks.verificarSaudeDb,
   obterPoolDb: vi.fn(),
   fecharPoolDb: vi.fn(),
   sql: {},
 }));
 
-import { construirApp } from '../src/server/app.js';
+import { construirApp } from '../app.js';
 
 /**
- * Trava automatizada de duas regras de arquitetura: o serviço nunca recebe
- * conteúdo de fora e o health é a sua única superfície HTTP.
- * Ver `docs/07-servidor-http.md` e `docs/09-testes.md`.
+ * Trava automatizada de uma regra de arquitetura: o serviço nunca recebe
+ * conteúdo de fora. A outra metade — o health ser a única superfície HTTP —
+ * está em `routes.test.ts`. Ver `docs/07-servidor-http.md`.
  */
 describe('serviço somente leitura', () => {
   let app: FastifyInstance;
@@ -53,30 +53,5 @@ describe('serviço somente leitura', () => {
     const resposta = await app.inject({ method: 'GET', url: '/health' });
 
     expect(resposta.statusCode).toBe(200);
-  });
-});
-
-describe('superfície HTTP', () => {
-  let app: FastifyInstance;
-
-  beforeEach(async () => {
-    mocks.verificarSaudeDb.mockResolvedValue({ ok: true, latenciaMs: 1 });
-    app = await construirApp();
-    await app.ready();
-  });
-
-  afterEach(async () => {
-    await app.close();
-  });
-
-  it('expõe exatamente duas rotas, ambas de health', () => {
-    expect(app.hasRoute({ method: 'GET', url: '/health' })).toBe(true);
-    expect(app.hasRoute({ method: 'GET', url: '/health/ready' })).toBe(true);
-  });
-
-  it('não expõe nenhuma rota administrativa', async () => {
-    const resposta = await app.inject({ method: 'GET', url: '/admin/executions' });
-
-    expect(resposta.statusCode).toBe(404);
   });
 });

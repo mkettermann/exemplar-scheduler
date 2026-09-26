@@ -112,8 +112,8 @@ inicialização lenta.
 
 ## Testes
 
-[`test/health.route.test.ts`](../test/health.route.test.ts) cobre, com o módulo
-`src/db/mssql` mockado:
+[`health.route.test.ts`](../src/server/routes/health.route.test.ts)
+cobre, com o módulo `src/db/mssql` mockado:
 
 - `/health` responde `200` com `uptimeSeconds` numérico;
 - `/health` é público (responde sem qualquer header de autenticação);

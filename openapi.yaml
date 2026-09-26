@@ -1,6 +1,6 @@
 # Documentação da superfície HTTP do serviço. É SÓ documentação: o Fastify não
 # lê este arquivo, as rotas não são resolvidas por `operationId` e nada aqui é
-# servido. O teste `test/openapi.contrato.test.ts` garante que ele continua
+# servido. O teste `src/server/routes.test.ts` garante que ele continua
 # descrevendo o que `src/server/routes.ts` registra de fato.
 # Ver docs/07-servidor-http.md, seção "Documentação OpenAPI".
 openapi: 3.1.0
