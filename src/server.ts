@@ -1,6 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import schedule from 'node-schedule';
 import { ambiente, ambienteAssumido } from './config/env.js';
+// Antes do Fastify, para a auto-coleta enxergar o `http` — ver docs/13.
+import { appInsightsInstance } from './config/appInsights.js';
 import { logger } from './logger/logger.js';
 import { obterPoolDb, fecharPoolDb } from './db/mssql.js';
 import { registrarJob, separarJobsPorAmbiente } from './scheduler/job-runner.js';
@@ -51,7 +53,8 @@ async function iniciar(): Promise<void> {
 }
 
 /**
- * Encerramento ordenado: jobs em andamento, servidor HTTP e pool, nessa ordem.
+ * Encerramento ordenado: jobs em andamento, servidor HTTP, pool e telemetria,
+ * nessa ordem.
  * Ver `docs/05-scheduler.md`, seção "O entrypoint: boot e encerramento".
  */
 async function encerrar(sinal: string): Promise<void> {
@@ -64,6 +67,7 @@ async function encerrar(sinal: string): Promise<void> {
     await schedule.gracefulShutdown();
     await servidor?.close();
     await fecharPoolDb();
+    await appInsightsInstance.descarregar();
     logger.info('Sistema encerrado com sucesso');
     process.exit(0);
   } catch (erro) {

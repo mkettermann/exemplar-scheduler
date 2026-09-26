@@ -244,6 +244,9 @@ durante um rolling update:
    ([capítulo 06](06-lock-distribuido.md)).
 2. **`servidor.close()`** — para de aceitar novas requisições.
 3. **`fecharPoolDb()`** — só depois que ninguém mais precisa do banco.
+4. **`appInsightsInstance.descarregar()`** — envia os traces ainda no buffer,
+   inclusive os do job que acabou de terminar
+   ([capítulo 13](13-application-insights.md)).
 
 A flag `encerrando` garante que dois sinais seguidos não disparem o
 procedimento duas vezes. `SIGTERM` e `SIGINT` levam ao mesmo caminho: o

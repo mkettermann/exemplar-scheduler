@@ -5,7 +5,7 @@
  */
 export class Util {
 
-  static tipoDe = (valor: any): "string" | "number" | "nan" | "object" | "array" | "boolean" | "undefined" | "null" | "function" | "date" | "regexp" | "error" | "symbol" | "bigint" => {
+  static classOf = (valor: any): "string" | "number" | "nan" | "object" | "array" | "boolean" | "undefined" | "null" | "function" | "date" | "regexp" | "error" | "symbol" | "bigint" => {
     let nomeClasse = Object.prototype.toString.call(valor).slice(8, -1).toLowerCase();
     if (nomeClasse == "number") {
       if (valor.toString() == "NaN") {

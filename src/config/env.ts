@@ -31,6 +31,9 @@ const esquemaAmbiente = z.object({
   DB_ENCRYPT: z.coerce.boolean().default(true),
 
   HEALTH_DB_TIMEOUT_MS: z.coerce.number().int().positive().default(3000),
+
+  /** Ver `docs/13-application-insights.md`. Ausente, a telemetria fica desligada. */
+  APPINSIGHTSKEY: textoObrigatorio.optional(),
 });
 
 export type Ambiente = z.infer<typeof esquemaAmbiente>;

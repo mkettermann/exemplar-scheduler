@@ -22,6 +22,8 @@ WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json package-lock.json tsconfig.json tsconfig.build.json vitest.config.mts ./
+# Lido só pelo teste de contrato; não vai para a imagem final.
+COPY openapi.yaml ./
 COPY src ./src
 COPY test ./test
 

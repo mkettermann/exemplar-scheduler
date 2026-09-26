@@ -38,7 +38,7 @@ falha fatal — os dois momentos em que alguém está de fato olhando o terminal
 
 | Função | O que faz |
 | --- | --- |
-| `Util.tipoDe(valor)` | Tipo real via `Object.prototype.toString`, distinguindo `array`, `date`, `null` e `nan` — que o `typeof` não separa |
+| `Util.classOf(valor)` | Tipo real via `Object.prototype.toString`, distinguindo `array`, `date`, `null` e `nan` — que o `typeof` não separa |
 | `Util.limparOA(objetoOuArray)` | Remove chaves `null`, `undefined`, `""` e a string `"undefined"` |
 | `Util.aCadaObjExecuta(objetoOuArray, funcao)` | Aplica `funcao` a um objeto ou a cada item de um array |
 
@@ -83,9 +83,9 @@ quebra de comportamento**: código que depende da mutação in loco para de
 funcionar silenciosamente. Se for fazer, adicione `limparOACopia` ao lado e
 migre os chamadores um a um, em vez de trocar a implementação existente.
 
-**Substituir `tipoDe` por checagens nativas** — para a maioria dos casos,
+**Substituir `classOf` por checagens nativas** — para a maioria dos casos,
 `Array.isArray`, `value instanceof Date` e `Number.isNaN` são mais legíveis e
-mais rápidos. `tipoDe` continua útil quando o tipo é genuinamente desconhecido
+mais rápidos. `classOf` continua útil quando o tipo é genuinamente desconhecido
 (parsing de resposta externa). Não há pressa em remover.
 
 **Apagar o que não é usado** — se os jobs reais não usarem as cores nem as

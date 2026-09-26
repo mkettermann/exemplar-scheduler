@@ -1,3 +1,4 @@
+import { appInsightsInstance } from '../config/appInsights.js';
 import { obterPoolDb, sql } from '../db/mssql.js';
 
 /**
@@ -68,11 +69,17 @@ export async function listarAcionamentos(
 
   const pool = await obterPoolDb();
 
+  appInsightsInstance.trackTrace('listarAcionamentos: iniciando consulta');
+
   const retorno = await pool
     .request()
     .input('inseridosApos', sql.DateTime2, inseridosApos)
     .input('limite', sql.Int, limite)
     .query<LinhaAcionamento>(QUERY);
+
+  appInsightsInstance.trackTrace(
+    `listarAcionamentos: consulta concluída com ${retorno.recordset.length} linhas`,
+  );
 
   return retorno.recordset.map(montar);
 }

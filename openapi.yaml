@@ -1,0 +1,130 @@
+# Documentação da superfície HTTP do serviço. É SÓ documentação: o Fastify não
+# lê este arquivo, as rotas não são resolvidas por `operationId` e nada aqui é
+# servido. O teste `test/openapi.contrato.test.ts` garante que ele continua
+# descrevendo o que `src/server/routes.ts` registra de fato.
+# Ver docs/07-servidor-http.md, seção "Documentação OpenAPI".
+openapi: 3.1.0
+
+info:
+  title: Exemplar Scheduler
+  version: 1.0.0
+  description: |
+    Serviço isolado de jobs agendados, com réplica única. Não tem API: a
+    superfície HTTP existe apenas para as probes de liveness e readiness do AKS.
+
+    Todas as rotas são públicas e somente leitura. Qualquer verbo diferente de
+    `GET`, `HEAD` e `OPTIONS` é recusado com `405` antes do roteamento, em
+    qualquer caminho.
+
+tags:
+  - name: health
+    description: Probes do Kubernetes
+
+paths:
+  /health:
+    get:
+      tags: [health]
+      operationId: obterLiveness
+      summary: Liveness — o processo está vivo?
+      description: |
+        Não faz I/O e não consulta o banco, de propósito: uma instabilidade do
+        banco não deve fazer o Kubernetes reiniciar o pod. Também responde a
+        `HEAD`. Ver docs/08-health-check.md.
+      security: []
+      responses:
+        '200':
+          description: Processo vivo.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespostaLiveness'
+              example:
+                status: ok
+                uptimeSeconds: 1834
+
+  /health/ready:
+    get:
+      tags: [health]
+      operationId: obterReadiness
+      summary: Readiness — o processo consegue trabalhar?
+      description: |
+        Verifica as dependências externas (hoje, só o banco), com timeout
+        próprio definido por `HEALTH_DB_TIMEOUT_MS`. Em produção o campo
+        `checks.database.error` é omitido e o motivo da falha vai só para o log.
+        Ver docs/08-health-check.md.
+      security: []
+      responses:
+        '200':
+          description: Todas as dependências respondem.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespostaReadiness'
+              example:
+                status: ok
+                uptimeSeconds: 1834
+                checks:
+                  database: { ok: true, latencyMs: 4 }
+        '503':
+          description: Alguma dependência está fora ou lenta.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RespostaReadiness'
+              example:
+                status: degraded
+                uptimeSeconds: 12
+                checks:
+                  database:
+                    ok: false
+                    latencyMs: 3000
+                    error: Timeout de 3000ms ao consultar o banco
+
+components:
+  schemas:
+    RespostaLiveness:
+      type: object
+      additionalProperties: false
+      required: [status, uptimeSeconds]
+      properties:
+        status:
+          type: string
+          const: ok
+        uptimeSeconds:
+          type: integer
+          minimum: 0
+          description: Segundos desde o início do processo.
+
+    RespostaReadiness:
+      type: object
+      additionalProperties: false
+      required: [status, uptimeSeconds, checks]
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+        uptimeSeconds:
+          type: integer
+          minimum: 0
+        checks:
+          type: object
+          additionalProperties: false
+          required: [database]
+          properties:
+            database:
+              $ref: '#/components/schemas/CheckDependencia'
+
+    CheckDependencia:
+      type: object
+      additionalProperties: false
+      required: [ok, latencyMs]
+      properties:
+        ok:
+          type: boolean
+        latencyMs:
+          type: integer
+          minimum: 0
+          description: Tempo gasto no check, em milissegundos.
+        error:
+          type: string
+          description: Motivo da falha. Omitido em produção.

@@ -70,6 +70,7 @@ campos tipados. Ninguém lê `process.env` diretamente.
 | `DB_PASSWORD` | **sim** | — | Senha. Sem espaço nem quebra de linha nas pontas |
 | `DB_ENCRYPT` | não | `true` | TLS na conexão |
 | `HEALTH_DB_TIMEOUT_MS` | não | `3000` | Teto de espera do readiness pelo banco |
+| `APPINSIGHTSKEY` | não | — | Connection string (ou iKey) do Application Insights. Ausente, a telemetria fica desligada — ver [capítulo 13](13-application-insights.md) |
 
 > **Atenção com `z.coerce.boolean()`**: ela segue a regra do JavaScript — toda
 > string não vazia vira `true`. `DB_ENCRYPT=false` resulta em **`true`**. Para

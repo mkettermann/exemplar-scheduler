@@ -134,14 +134,26 @@ O corpo do `listarAcionamentos()`:
 ```ts
 const pool = await obterPoolDb();
 
+appInsightsInstance.trackTrace('listarAcionamentos: iniciando consulta');
+
 const retorno = await pool
   .request()
   .input('inseridosApos', sql.DateTime2, inseridosApos)
   .input('limite', sql.Int, limite)
   .query<LinhaAcionamento>(QUERY);
 
+appInsightsInstance.trackTrace(
+  `listarAcionamentos: consulta concluída com ${retorno.recordset.length} linhas`,
+);
+
 return retorno.recordset.map(montar);
 ```
+
+Os dois `trackTrace` são para dar visibilidade ao que
+o job faz no Application Insights: um marco antes, outro depois, com o nome do
+serviço na frente. A severidade é omitida e vale o padrão `1`
+(`Information`). O que cada configuração do SDK faz está no
+[capítulo 13](13-application-insights.md).
 
 Quatro decisões que valem como regra para qualquer consulta desta estrutura:
 

@@ -25,6 +25,7 @@ particular:
 - o health check existe, responde e **distingue online de offline**;
 - o serviço é de fato somente leitura;
 - a superfície HTTP é só o health — nenhuma rota administrativa existe;
+- o `openapi.yaml` descreve exatamente essa superfície, e as respostas reais;
 - a flag que desliga os jobs é lida sem ambiguidade — `false` é `false`.
 
 ## Arquivos
@@ -35,12 +36,14 @@ particular:
 | [`test/setup.ts`](../test/setup.ts) | Variáveis de ambiente dos testes |
 | [`test/health.route.test.ts`](../test/health.route.test.ts) | Liveness e readiness, banco online e offline |
 | [`test/read-only.guard.test.ts`](../test/read-only.guard.test.ts) | Verbos de escrita recusados, superfície HTTP mínima |
+| [`test/openapi.contrato.test.ts`](../test/openapi.contrato.test.ts) | `openapi.yaml` descreve as rotas e as respostas reais |
 | [`test/jobs-enabled.test.ts`](../test/jobs-enabled.test.ts) | Leitura da flag `JOBS_ENABLED`, incluindo valor inválido |
 | [`test/jobs-ambiente.test.ts`](../test/jobs-ambiente.test.ts) | `separarJobsPorAmbiente`: um job, um ambiente |
 | [`test/env-texto-obrigatorio.test.ts`](../test/env-texto-obrigatorio.test.ts) | Espaço e quebra de linha nas pontas dos campos de conexão |
 | [`test/job-runner.test.ts`](../test/job-runner.test.ts) | Registro, execução sob lock, classificação de falha e timeout |
 | [`test/lock-distribuido.test.ts`](../test/lock-distribuido.test.ts) | Commit, rollback, execução pulada e parâmetros do `sp_getapplock` |
 | [`test/mssql.test.ts`](../test/mssql.test.ts) | Pool único, memoização da conexão e o ping do readiness |
+| [`test/app-insights.test.ts`](../test/app-insights.test.ts) | Instância única, configurações antes do `start()` e `trackTrace` — ver [capítulo 13](13-application-insights.md) |
 | [`.markdownlint-cli2.jsonc`](../.markdownlint-cli2.jsonc) | Régua de formatação da documentação |
 
 ## Como rodar
@@ -168,6 +171,8 @@ Determinístico, instantâneo e sem precisar derrubar nada de verdade.
 | O ping é `SELECT 1 AS ok` | O readiness não pode custar uma consulta de negócio |
 | O prazo padrão é o `HEALTH_DB_TIMEOUT_MS` do ambiente | Banco lento não pode segurar a probe |
 | O temporizador é liberado quando o banco responde | Cada check limpa o que criou |
+| O Application Insights é configurado uma vez, antes do `start()` | No SDK v3, o que vem depois do `start()` é ignorado |
+| `trackTrace` sem severidade envia `Information` e nunca lança | Telemetria não derruba job |
 
 ## Cobertura
 

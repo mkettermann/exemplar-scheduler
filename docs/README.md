@@ -17,12 +17,13 @@ primeira vez; depois use como referência pontual.
 | 04 | [Banco de dados](04-banco-de-dados.md) | `mssql`, pool, health check |
 | 05 | [Scheduler](05-scheduler.md) | `node-schedule`, contrato de job, job-runner, entrypoint |
 | 06 | [Lock distribuído](06-lock-distribuido.md) | `sp_getapplock`, dupla execução |
-| 07 | [Servidor HTTP](07-servidor-http.md) | `fastify`, rotas, guarda somente-leitura |
+| 07 | [Servidor HTTP](07-servidor-http.md) | `fastify`, rotas, guarda somente-leitura, OpenAPI |
 | 08 | [Health check](08-health-check.md) | liveness, readiness, probes do AKS |
 | 09 | [Testes](09-testes.md) | `vitest`, `@vitest/coverage-v8`, `markdownlint-cli2` |
 | 10 | [Utilitários](10-utilitarios.md) | `src/util/util.ts` |
 | 11 | [Container e deploy](11-container-e-deploy.md) | `Dockerfile`, estágios, Azure |
 | 12 | [Exemplo de job e serviço](12-exemplo-job-e-servico.md) | material descartável — **apague ao implementar** |
+| 13 | [Application Insights](13-application-insights.md) | `applicationinsights`, `trackTrace`, configurações |
 
 ## Bibliotecas instaladas
 
@@ -35,6 +36,7 @@ cobre.
 
 | Pacote | Versão | Documentação oficial | Repositório | Cap. |
 | --- | --- | --- | --- | --- |
+| `applicationinsights` | `^3.16` | [learn.microsoft.com — Node.js](https://learn.microsoft.com/azure/azure-monitor/app/nodejs) | [microsoft/ApplicationInsights-node.js](https://github.com/microsoft/ApplicationInsights-node.js) | [13](13-application-insights.md) |
 | `fastify` | `^5.1` | [fastify.dev/docs/latest](https://fastify.dev/docs/latest/) | [fastify/fastify](https://github.com/fastify/fastify) | [07](07-servidor-http.md) |
 | `mssql` | `^11.0` | [tediousjs.github.io/node-mssql](https://tediousjs.github.io/node-mssql/) | [tediousjs/node-mssql](https://github.com/tediousjs/node-mssql) | [04](04-banco-de-dados.md) |
 | `node-schedule` | `^2.1` | [README do projeto](https://github.com/node-schedule/node-schedule#readme) | [node-schedule/node-schedule](https://github.com/node-schedule/node-schedule) | [05](05-scheduler.md) |
@@ -50,6 +52,8 @@ cobre.
 | `tsx` | `^4.19` | [tsx.is](https://tsx.is/) | [privatenumber/tsx](https://github.com/privatenumber/tsx) | [01](01-typescript-e-build.md) |
 | `vitest` | `^5.0` | [vitest.dev](https://vitest.dev/) | [vitest-dev/vitest](https://github.com/vitest-dev/vitest) | [09](09-testes.md) |
 | `@vitest/coverage-v8` | `^5.0` | [vitest.dev/guide/coverage](https://vitest.dev/guide/coverage.html) | [vitest-dev/vitest](https://github.com/vitest-dev/vitest) | [09](09-testes.md) |
+| `yaml` | `^2.9` | [eemeli.org/yaml](https://eemeli.org/yaml/) | [eemeli/yaml](https://github.com/eemeli/yaml) | [07](07-servidor-http.md) |
+| `ajv` | `^8.20` | [ajv.js.org](https://ajv.js.org/) | [ajv-validator/ajv](https://github.com/ajv-validator/ajv) | [07](07-servidor-http.md) |
 | `markdownlint-cli2` | `^0.23` | [README do projeto](https://github.com/DavidAnson/markdownlint-cli2#readme) | [DavidAnson/markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) | [09](09-testes.md) |
 | `@types/node` | `^24` | [Node.js API](https://nodejs.org/docs/latest-v24.x/api/) | [DefinitelyTyped](https://github.com/DefinitelyTyped/DefinitelyTyped) | [01](01-typescript-e-build.md) |
 | `@types/mssql` | `^9.1` | — | [DefinitelyTyped](https://github.com/DefinitelyTyped/DefinitelyTyped) | [04](04-banco-de-dados.md) |
@@ -134,6 +138,7 @@ aqui, onde pode ser lida inteira; o código fica com uma linha e um endereço.
 src/
   server.ts                      # entrypoint: DB -> jobs -> HTTP -> encerramento -> cap. 05
   config/env.ts                  # variáveis de ambiente validadas (zod)          -> cap. 02
+  config/appInsights.ts          # instância única do Application Insights        -> cap. 13
   logger/logger.ts               # logger estruturado (pino)                      -> cap. 03
   db/mssql.ts                    # pool MSSQL compartilhado + verificarSaudeDb    -> cap. 04
   scheduler/
@@ -157,6 +162,7 @@ test/
   setup.ts                       # env dos testes                                 -> cap. 09
   health.route.test.ts           # health online/offline                          -> cap. 09
   read-only.guard.test.ts        # trava de somente-leitura e da superfície       -> cap. 09
+  app-insights.test.ts           # setup, configurações e trackTrace              -> cap. 13
 Dockerfile                       # build multi-stage com portão de verificação    -> cap. 11
 ```
 
