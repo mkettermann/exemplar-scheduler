@@ -93,7 +93,9 @@ beforeEach(() => {
     mocks.configNoStart = { ...mocks.cliente.config };
     return mocks.configuracao;
   });
-  mocks.cliente.flush.mockResolvedValue(undefined);
+  mocks.cliente.flush.mockImplementation((opcoes?: { callback?: (resposta: string) => void }) => {
+    opcoes?.callback?.('{"itemsReceived":1,"itemsAccepted":1,"errors":[]}');
+  });
 });
 
 afterEach(() => {
@@ -136,12 +138,10 @@ describe('setup', () => {
     expect(mocks.logger.info).toHaveBeenCalledWith('Application Insights ligado');
   });
 
-  it('embrulha uma iKey pura, que o SDK v3 não aceita sozinha', async () => {
+  it('repassa uma iKey pura como veio — o SDK 1.8.2 aceita os dois formatos', async () => {
     await carregarCom('11111111-2222-3333-4444-555555555555');
 
-    expect(mocks.setup).toHaveBeenCalledWith(
-      'InstrumentationKey=11111111-2222-3333-4444-555555555555',
-    );
+    expect(mocks.setup).toHaveBeenCalledWith('11111111-2222-3333-4444-555555555555');
   });
 
   it.each<[MetodoDeConfiguracao, unknown[]]>([
@@ -165,7 +165,7 @@ describe('setup', () => {
     );
   });
 
-  it('lote e amostragem já estão no config quando o start lê a configuração', async () => {
+  it('lote e amostragem são definidos antes do start, junto do resto', async () => {
     await carregarCom(CONNECTION_STRING);
 
     expect(mocks.start).toHaveBeenCalledTimes(1);
@@ -196,26 +196,23 @@ describe('trackTrace', () => {
 
     expect(mocks.cliente.trackTrace).toHaveBeenCalledWith({
       message: 'executando procedure X',
-      severity: 'Information',
+      severity: 1,
     });
   });
 
-  it.each([
-    [0, 'Verbose'],
-    [1, 'Information'],
-    [2, 'Warning'],
-    [3, 'Error'],
-    [4, 'Critical'],
-  ] as const)('severidade %i vira %s', async (severidade, nome) => {
-    const { appInsightsInstance } = await carregarCom(CONNECTION_STRING);
+  it.each([0, 1, 2, 3, 4] as const)(
+    'severidade %i vai como veio — é o SeverityLevel do SDK',
+    async (severidade) => {
+      const { appInsightsInstance } = await carregarCom(CONNECTION_STRING);
 
-    appInsightsInstance.trackTrace('mensagem', severidade);
+      appInsightsInstance.trackTrace('mensagem', severidade);
 
-    expect(mocks.cliente.trackTrace).toHaveBeenCalledWith({
-      message: 'mensagem',
-      severity: nome,
-    });
-  });
+      expect(mocks.cliente.trackTrace).toHaveBeenCalledWith({
+        message: 'mensagem',
+        severity: severidade,
+      });
+    },
+  );
 
   it('falha do SDK é logada, não derruba o job', async () => {
     const erro = new Error('exporter indisponível');
@@ -241,9 +238,20 @@ describe('descarregar', () => {
     expect(mocks.cliente.flush).toHaveBeenCalledTimes(1);
   });
 
-  it('falha no flush é logada, não trava o encerramento', async () => {
-    const erro = new Error('sem rede');
-    mocks.cliente.flush.mockRejectedValue(erro);
+  it('erro de rede chega pelo callback e o encerramento segue', async () => {
+    mocks.cliente.flush.mockImplementation((opcoes?: { callback?: (resposta: string) => void }) => {
+      opcoes?.callback?.('Error: connect ECONNREFUSED');
+    });
+    const { appInsightsInstance } = await carregarCom(CONNECTION_STRING);
+
+    await expect(appInsightsInstance.descarregar()).resolves.toBeUndefined();
+  });
+
+  it('exceção no flush é logada, não trava o encerramento', async () => {
+    const erro = new Error('canal quebrado');
+    mocks.cliente.flush.mockImplementation(() => {
+      throw erro;
+    });
     const { appInsightsInstance } = await carregarCom(CONNECTION_STRING);
 
     await expect(appInsightsInstance.descarregar()).resolves.toBeUndefined();

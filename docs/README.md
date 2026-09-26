@@ -36,7 +36,7 @@ cobre.
 
 | Pacote | Versão | Documentação oficial | Repositório | Cap. |
 | --- | --- | --- | --- | --- |
-| `applicationinsights` | `^3.16` | [learn.microsoft.com — Node.js](https://learn.microsoft.com/azure/azure-monitor/app/nodejs) | [microsoft/ApplicationInsights-node.js](https://github.com/microsoft/ApplicationInsights-node.js) | [13](13-application-insights.md) |
+| `applicationinsights` | `1.8.2` (fixa) | [learn.microsoft.com — Node.js](https://learn.microsoft.com/azure/azure-monitor/app/nodejs) | [microsoft/ApplicationInsights-node.js](https://github.com/microsoft/ApplicationInsights-node.js) | [13](13-application-insights.md) |
 | `fastify` | `^5.1` | [fastify.dev/docs/latest](https://fastify.dev/docs/latest/) | [fastify/fastify](https://github.com/fastify/fastify) | [07](07-servidor-http.md) |
 | `mssql` | `^11.0` | [tediousjs.github.io/node-mssql](https://tediousjs.github.io/node-mssql/) | [tediousjs/node-mssql](https://github.com/tediousjs/node-mssql) | [04](04-banco-de-dados.md) |
 | `node-schedule` | `^2.1` | [README do projeto](https://github.com/node-schedule/node-schedule#readme) | [node-schedule/node-schedule](https://github.com/node-schedule/node-schedule) | [05](05-scheduler.md) |

@@ -10,21 +10,16 @@ import { logger } from '../logger/logger.js';
  * Ver `docs/13-application-insights.md`.
  */
 
-/** Escala numérica do SDK clássico (v2); o v3 espera o nome. */
-const SEVERIDADES = ['Verbose', 'Information', 'Warning', 'Error', 'Critical'] as const;
-
-/** 0 Verbose · 1 Information · 2 Warning · 3 Error · 4 Critical. */
+/** 0 Verbose · 1 Information · 2 Warning · 3 Error · 4 Critical — o `SeverityLevel` do SDK. */
 export type Severidade = 0 | 1 | 2 | 3 | 4;
 
-/** O SDK v3 só aceita connection string; uma iKey pura é embrulhada. */
-function paraConnectionString(chave: string): string {
-  return chave.includes('=') ? chave : `InstrumentationKey=${chave}`;
-}
-
-/** O que cada chamada faz está em `docs/13-application-insights.md`. */
+/**
+ * O que cada chamada faz está em `docs/13-application-insights.md`.
+ * O SDK 1.8.2 aceita tanto a connection string quanto a iKey pura.
+ */
 function iniciarCliente(chave: string): TelemetryClient {
   appInsights
-    .setup(paraConnectionString(chave))
+    .setup(chave)
     .setDistributedTracingMode(appInsights.DistributedTracingModes.AI)
     .setInternalLogging(false)
     .setSendLiveMetrics(false)
@@ -36,8 +31,8 @@ function iniciarCliente(chave: string): TelemetryClient {
     .setAutoCollectConsole(true)
     .setUseDiskRetryCaching(true);
 
-  // No SDK v3 a configuração é lida dentro do `start()`: definidas depois
-  // dele, estas três seriam ignoradas em silêncio.
+  // O canal lê estas três a cada envio. Ficam antes do `start()` para a
+  // configuração inteira estar num lugar só.
   const cliente = appInsights.defaultClient;
   cliente.config.maxBatchSize = 500;
   cliente.config.maxBatchIntervalMs = 15_000;
@@ -78,7 +73,7 @@ export class AppInsights {
     if (!this.cliente) return;
 
     try {
-      this.cliente.trackTrace({ message: mensagem, severity: SEVERIDADES[severidade] });
+      this.cliente.trackTrace({ message: mensagem, severity: severidade });
     } catch (erro) {
       logger.warn({ err: erro }, 'Falha ao enviar trace ao Application Insights');
     }
@@ -88,8 +83,14 @@ export class AppInsights {
   async descarregar(): Promise<void> {
     if (!this.cliente) return;
 
+    const cliente = this.cliente;
+
     try {
-      await this.cliente.flush();
+      // O `flush` do 1.8.2 não devolve Promise. O callback é chamado tanto com
+      // a resposta da ingestão quanto com a mensagem de erro de rede.
+      await new Promise<void>((resolver) => {
+        cliente.flush({ callback: () => resolver() });
+      });
     } catch (erro) {
       logger.warn({ err: erro }, 'Falha ao descarregar o Application Insights');
     }

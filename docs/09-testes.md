@@ -171,7 +171,7 @@ Determinístico, instantâneo e sem precisar derrubar nada de verdade.
 | O ping é `SELECT 1 AS ok` | O readiness não pode custar uma consulta de negócio |
 | O prazo padrão é o `HEALTH_DB_TIMEOUT_MS` do ambiente | Banco lento não pode segurar a probe |
 | O temporizador é liberado quando o banco responde | Cada check limpa o que criou |
-| O Application Insights é configurado uma vez, antes do `start()` | No SDK v3, o que vem depois do `start()` é ignorado |
+| O Application Insights é configurado uma vez, antes do `start()` | A configuração fica num lugar só, e o SDK não admite dois `setup()` |
 | `trackTrace` sem severidade envia `Information` e nunca lança | Telemetria não derruba job |
 
 ## Cobertura
