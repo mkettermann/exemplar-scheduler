@@ -91,6 +91,37 @@ describe('textoObrigatorio', () => {
   it.each(CAMPOS_DE_CONEXAO)('protege também `%s`, que vem do mesmo manifesto', async (campo) => {
     await esperaDerrubarBoot(campo, 'valor\n');
   });
+
+  it.each(CAMPOS_DE_CONEXAO)(
+    'derruba o boot com `%s=CHANGE_ME` — `.env.example` copiado sem ajuste',
+    async (campo) => {
+      await esperaDerrubarBoot(campo, 'CHANGE_ME');
+    },
+  );
+
+  it('pede o valor real na mensagem do placeholder', async () => {
+    vi.spyOn(process, 'exit').mockImplementation((() => {
+      throw new Error('process.exit');
+    }) as never);
+    const erro = vi.spyOn(console, 'error').mockImplementation(() => { });
+
+    await expect(carregarCom('DB_PASSWORD', 'CHANGE_ME')).rejects.toThrow('process.exit');
+    expect(erro).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        DB_PASSWORD: [expect.stringContaining('ajuste a variável com o valor real')],
+      }),
+    );
+  });
+
+  it.each(['change_me', 'CHANGE_ME_2', 'xCHANGE_MEx'])(
+    'aceita `%s`: só o placeholder exato é recusado',
+    async (valor) => {
+      const ambiente = await carregarCom('DB_PASSWORD', valor);
+
+      expect(ambiente.DB_PASSWORD).toBe(valor);
+    },
+  );
 });
 
 /**

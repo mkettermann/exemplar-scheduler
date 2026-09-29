@@ -94,7 +94,7 @@ JOBS_ENABLED: booleano.default('true'),
 ## `textoObrigatorio`: presença não é o bastante
 
 Os quatro campos de conexão usam um parser próprio, que recusa espaço e quebra
-de linha **nas pontas**:
+de linha **nas pontas** e o placeholder `CHANGE_ME`:
 
 ```ts
 const textoObrigatorio = z
@@ -102,6 +102,9 @@ const textoObrigatorio = z
   .min(1)
   .refine((valor) => valor === valor.trim(), {
     message: 'não pode começar nem terminar com espaço ou quebra de linha — ...',
+  })
+  .refine((valor) => valor !== 'CHANGE_ME', {
+    message: 'ainda está com o placeholder `CHANGE_ME` do `.env.example` — ajuste a variável com o valor real',
   });
 ```
 
@@ -130,6 +133,17 @@ pontas — senha com espaço no meio é aceita sem ressalva.
 
 Vale para todo campo que chegue por substituição em manifesto, não só para a
 senha: `DB_USER` com `\n` no fim falha a autenticação exatamente igual.
+
+### O placeholder `CHANGE_ME`
+
+O [`.env.example`](../.env.example) traz `CHANGE_ME` nos campos de conexão. Um
+`.env` copiado sem ajuste passaria no `.min(1)` e só falharia na primeira
+conexão, com um erro de host ou login que não diz qual variável esqueceram. O
+segundo `refine` derruba o boot nomeando o campo e pedindo o valor real.
+
+A comparação é **exata**: só `CHANGE_ME` é recusado. `change_me` ou uma senha
+que contenha o texto no meio passam — o guard pega o placeholder, não adivinha
+intenção.
 
 ## O que merece default e o que não merece
 
