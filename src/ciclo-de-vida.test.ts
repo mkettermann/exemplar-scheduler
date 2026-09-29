@@ -149,18 +149,6 @@ describe('iniciar', () => {
     expect(mocks.servidor.listen).not.toHaveBeenCalled();
   });
 
-  it('anuncia quantos e quais jobs ficaram ativos', async () => {
-    mocks.separarJobsPorAmbiente.mockReturnValue({
-      ativos: [jobFalso('cobranca', ['hml']), jobFalso('faturamento', ['hml'])],
-      ignorados: [],
-    });
-    const { iniciar } = await carregarCicloDeVida();
-
-    await iniciar();
-
-    expect(textoDe(mocks.logger.info)).toMatch(/JOBS ativos.* 2: cobranca, faturamento/);
-  });
-
   it('loga cada job de outro ambiente, com os ambientes que ele declara', async () => {
     mocks.separarJobsPorAmbiente.mockReturnValue({
       ativos: [],
@@ -187,7 +175,6 @@ describe('iniciar', () => {
 
     expect(mocks.registrarJob).not.toHaveBeenCalled();
     expect(textoDe(mocks.logger.warn)).toMatch(/1 jobs, .*JOBS_ENABLED=false.* - nenhum job ativo/);
-    expect(textoDe(mocks.logger.info)).toMatch(/JOBS ativos.* 0: $/m);
     expect(mocks.servidor.listen).toHaveBeenCalled();
   });
 

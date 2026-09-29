@@ -51,7 +51,7 @@ export async function iniciar(): Promise<void> {
   const jobsAtivosNames = ambiente.JOBS_ENABLED ? ativos.map(job => job.nome).join(', ') : '';
 
   logger.info(`[${ambiente.NODE_ENV.toUpperCase()}] ${Util.corVerde('Scheduler no ar na porta')} ${ambiente.PORT}`);
-  logger.info(`[${ambiente.NODE_ENV.toUpperCase()}] ${Util.corVerde('JOBS ativos')} ${jobsAtivos}: ${jobsAtivosNames}`);
+  logger.info(`[${ambiente.NODE_ENV.toUpperCase()}] ${Util.corVerde('JOBS ativos')} ${jobsAtivos}${jobsAtivosNames != '' ? ': ' + jobsAtivosNames : ''}`);
 }
 
 /** Jobs em andamento, servidor HTTP, pool e telemetria, nessa ordem. */
