@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 /**
- * MODELO de teste de job + serviço — apague junto com a pasta `example/`. Um
+ * MODELO de teste de job + serviço - apague junto com a pasta `example/`. Um
  * arquivo por pasta de job: o mock fica só na fronteira de infraestrutura
  * (aqui, o logger) e o job é exercitado passando pelo serviço real, porque um
  * `vi.mock` do serviço valeria para o arquivo inteiro e esvaziaria os testes
@@ -72,7 +72,7 @@ describe('coletarResumoDoProcesso', () => {
 });
 
 describe('jobExemplo', () => {
-  it('só roda em desenvolvimento — um modelo não dispara em ambiente compartilhado', () => {
+  it('só roda em desenvolvimento - um modelo não dispara em ambiente compartilhado', () => {
     expect(jobExemplo.ambientes).toEqual(['development']);
   });
 
@@ -99,7 +99,7 @@ describe('jobExemplo', () => {
     );
   });
 
-  it('não trata o erro do serviço — isso é do job-runner', async () => {
+  it('não trata o erro do serviço - isso é do job-runner', async () => {
     vi.spyOn(process, 'memoryUsage').mockImplementation(() => {
       throw new Error('falhou');
     });

@@ -31,7 +31,7 @@ const especificacao = parse(
   readFileSync(new URL('../../openapi.yaml', import.meta.url), 'utf8'),
 ) as Especificacao;
 
-/** "GET /health", "GET /health/ready"... — o mesmo formato dos dois lados. */
+/** "GET /health", "GET /health/ready"... - o mesmo formato dos dois lados. */
 function operacoesDoSpec(): string[] {
   return Object.entries(especificacao.paths)
     .flatMap(([caminho, metodos]) =>

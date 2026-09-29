@@ -2,7 +2,7 @@ import { appInsightsInstance } from '../../config/appInsights.js';
 import { obterPoolDb, sql } from '../../db/mssql.js';
 
 /**
- * MODELO de serviço com consulta ao banco — um serviço, uma consulta, três
+ * MODELO de serviço com consulta ao banco - um serviço, uma consulta, três
  * peças: `QUERY`, `montar` e a exportada `listarAcionamentos`. As decisões
  * por trás do formato estão em `docs/12-exemplo-job-e-servico.md`.
  */

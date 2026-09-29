@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
  * O lock é testado contra um `mssql` falso: o que se prova aqui é o **fluxo**
- * — quem faz commit, quem faz rollback, quando a ação é pulada — e os
+ * - quem faz commit, quem faz rollback, quando a ação é pulada - e os
  * parâmetros enviados ao `sp_getapplock`. Que o `sp_getapplock` de fato exclua
  * duas instâncias é afirmação sobre o SQL Server, e só um teste de integração
  * com banco real pode sustentá-la (ver `docs/09-testes.md`, upgrades).
@@ -83,7 +83,7 @@ beforeEach(() => {
   applockResponde(0);
 });
 
-describe('executarComLock — lock concedido', () => {
+describe('executarComLock - lock concedido', () => {
   it('abre transação sobre o pool único do processo', async () => {
     await executarComLock('cobranca', async () => undefined);
 
@@ -127,7 +127,7 @@ describe('executarComLock — lock concedido', () => {
   });
 });
 
-describe('executarComLock — pedido do applock', () => {
+describe('executarComLock - pedido do applock', () => {
   it('usa o nome do job como recurso, prefixado, para não colidir', async () => {
     await executarComLock('cobranca', async () => undefined);
 
@@ -158,7 +158,7 @@ describe('executarComLock — pedido do applock', () => {
   });
 });
 
-describe('executarComLock — lock negado', () => {
+describe('executarComLock - lock negado', () => {
   beforeEach(() => {
     applockResponde(-1);
   });
@@ -199,7 +199,7 @@ describe('executarComLock — lock negado', () => {
   });
 });
 
-describe('executarComLock — ação que falha', () => {
+describe('executarComLock - ação que falha', () => {
   it('desfaz a transação e relança, para o runner classificar o erro', async () => {
     const erro = new Error('fornecedor fora do ar');
 
@@ -223,7 +223,7 @@ describe('executarComLock — ação que falha', () => {
     expect(mocks.transacao.rollback).toHaveBeenCalledTimes(1);
   });
 
-  it('rollback que também falha não esconde o erro original — vai para o log', async () => {
+  it('rollback que também falha não esconde o erro original - vai para o log', async () => {
     const erroDaAcao = new Error('fornecedor fora do ar');
     const erroDoRollback = new Error('transação já abortada pelo servidor');
     mocks.transacao.rollback.mockRejectedValue(erroDoRollback);

@@ -1,4 +1,4 @@
-# 12 — Exemplo de job e serviço
+# 12 - Exemplo de job e serviço
 
 [← Utilitários](10-utilitarios.md) ·
 [Índice](README.md)
@@ -9,7 +9,7 @@
 > arquivo** existem para mostrar o formato. Ao implementar o sistema de
 > verdade, apague os três e remova a linha do índice.
 >
-> Jobs e serviços reais **não** ganham capítulo próprio — a documentação deles
+> Jobs e serviços reais **não** ganham capítulo próprio - a documentação deles
 > é o código tipado mais o comentário no topo do arquivo. O que precisa estar
 > documentado é a estrutura, e ela já está nos capítulos 01 a 11.
 
@@ -30,11 +30,11 @@ teste que não existe.
 
 Os três arquivos moram na mesma pasta, com o nome do job. Separar em arquivos
 não é separar em lugares: quem abre a pasta vê o job inteiro, e apagar um job é
-apagar uma pasta — mais a linha dele em [`jobs.ts`](../src/jobs/jobs.ts).
+apagar uma pasta - mais a linha dele em [`jobs.ts`](../src/jobs/jobs.ts).
 
 ```text
 src/jobs/
-  jobs.ts                  # lista central — o boot só importa isto
+  jobs.ts                  # lista central - o boot só importa isto
   jobs.test.ts             # regras que valem para todo job da lista
   example/
     example.job.ts
@@ -66,7 +66,7 @@ Três características que todo serviço desta estrutura compartilha:
    constante do código. Poderia ser uma variável do
    [`esquemaAmbiente`](02-configuracao-de-ambiente.md) ou uma consulta ao banco
    ([capítulo 04](04-banco-de-dados.md)). O que **não** pode é vir de uma
-   requisição HTTP — este serviço não tem endpoint que receba conteúdo.
+   requisição HTTP - este serviço não tem endpoint que receba conteúdo.
 3. **Não sabe que existe um job.** A função pode ser chamada por outro serviço,
    por um teste ou por vários jobs diferentes.
 
@@ -101,7 +101,7 @@ export async function buscarPedidosPendentes(): Promise<Pedido[]> {
 
 Quatro pontos desse trecho valem como regra geral:
 
-- **URL base constante** ou vinda do `esquemaAmbiente` validado — nunca de
+- **URL base constante** ou vinda do `esquemaAmbiente` validado - nunca de
   parâmetro externo. Isso elimina uma classe inteira de SSRF por construção.
 - **Segredo pelo `ambiente`**, nunca no código.
 - **`AbortSignal.timeout`** em toda chamada de rede. O `tempoLimiteMs` do
@@ -109,13 +109,13 @@ Quatro pontos desse trecho valem como regra geral:
   chamada; só o `AbortSignal` interrompe de fato.
 - **Resposta validada com zod** antes de ser usada. Um sistema externo pode
   mudar o contrato sem avisar, e o TypeScript não protege contra o que vem da
-  rede — `resposta.json()` é `any`.
+  rede - `resposta.json()` é `any`.
 
 ### Um segundo serviço: consulta ao banco
 
 [`example-consulta.service.ts`](../src/jobs/example-consulta/example-consulta.service.ts)
 é o outro modelo, e o que você vai copiar com mais frequência: ele lê o banco.
-Não tem job vinculado — a pasta traz só o serviço e o teste dele. É material de
+Não tem job vinculado - a pasta traz só o serviço e o teste dele. É material de
 leitura, e sai junto com os demais exemplos.
 
 Um serviço, uma consulta, três peças:
@@ -129,7 +129,7 @@ Um serviço, uma consulta, três peças:
 As duas internas têm nome genérico de propósito: quem abrir o próximo serviço
 já sabe onde olhar sem ler o arquivo inteiro, e a forma se repete sem discussão
 de nomenclatura a cada consulta nova. A exportada é a exceção, e por um motivo
-prático — ela aparece fora do arquivo:
+prático - ela aparece fora do arquivo:
 
 ```ts
 // no job da mesma pasta: src/jobs/example-consulta/example-consulta.job.ts
@@ -173,11 +173,11 @@ serviço na frente. A severidade é omitida e vale o padrão `1`
 Quatro decisões que valem como regra para qualquer consulta desta estrutura:
 
 - **A conexão vem de `obterPoolDb()`.** O serviço não conhece host, usuário nem
-  configuração de TLS — só o pool ([capítulo 04](04-banco-de-dados.md)).
+  configuração de TLS - só o pool ([capítulo 04](04-banco-de-dados.md)).
 - **Um `.input()` por parâmetro, com o tipo do driver.** É o que manda o valor
   separado do texto da query no protocolo do SQL Server. Não é escapar aspas:
   o valor nunca chega a ser texto de comando. Vale até para o `TOP`, que o
-  T-SQL aceita como `TOP (@limite)` — o que elimina a desculpa mais comum para
+  T-SQL aceita como `TOP (@limite)` - o que elimina a desculpa mais comum para
   concatenar.
 - **`QUERY` é constante do módulo.** Fica legível, e fica evidente em revisão
   que nada é montado em tempo de execução.
@@ -186,7 +186,7 @@ Quatro decisões que valem como regra para qualquer consulta desta estrutura:
   remonta o aninhamento antes de sair do serviço.
 
 Sobre o `WITH (NOLOCK)` da `QUERY`: é uma escolha, não um enfeite. Ele dispensa
-o bloqueio de leitura — a consulta não trava a escrita da aplicação — em troca
+o bloqueio de leitura - a consulta não trava a escrita da aplicação - em troca
 de poder ler linha que ainda vai ser revertida. Serve para relatório e
 apuração; não serve para nada que decida escrita ou valor financeiro.
 
@@ -201,14 +201,14 @@ export interface AcionamentoComCliente {
 }
 ```
 
-`cliente` é anulável porque o `LEFT JOIN` pode não achar par — e quem chamar o
+`cliente` é anulável porque o `LEFT JOIN` pode não achar par - e quem chamar o
 serviço é obrigado pelo compilador a tratar o acionamento órfão, em vez de
 descobrir o caso em produção. Quem decide a ausência é a chave (o `ClienteID`
 vindo da tabela de clientes), não o nome: nome nulo com vínculo existindo é
 outra coisa, e `montar()` separa os dois casos.
 
-Já `LinhaAcionamento` — o formato cru, com as colunas do cliente apelidadas
-para não colidir com as do acionamento — não é exportado. Ele existe entre o
+Já `LinhaAcionamento` - o formato cru, com as colunas do cliente apelidadas
+para não colidir com as do acionamento - não é exportado. Ele existe entre o
 `.query()` e o `montar()`, e some ali.
 
 O arquivo não tem comentário explicativo, de propósito: a explicação é este
@@ -232,12 +232,12 @@ export const jobExemplo: DefinicaoJob = {
 ```
 
 O `executar` faz duas coisas: chama o serviço e loga o resultado. Não trata
-erro, não mede tempo, não adquire lock, não grava histórico — o
+erro, não mede tempo, não adquire lock, não grava histórico - o
 [job-runner](05-scheduler.md) já faz tudo isso em volta.
 
 `ambientes: ['development']` é deliberado: sendo um modelo, o exemplo não deve
 disparar em nenhum ambiente compartilhado. No seu job, a lista é uma decisão de
-verdade — DEV, QA e HML dividem o mesmo banco, então o mesmo job não pode
+verdade - DEV, QA e HML dividem o mesmo banco, então o mesmo job não pode
 constar em dois deles. Ver [capítulo 05](05-scheduler.md), seção "Um job, um
 ambiente".
 
@@ -251,11 +251,11 @@ descartável:
 
 | Teste | O que mostra |
 | --- | --- |
-| [`example/example.test.ts`](../src/jobs/example/example.test.ts) | Serviço sem banco (controla a entrada e verifica o resultado) e job (ambientes, agendamento, registro na lista e a execução passando pelo serviço) — lock e timeout ficam com o runner |
+| [`example/example.test.ts`](../src/jobs/example/example.test.ts) | Serviço sem banco (controla a entrada e verifica o resultado) e job (ambientes, agendamento, registro na lista e a execução passando pelo serviço) - lock e timeout ficam com o runner |
 | [`example-consulta/example-consulta.test.ts`](../src/jobs/example-consulta/example-consulta.test.ts) | Serviço com banco: mocka `mssql.ts`, verifica parâmetros, defaults e mapeamento |
 
 Job e serviço dividem o arquivo, e por isso o mock fica só na fronteira de
-infraestrutura — logger, `mssql.ts`, Application Insights —, nunca no
+infraestrutura - logger, `mssql.ts`, Application Insights -, nunca no
 serviço. Um `vi.mock` vale para o arquivo inteiro: mockar o serviço para
 testar o job esvaziaria os testes do próprio serviço. O teste do job, então,
 controla a mesma entrada que o do serviço e verifica o que o job faz com o
@@ -267,15 +267,15 @@ Copie-os junto com o código.
 
 1. **Crie a pasta** `src/jobs/nome/` e, nela, o serviço `nome.service.ts`
    com a lógica de negócio. Tipe as entradas e saídas que antes não tinham
-   tipo — é o momento em que os contratos implícitos aparecem.
+   tipo - é o momento em que os contratos implícitos aparecem.
 2. **Crie o job** em `src/jobs/nome/nome.job.ts`, com `executar` chamando o
    serviço, e o teste em `src/jobs/nome/nome.test.ts`.
-3. **Declare `ambientes`** — o compilador não deixa passar sem. Se o job legado
+3. **Declare `ambientes`** - o compilador não deixa passar sem. Se o job legado
    roda em produção e você quer validá-lo antes, use um ambiente de teste por
    vez, nunca dois que dividam banco.
 4. **Ajuste `tempoLimiteMs`** para algo realista. Olhe quanto o job legado leva
    no pior dia, não na média, e dê folga.
-5. **Ajuste `agendamento`**, atento ao fuso ([capítulo 05](05-scheduler.md) —
+5. **Ajuste `agendamento`**, atento ao fuso ([capítulo 05](05-scheduler.md) -
    container sem `TZ` roda em UTC).
 6. **Registre** em [`src/jobs/jobs.ts`](../src/jobs/jobs.ts).
 7. **Rode em dry-run** (logando o que faria, sem efeito real) em paralelo com o
@@ -283,14 +283,14 @@ Copie-os junto com o código.
 8. **Só então** desative o job no repositório legado.
 
 O passo 7 é o que mais economiza tempo. Os dois sistemas coexistindo por
-alguns dias revelam diferença de fuso, de conexão e de dado — que aparecem
+alguns dias revelam diferença de fuso, de conexão e de dado - que aparecem
 sozinhas no comparativo, em vez de aparecerem como incidente.
 
 ## Checklist antes de apagar o exemplo
 
 - [ ] `jobExemplo` e o import dele removidos de `src/jobs/jobs.ts`
 - [ ] Pastas `src/jobs/example/` e `src/jobs/example-consulta/` removidas,
-  com os testes dentro — copie os `*.test.ts` antes, como ponto de partida
+  com os testes dentro - copie os `*.test.ts` antes, como ponto de partida
   dos testes do seu job
 - [ ] `docs/12-exemplo-job-e-servico.md` removido
 - [ ] Linha 12 removida do índice em `docs/README.md`

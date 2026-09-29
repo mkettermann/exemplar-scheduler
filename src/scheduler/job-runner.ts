@@ -40,7 +40,7 @@ async function dispararHandler(job: DefinicaoJob): Promise<void> {
 
 /**
  * O timeout para a espera, não o handler. Devolver agora faria o
- * `executarComLock` dar commit e soltar a trava com o handler ainda rodando —
+ * `executarComLock` dar commit e soltar a trava com o handler ainda rodando -
  * e o disparo seguinte, ou o de outra réplica, executaria o mesmo job em
  * paralelo. Então a trava fica presa até o handler terminar de fato.
  * Ver `docs/05-scheduler.md`.
@@ -54,12 +54,12 @@ async function aguardarFimAposTimeout(
     await execucao;
     logger.warn(
       { job: job.nome },
-      `Job ${job.nome} terminou apos o timeout, em ${Date.now() - iniciadoEm}ms — lock liberado`,
+      `Job ${job.nome} terminou apos o timeout, em ${Date.now() - iniciadoEm}ms - lock liberado`,
     );
   } catch (error_) {
     logger.warn(
       { job: job.nome, err: error_ },
-      `Job ${job.nome} falhou apos o timeout, em ${Date.now() - iniciadoEm}ms — lock liberado`,
+      `Job ${job.nome} falhou apos o timeout, em ${Date.now() - iniciadoEm}ms - lock liberado`,
     );
   }
 }
@@ -101,16 +101,16 @@ async function executarJob(job: DefinicaoJob): Promise<void> {
 
 /** Saída de `separarJobsPorAmbiente`. */
 export interface JobsDoAmbiente {
-  /** Declaram o ambiente atual — estes serão registrados. */
+  /** Declaram o ambiente atual - estes serão registrados. */
   ativos: DefinicaoJob[];
 
-  /** Pertencem a outro ambiente — pulados, mas logados no boot. */
+  /** Pertencem a outro ambiente - pulados, mas logados no boot. */
   ignorados: DefinicaoJob[];
 }
 
 /**
  * Decide quais jobs pertencem a este ambiente. É a trava que impede DEV, QA e
- * HML — que compartilham o mesmo banco — de dispararem o mesmo job sobre os
+ * HML - que compartilham o mesmo banco - de dispararem o mesmo job sobre os
  * mesmos dados. Ver `docs/05-scheduler.md`, seção "Um job, um ambiente".
  *
  * `test` não consta em `AmbienteDeploy`, então sob o vitest nenhum job fica

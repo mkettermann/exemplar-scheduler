@@ -25,7 +25,7 @@ paths:
     get:
       tags: [health]
       operationId: obterLiveness
-      summary: Liveness — o processo está vivo?
+      summary: Liveness - o processo está vivo?
       description: |
         Não faz I/O e não consulta o banco, de propósito: uma instabilidade do
         banco não deve fazer o Kubernetes reiniciar o pod. Também responde a
@@ -46,7 +46,7 @@ paths:
     get:
       tags: [health]
       operationId: obterReadiness
-      summary: Readiness — o processo consegue trabalhar?
+      summary: Readiness - o processo consegue trabalhar?
       description: |
         Verifica as dependências externas (hoje, só o banco), com timeout
         próprio definido por `HEALTH_DB_TIMEOUT_MS`. Em produção o campo

@@ -4,7 +4,7 @@ const METODOS_PERMITIDOS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
 /**
  * Recusa com 405 qualquer verbo de escrita, antes do roteamento e de qualquer
- * handler. Ver `docs/07-servidor-http.md` — inclusive por que o hook é
+ * handler. Ver `docs/07-servidor-http.md` - inclusive por que o hook é
  * registrado direto em `construirApp` e não por `app.register`.
  */
 export function aplicarGuardaSomenteLeitura(app: FastifyInstance): void {
@@ -12,7 +12,7 @@ export function aplicarGuardaSomenteLeitura(app: FastifyInstance): void {
     if (!METODOS_PERMITIDOS.has(requisicao.method)) {
       await resposta.code(405).send({
         error: 'method_not_allowed',
-        message: 'Este serviço é somente leitura — apenas GET, HEAD e OPTIONS são aceitos.',
+        message: 'Este serviço é somente leitura - apenas GET, HEAD e OPTIONS são aceitos.',
       });
     }
   });

@@ -21,7 +21,7 @@ export interface RespostaReadiness {
 }
 
 /**
- * Liveness — "o processo está vivo?". Público e sem I/O: não consulta o banco,
+ * Liveness - "o processo está vivo?". Público e sem I/O: não consulta o banco,
  * de propósito. Ver `docs/08-health-check.md`.
  */
 export const obterLiveness = async (
@@ -32,7 +32,7 @@ export const obterLiveness = async (
 };
 
 /**
- * Readiness — "o processo consegue trabalhar?". Responde 200 com as
+ * Readiness - "o processo consegue trabalhar?". Responde 200 com as
  * dependências de pé e 503 quando alguma está fora; em produção o motivo da
  * falha fica só no log. Ver `docs/08-health-check.md`.
  */

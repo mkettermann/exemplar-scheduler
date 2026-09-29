@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * O driver `mssql` inteiro é falso aqui: o que se prova é o **wrapper** —
+ * O driver `mssql` inteiro é falso aqui: o que se prova é o **wrapper** -
  * pool único, memoização da conexão, e o contrato de `verificarSaudeDb` de
  * nunca lançar. Que o SQL Server aceite a conexão é outra afirmação, e só um
  * teste de integração a sustenta (ver `docs/09-testes.md`, upgrades).
  *
  * `pool` e `conectando` são estado de módulo, então cada teste recarrega
- * `mssql.ts` com `vi.resetModules()` — sem isso, o pool conectado no primeiro
+ * `mssql.ts` com `vi.resetModules()` - sem isso, o pool conectado no primeiro
  * teste vazaria para os seguintes e a memoização nunca seria exercitada.
  * Ver `docs/04-banco-de-dados.md`.
  */
@@ -114,7 +114,7 @@ describe('obterPoolDb', () => {
   /**
    * A asserção compara com `ambiente.DB_ENCRYPT` em vez de um literal de
    * propósito: hoje `DB_ENCRYPT=false` resulta em `true`, porque o campo ainda
-   * usa `z.coerce.boolean()` — a armadilha descrita em
+   * usa `z.coerce.boolean()` - a armadilha descrita em
    * `docs/02-configuracao-de-ambiente.md`. O que cabe a este módulo é
    * repassar o valor decidido lá, e é só isso que se prova aqui; o dia em que
    * o parser explícito for aplicado, este teste continua valendo.
@@ -183,7 +183,7 @@ describe('fecharPoolDb', () => {
     expect(mocks.criouPool).toHaveBeenCalledTimes(2);
   });
 
-  it('é inofensivo quando nunca houve conexão — o shutdown não depende dela', async () => {
+  it('é inofensivo quando nunca houve conexão - o shutdown não depende dela', async () => {
     const { fecharPoolDb } = await carregarModuloDb();
 
     await expect(fecharPoolDb()).resolves.toBeUndefined();
@@ -211,7 +211,7 @@ describe('verificarSaudeDb', () => {
     expect(mocks.query).toHaveBeenCalledWith('SELECT 1 AS ok');
   });
 
-  it('devolve o erro no corpo em vez de lançar — é o que a rota espera', async () => {
+  it('devolve o erro no corpo em vez de lançar - é o que a rota espera', async () => {
     mocks.query.mockRejectedValue(new Error('Login failed for user'));
     const { verificarSaudeDb } = await carregarModuloDb();
 
@@ -239,7 +239,7 @@ describe('verificarSaudeDb', () => {
   });
 });
 
-describe('verificarSaudeDb — prazo', () => {
+describe('verificarSaudeDb - prazo', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     return () => {

@@ -1,7 +1,7 @@
 import { logger } from '../../logger/logger.js';
 
 /**
- * MODELO de serviço — apague junto com `example.job.ts` ao implementar de
+ * MODELO de serviço - apague junto com `example.job.ts` ao implementar de
  * verdade. O job diz QUANDO rodar; o serviço diz O QUE fazer, e suas fontes de
  * dados são declaradas aqui dentro, nunca recebidas por requisição.
  *

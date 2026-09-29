@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * MODELO de teste de serviço com consulta ao banco — apague junto com
+ * MODELO de teste de serviço com consulta ao banco - apague junto com
  * `example-consulta.service.ts`. O `mssql.ts` é falso: o que se prova são os
  * parâmetros enviados, os defaults do filtro e o mapeamento de linha para
  * objeto. Que a query rode no SQL Server é afirmação sobre o banco, e só um
@@ -53,7 +53,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('listarAcionamentos — filtro', () => {
+describe('listarAcionamentos - filtro', () => {
   it('sem filtro, busca as últimas 24 horas, limitado a 500 linhas', async () => {
     await listarAcionamentos();
 
@@ -76,7 +76,7 @@ describe('listarAcionamentos — filtro', () => {
   });
 });
 
-describe('listarAcionamentos — resultado', () => {
+describe('listarAcionamentos - resultado', () => {
   it('monta o cliente vinculado quando o LEFT JOIN encontrou', async () => {
     const inseridoEm = new Date('2026-09-26T10:00:00.000Z');
     bancoDevolve([
@@ -100,7 +100,7 @@ describe('listarAcionamentos — resultado', () => {
   });
 });
 
-describe('listarAcionamentos — telemetria', () => {
+describe('listarAcionamentos - telemetria', () => {
   it('registra trace antes e depois da consulta, com a contagem de linhas', async () => {
     bancoDevolve([
       { ClienteID: 1, Notas: null, InseridoEm: AGORA, ClienteVinculadoID: null, ClienteNome: null },

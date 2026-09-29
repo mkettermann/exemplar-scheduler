@@ -5,7 +5,7 @@
 ARG NODE_VERSION=24-alpine
 
 # --------------------------------------------------------------------------
-# 1. deps — dependências completas, em camada própria
+# 1. deps - dependências completas, em camada própria
 # --------------------------------------------------------------------------
 FROM node:${NODE_VERSION} AS deps
 WORKDIR /app
@@ -17,7 +17,7 @@ COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts
 
 # --------------------------------------------------------------------------
-# 2. verify — typecheck + testes + compilação
+# 2. verify - typecheck + testes + compilação
 # --------------------------------------------------------------------------
 FROM node:${NODE_VERSION} AS verify
 WORKDIR /app
@@ -45,7 +45,7 @@ RUN set -e; \
   test -f dist/server.js
 
 # --------------------------------------------------------------------------
-# 3. prod-deps — só o que roda em produção
+# 3. prod-deps - só o que roda em produção
 # --------------------------------------------------------------------------
 FROM node:${NODE_VERSION} AS prod-deps
 WORKDIR /app
@@ -56,13 +56,13 @@ RUN npm ci --omit=dev --ignore-scripts \
   && npm cache clean --force
 
 # --------------------------------------------------------------------------
-# 4. runtime — imagem final
+# 4. runtime - imagem final
 # --------------------------------------------------------------------------
 FROM node:${NODE_VERSION} AS runtime
 WORKDIR /app
 
 # O cron usa o fuso do PROCESSO. Sobrescreva com --build-arg ou pela variável
-# TZ no Azure — ver docs/11-container-e-deploy.md
+# TZ no Azure - ver docs/11-container-e-deploy.md
 ARG TZ=America/Sao_Paulo
 ENV TZ=${TZ}
 
@@ -74,7 +74,7 @@ RUN apk add --no-cache tini tzdata \
 # e PRD, e é `NODE_ENV` que decide quais jobs cada ambiente registra
 # (`DefinicaoJob.ambientes`). Fixá-la faria os quatro se identificarem como
 # `production` e dispararem os mesmos jobs sobre o banco compartilhado.
-# A pipeline injeta o valor pelo ConfigMap — ver docs/11-container-e-deploy.md
+# A pipeline injeta o valor pelo ConfigMap - ver docs/11-container-e-deploy.md
 ENV PORT=3000
 
 COPY --from=prod-deps --chown=node:node /app/node_modules ./node_modules
@@ -86,7 +86,7 @@ USER node
 EXPOSE 3000
 
 # Probe local. Container Apps e App Service usam as próprias probes e ignoram
-# esta instrução — ver docs/08-health-check.md
+# esta instrução - ver docs/08-health-check.md
 HEALTHCHECK --interval=30s --timeout=3s --start-period=15s --retries=3 \
   CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 

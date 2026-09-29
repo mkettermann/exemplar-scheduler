@@ -53,11 +53,11 @@ afterEach(() => {
  * Os campos de conexão passam por `textoObrigatorio`, que recusa espaço e
  * quebra de linha nas pontas. O caso que motivou o guard: um bloco `|` (sem
  * hífen) num Secret do Kubernetes preserva o `\n` final, e `'senha\n'`
- * satisfaria um `.min(1)` puro — o boot passaria e o banco recusaria a
+ * satisfaria um `.min(1)` puro - o boot passaria e o banco recusaria a
  * conexão com uma mensagem que se lê como senha errada.
  */
 describe('textoObrigatorio', () => {
-  it('derruba o boot com quebra de linha no fim — o bug do bloco `|` sem hífen', async () => {
+  it('derruba o boot com quebra de linha no fim - o bug do bloco `|` sem hífen', async () => {
     await esperaDerrubarBoot('DB_PASSWORD', 'senha\n');
   });
 
@@ -68,7 +68,7 @@ describe('textoObrigatorio', () => {
     },
   );
 
-  it('derruba o boot com string vazia — substituição que não resolveu', async () => {
+  it('derruba o boot com string vazia - substituição que não resolveu', async () => {
     await esperaDerrubarBoot('DB_PASSWORD', '');
   });
 
@@ -82,7 +82,7 @@ describe('textoObrigatorio', () => {
     expect(ambiente.DB_PASSWORD).toBe('senha com espaco');
   });
 
-  it('não apara o valor — o que entra é exatamente o que o banco recebe', async () => {
+  it('não apara o valor - o que entra é exatamente o que o banco recebe', async () => {
     const ambiente = await carregarCom('DB_PASSWORD', 'S3nh@!#:|');
 
     expect(ambiente.DB_PASSWORD).toBe('S3nh@!#:|');
@@ -93,7 +93,7 @@ describe('textoObrigatorio', () => {
   });
 
   it.each(CAMPOS_DE_CONEXAO)(
-    'derruba o boot com `%s=CHANGE_ME` — `.env.example` copiado sem ajuste',
+    'derruba o boot com `%s=CHANGE_ME` - `.env.example` copiado sem ajuste',
     async (campo) => {
       await esperaDerrubarBoot(campo, 'CHANGE_ME');
     },
@@ -130,7 +130,7 @@ describe('textoObrigatorio', () => {
  * onde não deveriam rodar.
  */
 describe('JOBS_ENABLED', () => {
-  it('ausente, assume `true` — o comportamento de quem nunca declarou a variável', async () => {
+  it('ausente, assume `true` - o comportamento de quem nunca declarou a variável', async () => {
     const ambiente = await carregarCom('JOBS_ENABLED', undefined);
 
     expect(ambiente.JOBS_ENABLED).toBe(true);

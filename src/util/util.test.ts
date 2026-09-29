@@ -3,7 +3,7 @@ import { Util } from './util.js';
 
 /**
  * Helpers puros, sem mock. O que se prova aqui é o comportamento herdado do
- * legado — inclusive o que parece estranho, como `limparOA` mutar o objeto
+ * legado - inclusive o que parece estranho, como `limparOA` mutar o objeto
  * recebido e remover a string `"undefined"`. Ver `docs/10-utilitarios.md`.
  */
 const RESET = '\x1b[0m';
@@ -37,7 +37,7 @@ describe('Util.limparOA', () => {
     expect(Util.limparOA(objeto)).toEqual({ a: 1, f: 0, g: false });
   });
 
-  it('muta o objeto recebido em vez de devolver cópia — herança do legado', () => {
+  it('muta o objeto recebido em vez de devolver cópia - herança do legado', () => {
     const objeto = { a: 1, b: null };
 
     const retorno = Util.limparOA(objeto);
@@ -80,7 +80,7 @@ describe('Util.aCadaObjExecuta', () => {
   });
 });
 
-describe('Util — cores de texto', () => {
+describe('Util - cores de texto', () => {
   it.each<[string, (texto: string, semFundo?: boolean) => string, number]>([
     ['corVermelho', Util.corVermelho, 31],
     ['corVerde', Util.corVerde, 32],
@@ -98,7 +98,7 @@ describe('Util — cores de texto', () => {
   });
 });
 
-describe('Util — fundos', () => {
+describe('Util - fundos', () => {
   it.each<[string, (texto: string) => string, number]>([
     ['fundoPreto', Util.fundoPreto, 40],
     ['fundoVermelho', Util.fundoVermelho, 41],

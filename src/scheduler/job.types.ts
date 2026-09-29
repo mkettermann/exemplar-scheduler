@@ -7,7 +7,7 @@ export interface DefinicaoJob {
 
   /**
    * Ambientes onde este job roda, declarado no código e exigido pelo
-   * compilador — **não existe default**. DEV, QA e HML compartilham o mesmo
+   * compilador - **não existe default**. DEV, QA e HML compartilham o mesmo
    * banco: um job registrado em dois deles dispara duas vezes sobre os mesmos
    * dados, e o lock distribuído não impede isso (ele impede a execução
    * *simultânea*, não a *sequencial*). Ver `docs/05-scheduler.md`, seção

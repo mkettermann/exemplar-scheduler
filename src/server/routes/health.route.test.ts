@@ -48,7 +48,7 @@ describe('GET /health (liveness)', () => {
     expect(resposta.json().uptimeSeconds).toBeGreaterThanOrEqual(0);
   });
 
-  it('é público — responde sem qualquer header de autenticação', async () => {
+  it('é público - responde sem qualquer header de autenticação', async () => {
     const resposta = await app.inject({ method: 'GET', url: '/health' });
 
     expect(resposta.statusCode).toBe(200);

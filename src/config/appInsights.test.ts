@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
  * O SDK `applicationinsights` inteiro é falso aqui: o que se prova é o
- * **wrapper** — instância única,  a
+ * **wrapper** - instância única,  a
  * ordem entre elas e o `start()`, e o contrato de `trackTrace` de nunca
  * derrubar um job. Que a telemetria chegue ao portal é afirmação sobre o
  * Azure, não sobre este módulo.
@@ -114,11 +114,11 @@ describe('sem APPINSIGHTSKEY', () => {
     expect(mocks.setup).not.toHaveBeenCalled();
     expect(mocks.start).not.toHaveBeenCalled();
     expect(mocks.logger.warn).toHaveBeenCalledWith(
-      'APPINSIGHTSKEY ausente — Application Insights desligado',
+      'APPINSIGHTSKEY ausente - Application Insights desligado',
     );
   });
 
-  it('trackTrace e descarregar viram no-op — o job segue sem telemetria', async () => {
+  it('trackTrace e descarregar viram no-op - o job segue sem telemetria', async () => {
     const { appInsightsInstance } = await carregarCom();
 
     expect(() => appInsightsInstance.trackTrace('antes da procedure')).not.toThrow();
@@ -138,7 +138,7 @@ describe('setup', () => {
     expect(mocks.logger.info).toHaveBeenCalledWith('Application Insights ligado');
   });
 
-  it('repassa uma iKey pura como veio — o SDK 1.8.2 aceita os dois formatos', async () => {
+  it('repassa uma iKey pura como veio - o SDK 1.8.2 aceita os dois formatos', async () => {
     await carregarCom('11111111-2222-3333-4444-555555555555');
 
     expect(mocks.setup).toHaveBeenCalledWith('11111111-2222-3333-4444-555555555555');
@@ -201,7 +201,7 @@ describe('trackTrace', () => {
   });
 
   it.each([0, 1, 2, 3, 4] as const)(
-    'severidade %i vai como veio — é o SeverityLevel do SDK',
+    'severidade %i vai como veio - é o SeverityLevel do SDK',
     async (severidade) => {
       const { appInsightsInstance } = await carregarCom(CONNECTION_STRING);
 

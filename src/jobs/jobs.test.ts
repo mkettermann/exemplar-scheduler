@@ -7,7 +7,7 @@ import { jobs } from './jobs.js';
  * `jobs.ts`, sem teste próprio. Ver `docs/05-scheduler.md`.
  */
 describe('lista central de jobs', () => {
-  it('não tem dois jobs com o mesmo nome — o nome é a chave do lock', () => {
+  it('não tem dois jobs com o mesmo nome - o nome é a chave do lock', () => {
     const nomes = jobs.map((job) => job.nome);
 
     expect(new Set(nomes).size).toBe(nomes.length);

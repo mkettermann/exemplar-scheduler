@@ -1,7 +1,7 @@
 # Serviço de Agendamentos (Scheduler)
 
 Estrutura base para um serviço isolado de jobs agendados. Roda com **réplica
-única fixa** (sem HPA) — o objetivo é justamente não escalar, para os jobs não
+única fixa** (sem HPA) - o objetivo é justamente não escalar, para os jobs não
 rodarem em duplicidade.
 
 ## Por que existe
@@ -10,15 +10,15 @@ Separado, permite escalar a API horizontalmente sem também multiplicar os jobs.
 Este serviço isola essa responsabilidade: um lugar só para inserir job agendado,
 com lock distribuído, timeout, log estruturado e health check já resolvidos.
 
-A superfície HTTP é mínima e somente leitura — o **health é o único endpoint**,
+A superfície HTTP é mínima e somente leitura - o **health é o único endpoint**,
 e existe porque o Kubernetes precisa de um alvo para as probes. Nenhum job é
 disparado por requisição: o cron é a única origem de execução, e o que um job
 consome vem de fontes declaradas no próprio código.
 
 ## 📚 Documentação
 
-A explicação de **cada peça instalada** — biblioteca escolhida, responsabilidade,
-como funciona e como evoluir sem quebrar o que existe — está em
+A explicação de **cada peça instalada** - biblioteca escolhida, responsabilidade,
+como funciona e como evoluir sem quebrar o que existe - está em
 **[`docs/`](docs/README.md)**, que também traz a
 [tabela consolidada de bibliotecas](docs/README.md#bibliotecas-instaladas) com
 link para a documentação oficial de cada uma.
@@ -83,9 +83,9 @@ src/
     job-runner.ts        # lock + timeout + log, genérico para qualquer job
     lock.ts              # trava via sp_getapplock (evita dupla execução)
   jobs/
-    jobs.ts              # lista central de jobs ativos — o boot só importa isto
+    jobs.ts              # lista central de jobs ativos - o boot só importa isto
     jobs.test.ts         # regras que valem para todo job da lista
-    example/             # MODELO — apagar ao implementar
+    example/             # MODELO - apagar ao implementar
       example.job.ts     #   quando rodar
       example.service.ts #   o que fazer
       example.test.ts    #   testes do job e do serviço
@@ -105,7 +105,7 @@ test/
 
 1. Crie a pasta `src/jobs/<nome>/` com o serviço (`<nome>.service.ts`), que
    guarda a regra de negócio.
-2. Crie o job na mesma pasta (`<nome>.job.ts`) — o `executar` só chama o
+2. Crie o job na mesma pasta (`<nome>.job.ts`) - o `executar` só chama o
    serviço.
 3. Adicione ao array em `src/jobs/jobs.ts`.
 4. Escreva `<nome>.test.ts` na mesma pasta, cobrindo serviço e job, a partir
@@ -118,7 +118,7 @@ migração de job legado: [capítulo 12](docs/12-exemplo-job-e-servico.md).
 
 O MSSQL é usado apenas pelo [lock distribuído](docs/06-lock-distribuido.md) dos
 jobs, via `sp_getapplock`. Não há tabela nem schema a criar antes do primeiro
-deploy — o usuário configurado não precisa (e não deve ter) permissão de DDL.
+deploy - o usuário configurado não precisa (e não deve ter) permissão de DDL.
 
 ## Variáveis de ambiente
 
@@ -130,13 +130,13 @@ momento do deploy.
 Dois interruptores decidem o que roda, e eles respondem perguntas diferentes:
 
 - **`ambientes`**, obrigatório em cada `DefinicaoJob`, declara em quais
-  `NODE_ENV` aquele job roda. É o que impede DEV, QA e HML — que costumam
-  dividir o mesmo banco — de dispararem o mesmo job duas vezes sobre os mesmos
+  `NODE_ENV` aquele job roda. É o que impede DEV, QA e HML - que costumam
+  dividir o mesmo banco - de dispararem o mesmo job duas vezes sobre os mesmos
   dados. O lock distribuído não cobre isso: ele impede a execução simultânea,
   não a sequencial. Ver
   [capítulo 05](docs/05-scheduler.md#um-job-um-ambiente).
 - **`JOBS_ENABLED`** decide se este processo registra **algum** job. Ausente,
-  vale `true` — o serviço se comporta como antes da variável existir.
+  vale `true` - o serviço se comporta como antes da variável existir.
 
 Por isso `NODE_ENV` precisa ser explícita e distinta em cada deploy, e o
 `Dockerfile` não a fixa: os quatro ambientes rodam a mesma imagem.
@@ -144,7 +144,7 @@ Por isso `NODE_ENV` precisa ser explícita e distinta em cada deploy, e o
 ## Container e deploy no Azure
 
 O [`Dockerfile`](Dockerfile) é multi-stage: a imagem final carrega `dist/`, as
-dependências de produção e nada mais — sem código-fonte, sem `devDependencies`
+dependências de produção e nada mais - sem código-fonte, sem `devDependencies`
 e sem a suíte de testes.
 
 ```bash

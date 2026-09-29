@@ -1,4 +1,4 @@
-# 06 — Lock distribuído
+# 06 - Lock distribuído
 
 [← Scheduler](05-scheduler.md) ·
 [Índice](README.md) ·
@@ -17,7 +17,7 @@ uma peça para provisionar, monitorar e manter de pé.
 
 Vale notar a consequência inversa: **o lock é hoje o único motivo de este
 serviço depender de um banco**. Se um dia nenhum job precisar de MSSQL e o lock
-sair, a dependência inteira sai junto — incluindo o check de readiness
+sair, a dependência inteira sai junto - incluindo o check de readiness
 ([capítulo 08](08-health-check.md)).
 
 ## Responsabilidade
@@ -32,7 +32,7 @@ terminar de morrer. Nessa janela de alguns segundos existem dois processos
 vivos. Se um cron disparar exatamente ali, o job roda duas vezes.
 
 Para um job que envia e-mail, gera cobrança ou movimenta estoque, rodar duas
-vezes não é um detalhe. O lock fecha a **metade concorrente** dessa janela —
+vezes não é um detalhe. O lock fecha a **metade concorrente** dessa janela -
 leia "O que o lock não faz", abaixo, para a metade que sobra.
 
 ### O escopo do applock é o database
@@ -40,13 +40,13 @@ leia "O que o lock não faz", abaixo, para a metade que sobra.
 `sp_getapplock` trava por **banco de dados**, não por conexão nem por host.
 Duas consequências, as duas importantes:
 
-- Ambientes que **compartilham o mesmo banco** — tipicamente DEV, QA e HML —
+- Ambientes que **compartilham o mesmo banco** - tipicamente DEV, QA e HML -
   disputam literalmente a mesma trava. Isso é o que se quer, já que os efeitos
   colaterais caem nas mesmas tabelas. **Nunca** prefixe o `@Resource` com o
   nome do ambiente: pareceria isolamento e seria o contrário.
 - Se um dia o scheduler apontar `DB_NAME` para um banco próprio enquanto os
   jobs continuam escrevendo no banco compartilhado, a trava deixa de proteger
-  qualquer coisa — sem erro, sem log, sem sintoma até duplicar.
+  qualquer coisa - sem erro, sem log, sem sintoma até duplicar.
 
 Impedir que dois ambientes rodem o mesmo job é responsabilidade de
 `DefinicaoJob.ambientes`, não do lock ([capítulo 05](05-scheduler.md), seção
@@ -73,10 +73,10 @@ O fluxo:
 
 Três decisões merecem nota:
 
-- **`@LockTimeout = 0`** — não espera. Para um job de cron, esperar não faz
+- **`@LockTimeout = 0`** - não espera. Para um job de cron, esperar não faz
   sentido: quando a vez chegasse, a próxima execução já estaria agendada. Pular
   é o comportamento correto.
-- **`@LockOwner = 'Transaction'`** — a trava morre com a transação. Se o
+- **`@LockOwner = 'Transaction'`** - a trava morre com a transação. Se o
   processo for morto no meio do job (`SIGKILL`, OOM, nó reiniciado), o SQL
   Server derruba a sessão e libera a trava sozinho. Não existe trava órfã
   eternamente presa, que é o modo clássico de falha de locks caseiros em tabela.
@@ -86,7 +86,7 @@ Três decisões merecem nota:
 ## O que o lock não faz
 
 **Ele impede a execução simultânea, não a sequencial.** A trava vive enquanto a
-transação vive, ou seja, durante a execução — e só. Se o pod antigo dispara às
+transação vive, ou seja, durante a execução - e só. Se o pod antigo dispara às
 10:00:00.000 e termina em 800 ms, o `commit` libera a trava; o pod novo,
 disparando às 10:00:00.300, encontra tudo livre e roda **a mesma ocorrência**
 de novo. Não há conflito, não há log de disputa: as duas execuções parecem
@@ -95,7 +95,7 @@ legítimas.
 A diferença entre os dois instantes não é limitada por nada em especial. Não é
 só skew de relógio (sub-segundo com NTP): é jitter do timer do `node-schedule`,
 lag do event loop, espera por conexão do pool e o round trip do
-`sp_getapplock`. Um pod sob pressão de GC passa de um segundo sem esforço — por
+`sp_getapplock`. Um pod sob pressão de GC passa de um segundo sem esforço - por
 isso **não** adianta "segurar a trava mais um pouco" antes de liberar: seria um
 número arbitrário contra uma grandeza sem teto, que funciona em 99% dos
 disparos e falha sob carga, exatamente quando dói.
@@ -118,11 +118,11 @@ evita a execução simultânea, não a execução parcial.
 
 **Transação longa.** Um job de 40 minutos mantém uma transação aberta por 40
 minutos. Ela não escreve nada (só segura o applock), então não bloqueia linhas
-— mas ocupa uma conexão do pool e aparece nos relatórios de transação longa do
+- mas ocupa uma conexão do pool e aparece nos relatórios de transação longa do
 DBA. Alinhe isso com quem administra o banco antes de subir jobs demorados.
 
 **O timeout não solta a trava.** Estourar `tempoLimiteMs` marca a execução
-como `timeout`, mas a trava só é liberada quando o handler termina de fato —
+como `timeout`, mas a trava só é liberada quando o handler termina de fato -
 senão o disparo seguinte rodaria em paralelo com o handler que ainda não
 parou. Um handler que nunca termina segura a trava, e a transação, até o
 processo reiniciar. Ver [capítulo 05](05-scheduler.md), "O timeout interrompe
@@ -130,29 +130,29 @@ a espera, não o trabalho".
 
 **A conexão do job é outra.** O handler recebe uma conexão diferente do pool,
 não a da transação do lock. Ou seja: o trabalho do job **não** é transacional
-junto com o lock. Isso é proposital — o lock coordena, não dá atomicidade.
+junto com o lock. Isso é proposital - o lock coordena, não dá atomicidade.
 Se um job precisa de atomicidade, ele abre a própria transação dentro do
 handler.
 
 ## Upgrades futuros sem quebrar o que existe
 
-**Deixar o job esperar em vez de pular** — mude `@LockTimeout` de `0` para um
+**Deixar o job esperar em vez de pular** - mude `@LockTimeout` de `0` para um
 valor em milissegundos. Faça isso por job, não globalmente: exige um campo novo
 em `DefinicaoJob` e repasse por `executarComLock`. Um timeout de espera global
 é a receita para conexões acumuladas no pool.
 
-**Tornar o lock opcional por job** — adicione `usaLock?: boolean` (default
+**Tornar o lock opcional por job** - adicione `usaLock?: boolean` (default
 `true`) ao contrato e faça o runner pular `executarComLock` quando for `false`.
 Útil para jobs comprovadamente idempotentes e muito frequentes, onde a
 transação aberta custa mais que o risco. O default preserva o comportamento
 atual.
 
-**Registrar qual instância segurou a trava** — útil para diagnosticar
+**Registrar qual instância segurou a trava** - útil para diagnosticar
 duplicidade. Adicione `@@SPID` e `HOST_NAME()` ao `SELECT` do lock e leve ao
 log. Mudança aditiva: o `recordset[0].result` continua sendo lido do mesmo
 jeito.
 
-**Trocar por Redis (`SET NX PX`) ou por uma lease em tabela** — só vale a pena
+**Trocar por Redis (`SET NX PX`) ou por uma lease em tabela** - só vale a pena
 se o serviço deixar de depender do SQL Server. Se for esse o caso, o requisito
 é manter a assinatura:
 
@@ -169,12 +169,12 @@ executarComLock<T>(
 ```
 
 Mantendo essa assinatura, nem o `job-runner` nem os jobs mudam. **Atenção ao
-que se perde:** com Redis, a expiração vira responsabilidade sua — é preciso
+que se perde:** com Redis, a expiração vira responsabilidade sua - é preciso
 renovar a lease enquanto o job roda (senão a trava cai no meio de um job longo)
 e liberar apenas se você ainda for o dono (comparando um token, via script
 Lua). O `LockOwner = 'Transaction'` do SQL Server dá isso de graça.
 
-**Mudar de banco** — `sp_getapplock` é exclusivo do SQL Server. Equivalentes:
+**Mudar de banco** - `sp_getapplock` é exclusivo do SQL Server. Equivalentes:
 
 | Banco | Equivalente |
 | --- | --- |
@@ -182,11 +182,11 @@ Lua). O `LockOwner = 'Transaction'` do SQL Server dá isso de graça.
 | MySQL 8 | `GET_LOCK(name, 0)` / `RELEASE_LOCK(name)` |
 | Redis | `SET chave token NX PX ttl` + renovação + liberação por token |
 
-Em PostgreSQL e MySQL, `key` é numérico ou string — nos dois casos derive de
+Em PostgreSQL e MySQL, `key` é numérico ou string - nos dois casos derive de
 `job.nome` com um hash estável, nunca de um contador, ou a chave muda a cada
 deploy.
 
-**Escalar para N réplicas permanentes** — o lock passa a ser a única coisa
+**Escalar para N réplicas permanentes** - o lock passa a ser a única coisa
 entre você e a execução duplicada, em todos os disparos e não só na janela de
 deploy. Antes de considerar: audite cada job para idempotência, e reveja o
 `@LockTimeout = 0` (com N réplicas, N-1 vão pular toda vez, o que é o

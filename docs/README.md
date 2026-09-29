@@ -1,8 +1,8 @@
-# Documentação técnica — Exemplar Scheduler
+# Documentação técnica - Exemplar Scheduler
 
 Esta pasta descreve **cada peça instalada** nesta estrutura: qual biblioteca foi
-escolhida, qual é a responsabilidade dela, como ela se conecta ao resto e — no
-final de cada capítulo — **como evoluir aquela peça sem quebrar o que já existe**.
+escolhida, qual é a responsabilidade dela, como ela se conecta ao resto e - no
+final de cada capítulo - **como evoluir aquela peça sem quebrar o que já existe**.
 
 A estrutura é um ponto de partida para um sistema novo. Leia na ordem se for a
 primeira vez; depois use como referência pontual.
@@ -22,7 +22,7 @@ primeira vez; depois use como referência pontual.
 | 09 | [Testes](09-testes.md) | `vitest`, `@vitest/coverage-v8`, `markdownlint-cli2` |
 | 10 | [Utilitários](10-utilitarios.md) | `src/util/util.ts` |
 | 11 | [Container e deploy](11-container-e-deploy.md) | `Dockerfile`, estágios, Azure |
-| 12 | [Exemplo de job e serviço](12-exemplo-job-e-servico.md) | material descartável — **apague ao implementar** |
+| 12 | [Exemplo de job e serviço](12-exemplo-job-e-servico.md) | material descartável - **apague ao implementar** |
 | 13 | [Application Insights](13-application-insights.md) | `applicationinsights`, `trackTrace`, configurações |
 
 ## Bibliotecas instaladas
@@ -36,7 +36,7 @@ cobre.
 
 | Pacote | Versão | Documentação oficial | Repositório | Cap. |
 | --- | --- | --- | --- | --- |
-| `applicationinsights` | `1.8.2` (fixa) | [learn.microsoft.com — Node.js](https://learn.microsoft.com/azure/azure-monitor/app/nodejs) | [microsoft/ApplicationInsights-node.js](https://github.com/microsoft/ApplicationInsights-node.js) | [13](13-application-insights.md) |
+| `applicationinsights` | `1.8.2` (fixa) | [learn.microsoft.com - Node.js](https://learn.microsoft.com/azure/azure-monitor/app/nodejs) | [microsoft/ApplicationInsights-node.js](https://github.com/microsoft/ApplicationInsights-node.js) | [13](13-application-insights.md) |
 | `fastify` | `^5.1` | [fastify.dev/docs/latest](https://fastify.dev/docs/latest/) | [fastify/fastify](https://github.com/fastify/fastify) | [07](07-servidor-http.md) |
 | `mssql` | `^11.0` | [tediousjs.github.io/node-mssql](https://tediousjs.github.io/node-mssql/) | [tediousjs/node-mssql](https://github.com/tediousjs/node-mssql) | [04](04-banco-de-dados.md) |
 | `node-schedule` | `^2.1` | [README do projeto](https://github.com/node-schedule/node-schedule#readme) | [node-schedule/node-schedule](https://github.com/node-schedule/node-schedule) | [05](05-scheduler.md) |
@@ -56,8 +56,8 @@ cobre.
 | `ajv` | `^8.20` | [ajv.js.org](https://ajv.js.org/) | [ajv-validator/ajv](https://github.com/ajv-validator/ajv) | [07](07-servidor-http.md) |
 | `markdownlint-cli2` | `^0.23` | [README do projeto](https://github.com/DavidAnson/markdownlint-cli2#readme) | [DavidAnson/markdownlint-cli2](https://github.com/DavidAnson/markdownlint-cli2) | [09](09-testes.md) |
 | `@types/node` | `^24` | [Node.js API](https://nodejs.org/docs/latest-v24.x/api/) | [DefinitelyTyped](https://github.com/DefinitelyTyped/DefinitelyTyped) | [01](01-typescript-e-build.md) |
-| `@types/mssql` | `^9.1` | — | [DefinitelyTyped](https://github.com/DefinitelyTyped/DefinitelyTyped) | [04](04-banco-de-dados.md) |
-| `@types/node-schedule` | `^2.1` | — | [DefinitelyTyped](https://github.com/DefinitelyTyped/DefinitelyTyped) | [05](05-scheduler.md) |
+| `@types/mssql` | `^9.1` | - | [DefinitelyTyped](https://github.com/DefinitelyTyped/DefinitelyTyped) | [04](04-banco-de-dados.md) |
+| `@types/node-schedule` | `^2.1` | - | [DefinitelyTyped](https://github.com/DefinitelyTyped/DefinitelyTyped) | [05](05-scheduler.md) |
 
 ### Sem biblioteca
 
@@ -77,7 +77,7 @@ correspondente explica o porquê:
 
 O serviço roda com **uma réplica fixa**, sem HPA. Isso não é limitação: é o
 objetivo. Se duas instâncias rodassem o mesmo cron, todo job precisaria ser
-idempotente — e jobs migrados de sistemas legados quase nunca são.
+idempotente - e jobs migrados de sistemas legados quase nunca são.
 
 Mesmo assim existe o [lock distribuído](06-lock-distribuido.md): durante um
 rolling update o pod antigo e o novo convivem por alguns segundos, e essa
@@ -87,14 +87,14 @@ janela é suficiente para uma execução duplicada.
 
 O único endpoint do serviço é o **health**, em duas variantes
 ([capítulo 08](08-health-check.md)). Ele existe porque o Kubernetes precisa de
-um alvo para as probes — não porque o serviço tenha uma API.
+um alvo para as probes - não porque o serviço tenha uma API.
 
 - Não há rota `POST`/`PUT`/`PATCH`/`DELETE`, e uma guarda global
   ([`read-only.ts`](../src/server/plugins/read-only.ts)) devolve `405` para
   esses verbos mesmo que alguém registre uma rota de escrita por engano.
 - Nenhum job é disparado por requisição. O cron é a única origem de execução.
-- O que um job consome vem de **fontes declaradas no código** — constantes,
-  variáveis de ambiente validadas, consultas escritas no próprio serviço —
+- O que um job consome vem de **fontes declaradas no código** - constantes,
+  variáveis de ambiente validadas, consultas escritas no próprio serviço -
   nunca do corpo ou da query de uma requisição.
 
 Consequência prática: para um job consultar um sistema externo, a URL desse
@@ -150,7 +150,7 @@ src/
     jobs.ts                      # lista central de jobs ativos                   -> cap. 05
     jobs.test.ts                 # regras que valem para todo job da lista        -> cap. 09
     example/                     # MODELO descartável: job, serviço e teste       -> cap. 12
-    example-consulta/            # MODELO descartável — consulta ao banco         -> cap. 12
+    example-consulta/            # MODELO descartável - consulta ao banco         -> cap. 12
   server/
     app.ts                       # monta o Fastify sem subir (testável)           -> cap. 07
     routes.ts                    # mapa explícito de rotas                        -> cap. 07
@@ -177,4 +177,4 @@ npm run lint:md        # formatação da documentação
 
 Um upgrade que passa nos quatro e não exigiu editar nenhum arquivo fora da peça
 trocada é um upgrade seguro. Se exigiu editar arquivos de outras peças, o
-isolamento vazou — vale documentar o porquê aqui antes de seguir.
+isolamento vazou - vale documentar o porquê aqui antes de seguir.

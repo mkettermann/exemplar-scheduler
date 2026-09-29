@@ -3,7 +3,7 @@ import { logger } from '../logger/logger.js';
 
 /** Desfecho de uma tentativa de execução sob lock. */
 export interface ResultadoComLock<T> {
-  /** `false` quando outra instância já segurava a trava — a execução é pulada. */
+  /** `false` quando outra instância já segurava a trava - a execução é pulada. */
   executou: boolean;
   resultado?: T;
 }
@@ -38,7 +38,7 @@ export async function executarComLock<T>(
     const adquiriu = (retornoLock.recordset[0]?.result ?? -1) >= 0;
 
     if (!adquiriu) {
-      logger.warn({ job: nomeJob }, 'Job já está em execução em outra instância — pulando');
+      logger.warn({ job: nomeJob }, 'Job já está em execução em outra instância - pulando');
       await transacao.rollback();
       return { executou: false };
     }
@@ -54,8 +54,8 @@ export async function executarComLock<T>(
 }
 
 /**
- * Um `rollback` que falha — transação já abortada pelo servidor, conexão
- * caída — não pode substituir o erro original, que é o que o runner precisa
+ * Um `rollback` que falha - transação já abortada pelo servidor, conexão
+ * caída - não pode substituir o erro original, que é o que o runner precisa
  * classificar. A falha do rollback vai para o log e o erro original segue.
  */
 async function desfazerSemMascarar(transacao: sql.Transaction, nomeJob: string): Promise<void> {

@@ -1,5 +1,5 @@
 {
-  /* As decisões por trás das flags — ESM nativo, modo estrito completo e alvo ES2023 — estão em docs/01-typescript-e-build.md */
+  /* As decisões por trás das flags - ESM nativo, modo estrito completo e alvo ES2023 - estão em docs/01-typescript-e-build.md */
   "compilerOptions": {
     "target": "ES2023",
     "lib": [

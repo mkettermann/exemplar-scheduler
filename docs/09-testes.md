@@ -1,4 +1,4 @@
-# 09 — Testes
+# 09 - Testes
 
 [← Health check](08-health-check.md) ·
 [Índice](README.md) ·
@@ -14,7 +14,7 @@
 
 Por que vitest e não jest: ele executa TypeScript sem `ts-jest` nem configuração
 de transform, e a API de mock (`vi.mock`, `vi.hoisted`) resolve o caso central
-aqui — substituir o módulo do banco — em poucas linhas. O `node:test` nativo
+aqui - substituir o módulo do banco - em poucas linhas. O `node:test` nativo
 também serviria, mas o mock de módulo nele ainda é desconfortável.
 
 ## Responsabilidade
@@ -24,9 +24,9 @@ particular:
 
 - o health check existe, responde e **distingue online de offline**;
 - o serviço é de fato somente leitura;
-- a superfície HTTP é só o health — nenhuma rota administrativa existe;
+- a superfície HTTP é só o health - nenhuma rota administrativa existe;
 - o `openapi.yaml` descreve exatamente essa superfície, e as respostas reais;
-- a flag que desliga os jobs é lida sem ambiguidade — `false` é `false`.
+- a flag que desliga os jobs é lida sem ambiguidade - `false` é `false`.
 
 ## Como rodar
 
@@ -44,7 +44,7 @@ Nenhum teste precisa de banco, rede ou porta livre.
 
 Ao lado do arquivo que testam, como o `.spec.ts` do Angular: `lock.ts` e
 `lock.test.ts` na mesma pasta. Um arquivo de código tem **um** arquivo de
-teste — dois testes do mesmo módulo são um só, com um `describe` por assunto
+teste - dois testes do mesmo módulo são um só, com um `describe` por assunto
 (o [`env.test.ts`](../src/config/env.test.ts), por exemplo, tem um para
 `textoObrigatorio` e outro para `JOBS_ENABLED`).
 
@@ -60,13 +60,13 @@ A pasta [`test/`](../test/) guarda só o [`setup.ts`](../test/setup.ts), que
 não é teste e não pode ir para o build.
 
 A vantagem é a mesma do Angular: quem abre a pasta vê código e teste juntos, e
-apagar um módulo — um job inteiro, por exemplo — é apagar uma pasta, sem caçar
+apagar um módulo - um job inteiro, por exemplo - é apagar uma pasta, sem caçar
 o teste em outro lugar.
 
 Três configurações sustentam isso, e as três precisam andar juntas:
 
 - **[`vitest.config.mts`](../vitest.config.mts)** procura `*.test.ts` só em
-  `src/`, e tira esses arquivos da cobertura — senão o relatório mediria os
+  `src/`, e tira esses arquivos da cobertura - senão o relatório mediria os
   próprios testes.
 - **[`tsconfig.build.json`](../tsconfig.build.json)** exclui
   `src/**/*.test.ts`, senão os testes iriam para `dist/`
@@ -80,7 +80,7 @@ import: ao lado de `lock.ts`, o banco é `'../db/mssql.js'`.
 Dentro de uma pasta de job, job e serviço dividem o arquivo de teste, e isso
 tem uma consequência: **o mock fica na fronteira de infraestrutura** (logger,
 `mssql.ts`, Application Insights), **nunca no serviço**. Um `vi.mock` vale para
-o arquivo inteiro — mockar o serviço para isolar o job trocaria o serviço
+o arquivo inteiro - mockar o serviço para isolar o job trocaria o serviço
 também nos testes dele, que passariam a testar o mock. O teste do job controla
 a mesma entrada que o do serviço (o banco falso, o `process`) e verifica o que
 o job faz com o resultado.
@@ -113,8 +113,8 @@ await app.ready();
 const resposta = await app.inject({ method: 'GET', url: '/health' });
 ```
 
-`app.inject()` percorre todo o pipeline do Fastify — hooks, `preHandler`,
-serialização — sem abrir socket. Os testes rodam em centenas de milissegundos e
+`app.inject()` percorre todo o pipeline do Fastify - hooks, `preHandler`,
+serialização - sem abrir socket. Os testes rodam em centenas de milissegundos e
 não competem por porta quando o CI executa vários jobs em paralelo.
 
 ### 3. O banco é mockado, e é isso que permite testar "offline"
@@ -134,19 +134,19 @@ Quatro detalhes que costumam tropeçar:
 
 - **O caminho do `vi.mock` leva `.js`**, igual a qualquer import do projeto
   ([capítulo 01](01-typescript-e-build.md)). O vitest resolve esse caminho até
-  o `.ts` real, como faz com os imports — mas os dois precisam apontar para o
+  o `.ts` real, como faz com os imports - mas os dois precisam apontar para o
   mesmo módulo, senão o mock simplesmente não é aplicado e o teste tenta abrir
   conexão de verdade.
-- **`vi.hoisted`** — o vitest iça as chamadas de `vi.mock` para antes dos
+- **`vi.hoisted`** - o vitest iça as chamadas de `vi.mock` para antes dos
   imports. Uma `const` declarada normalmente ainda não existe quando a fábrica
   roda, e o teste falha com "Cannot access before initialization".
   `vi.hoisted` é içado junto.
 - **A fábrica precisa exportar tudo** que qualquer módulo da árvore importa
-  daquele arquivo — não só o que o teste usa. Hoje só `verificarSaudeDb` é
+  daquele arquivo - não só o que o teste usa. Hoje só `verificarSaudeDb` é
   chamado, mas `obterPoolDb`, `fecharPoolDb` e `sql` estão na fábrica porque
   são o contrato público do módulo: quando um job novo importar `obterPoolDb`,
   o mock já cobre.
-- **O que é chamado com `new` precisa ser `class`** — a partir do vitest 5,
+- **O que é chamado com `new` precisa ser `class`** - a partir do vitest 5,
   `vi.fn().mockReturnValue(...)` invocado como construtor lança
   "Cannot use `mockReturnValue` when called with `new`". É por isso que
   [`lock.test.ts`](../src/scheduler/lock.test.ts) declara
@@ -221,7 +221,7 @@ conjunto padrão do markdownlint, com duas exceções declaradas:
 | `MD013` (comprimento da linha) | 80 colunas, ignorando tabelas, blocos de código e títulos | Quebrar a linha de uma tabela muda a renderização; quebrar um bloco de código muda o comando |
 | `MD024` (títulos duplicados) | `siblings_only` | "Bibliotecas", "Responsabilidade" e "Upgrades futuros..." se repetem de propósito em cada capítulo |
 
-Tudo o mais fica no padrão — inclusive `MD031`, que exige linha em branco em
+Tudo o mais fica no padrão - inclusive `MD031`, que exige linha em branco em
 volta de todo bloco de código, e `MD032`, que exige o mesmo para listas.
 
 O lint não entra no `Dockerfile` de propósito
@@ -231,21 +231,21 @@ motivo para bloquear uma imagem de produção. No CI, ele roda junto com o
 
 ## Upgrades futuros sem quebrar o que existe
 
-**Testar um serviço novo** — é o teste de maior retorno, porque serviço é onde
+**Testar um serviço novo** - é o teste de maior retorno, porque serviço é onde
 mora a regra de negócio. Como serviços não dependem de Fastify, o teste é
 direto: importe a função, mocke o repositório, verifique o resultado. Foi para
 isso que a lógica saiu do `handler` ([capítulo 12](12-exemplo-job-e-servico.md)).
 
-**Passar o desfecho do job para campos próprios** — a linha de falha já leva
+**Passar o desfecho do job para campos próprios** - a linha de falha já leva
 `{ job, status, err }` como objeto; a de sucesso ainda tem `status` e duração
 só dentro do texto, e
 [`job-runner.test.ts`](../src/scheduler/job-runner.test.ts) os verifica por
 `stringMatching`. Se um dia a consulta no Log Analytics precisar de campo
 consultável, troque a interpolação por `logger.info({ job, status, duracaoMs
-}, 'Job concluido')` — e as asserções, por `objectContaining`. As duas coisas
+}, 'Job concluido')` - e as asserções, por `objectContaining`. As duas coisas
 mudam juntas, e só elas.
 
-**Adicionar testes de integração com banco real** — mantenha-os **separados**
+**Adicionar testes de integração com banco real** - mantenha-os **separados**
 dos unitários, em `test/integration/**`, com configuração e script próprios
 (um `vitest.integration.config.mts` com `include: ['test/integration/**/*.test.ts']`,
 chamado por `vitest run -c vitest.integration.config.mts`). É a exceção à regra
@@ -255,7 +255,7 @@ deixa de ser executado localmente. Um
 [Testcontainers](https://node.testcontainers.org/) com a imagem do SQL Server
 resolve o provisionamento no CI.
 
-**Rodar no CI** — o mínimo útil, em ordem:
+**Rodar no CI** - o mínimo útil, em ordem:
 
 ```bash
 npm ci
@@ -268,6 +268,6 @@ npm run lint:md
 `typecheck` antes de `test` porque o vitest transpila sem checar tipos: um erro
 de tipo passaria pelos testes e só apareceria no `build`.
 
-**Subir a major do vitest** — as quebras costumam estar na configuração, não
+**Subir a major do vitest** - as quebras costumam estar na configuração, não
 nos testes. Como a configuração é curta, o conserto é local. Rode
 `npm test` e `npm run typecheck`.

@@ -1,4 +1,4 @@
-# 05 — Scheduler
+# 05 - Scheduler
 
 [← Banco de dados](04-banco-de-dados.md) ·
 [Índice](README.md) ·
@@ -13,7 +13,7 @@
 
 Por que `node-schedule` e não um CronJob do Kubernetes: um CronJob sobe um pod
 novo a cada disparo, o que significa pagar cold start e reconexão de banco toda
-vez — caro para um job de 2 segundos que roda a cada 5 minutos. Um processo
+vez - caro para um job de 2 segundos que roda a cada 5 minutos. Um processo
 residente com agendamento interno também dá acesso ao estado compartilhado
 (pool de conexão, cache) entre execuções.
 
@@ -31,8 +31,8 @@ Três arquivos, três papéis distintos:
 
 ```ts
 export interface DefinicaoJob {
-  nome: string;                  // identificador estável — lock e logs
-  ambientes: AmbienteDeploy[];   // onde este job roda — obrigatório
+  nome: string;                  // identificador estável - lock e logs
+  ambientes: AmbienteDeploy[];   // onde este job roda - obrigatório
   agendamento: string;           // expressão cron
   tempoLimiteMs: number;         // teto de duração de uma execução
   executar: () => Promise<void>;
@@ -54,7 +54,7 @@ Sobre `ambientes`: é a seção a seguir, inteira.
 DEV, QA e HML costumam **compartilhar o mesmo banco**. Nesse arranjo, dois
 ambientes com o mesmo job registrado disparam duas vezes sobre as mesmas
 linhas. O lock distribuído ([capítulo 06](06-lock-distribuido.md)) não resolve:
-ele impede a execução *simultânea*, não a *sequencial* — se DEV termina o job
+ele impede a execução *simultânea*, não a *sequencial* - se DEV termina o job
 em 800 ms e HML dispara 300 ms depois, a trava já está livre e o trabalho roda
 de novo.
 
@@ -80,7 +80,7 @@ const { ativos, ignorados } = separarJobsPorAmbiente(jobs, ambiente.NODE_ENV);
 ```
 
 Lista, e não valor único, porque um job legitimamente roda em `production`
-**e** em um dos ambientes de teste — PRD tem banco próprio, não há conflito. O
+**e** em um dos ambientes de teste - PRD tem banco próprio, não há conflito. O
 que não pode é o mesmo job constar em dois ambientes que dividem banco.
 
 Os dois interruptores respondem perguntas diferentes e se complementam:
@@ -94,7 +94,7 @@ Os dois interruptores respondem perguntas diferentes e se complementam:
 
 Um campo opcional com default reintroduz o problema no primeiro job que alguém
 adiciona sem pensar no assunto. Sendo obrigatório, o **compilador** exige que
-todo job novo responda onde roda — a garantia deixa de depender de alguém
+todo job novo responda onde roda - a garantia deixa de depender de alguém
 lembrar.
 
 É por isso que [`job-runner.test.ts`](../src/scheduler/job-runner.test.ts)
@@ -108,7 +108,7 @@ Para desligar um job em todos os ambientes, esvazie a lista (`ambientes: []`).
 
 Guardar o dono dos jobs numa tabela do banco compartilhado seria mais forte num
 ponto: ela é única para os três ambientes, então nem versões divergentes de
-código conseguiriam furá-la. O código não dá essa garantia — se DEV roda um
+código conseguiriam furá-la. O código não dá essa garantia - se DEV roda um
 branch onde alguém acrescentou `'development'` à lista, os dois disparam.
 
 A troca, ainda assim, compensa:
@@ -131,7 +131,7 @@ do que defeito.
 
 Tudo isso depende de `NODE_ENV` ser **genuinamente diferente em cada deploy**.
 Se os quatro ambientes se identificarem como `production`, o filtro é avaliado
-contra o mesmo valor em todo lugar e a duplicação volta inteira — agora com
+contra o mesmo valor em todo lugar e a duplicação volta inteira - agora com
 falsa sensação de proteção, porque `production` é valor válido do enum e a
 validação passa calada.
 
@@ -152,7 +152,7 @@ pods do *mesmo* ambiente, ambos com o job registrado: o pod velho dispara às
 trava livre. Mesma ocorrência, duas execuções, em sequência.
 
 Responder "alguém já rodou a ocorrência das 10:00?" depois que a trava foi
-liberada exigiria estado durável — uma tabela de execuções, que este serviço
+liberada exigiria estado durável - uma tabela de execuções, que este serviço
 decidiu não ter. A mitigação é a que o contrato já exige: **handlers
 idempotentes**. Ver [capítulo 06](06-lock-distribuido.md).
 
@@ -166,7 +166,7 @@ executarComLock(nome)              <- só uma instância executa   (cap. 06)
   -> logger.info/error             <- desfecho + duração no log  (cap. 03)
 ```
 
-O desfecho de cada execução sai em **uma linha por evento**, em texto puro —
+O desfecho de cada execução sai em **uma linha por evento**, em texto puro -
 `Job <nome> concluido em <n>ms com sucesso` ou `Job <nome> falhou (<status>)
 apos <n>ms`, com `status` sendo `sucesso`, `falha` ou `timeout`. É o que
 permite responder "esse job rodou?" e "quanto demorou?" por busca no Log
@@ -174,7 +174,7 @@ Analytics, sem tabela de histórico.
 
 A linha única é uma escolha, não um descuido: ela é legível direto no `kubectl
 logs`. A linha de falha leva junto, como objeto do pino, `{ job, status, err }`
-— sem o `err`, a mensagem e o stack do erro se perderiam, e a linha só diria
+- sem o `err`, a mensagem e o stack do erro se perderiam, e a linha só diria
 *que* o job falhou. Na linha de sucesso, `status` e `duracaoMs` ainda não são
 campos consultáveis. Ver upgrades.
 
@@ -182,7 +182,7 @@ Dois detalhes que explicam o comportamento em falha:
 
 - **O erro do handler não é relançado.** Ele é classificado e logado: `timeout`
   quando é o `ErroTempoLimite` do próprio runner, `falha` em qualquer outro
-  caso — inclusive um `throw` síncrono do handler. A classificação é por
+  caso - inclusive um `throw` síncrono do handler. A classificação é por
   classe, não por mensagem, porque o timeout de query do driver `mssql` também
   começa com `"Timeout: "`, e ele é uma `falha` do handler, não um estouro de
   `tempoLimiteMs`. Um job que falha não derruba o processo nem impede a
@@ -197,7 +197,7 @@ Dois detalhes que explicam o comportamento em falha:
 await Promise.race([execucao, expiracao]);
 ```
 
-Quando o timeout vence, o runner para de **esperar** o handler — mas o handler
+Quando o timeout vence, o runner para de **esperar** o handler - mas o handler
 continua rodando em segundo plano até terminar sozinho. O JavaScript não tem
 como abortar uma função arbitrária.
 
@@ -206,14 +206,14 @@ Por isso o runner **não solta o lock no timeout**. Ele loga a linha de
 termina de fato é que o `executarComLock` dá `commit` e libera a trava, com uma
 linha de `warn` (`Job <nome> terminou apos o timeout...` ou `falhou apos o
 timeout...`). Se devolvesse no timeout, a trava sairia com o handler ainda
-rodando, e o disparo seguinte — ou o de outra réplica — executaria o mesmo job
+rodando, e o disparo seguinte - ou o de outra réplica - executaria o mesmo job
 **em paralelo**, que é justamente o que o lock existe para impedir
 ([capítulo 06](06-lock-distribuido.md)).
 
 A consequência prática: um job que trava em uma query de 20 minutos é marcado
 como `timeout` aos `tempoLimiteMs`, mantém a conexão e a trava ocupadas até a
 query terminar, e os disparos desse job nesse meio-tempo são pulados. Um
-handler que nunca termina segura a trava até o processo reiniciar — o `warn`
+handler que nunca termina segura a trava até o processo reiniciar - o `warn`
 que falta no log é o sinal. Para que o timeout realmente interrompa o trabalho,
 o handler precisa cooperar, propagando um `AbortSignal`:
 
@@ -228,7 +228,7 @@ await fetch(url, { signal: AbortSignal.timeout(10_000) });
    `meu-processo.service.ts` com a regra de negócio.
 2. Crie `src/jobs/meu-processo/meu-processo.job.ts` exportando um
    `DefinicaoJob` cujo `executar` só chama o serviço e loga o resultado.
-   **Decida `ambientes` agora** — o compilador não deixa passar sem.
+   **Decida `ambientes` agora** - o compilador não deixa passar sem.
 3. Adicione ao array em [`src/jobs/jobs.ts`](../src/jobs/jobs.ts).
 4. Escreva `src/jobs/meu-processo/meu-processo.test.ts`, cobrindo serviço e
    job num arquivo só, a partir dos modelos em `src/jobs/example*/`
@@ -249,26 +249,26 @@ em `logger.fatal` e saída com código 1. A separação existe para os testes:
 
 No boot, `iniciar()` segue três passos:
 
-1. **`obterPoolDb()`** — falha rápido. Um serviço que sobe sem banco só
+1. **`obterPoolDb()`** - falha rápido. Um serviço que sobe sem banco só
    descobriria o problema no primeiro disparo de cron, possivelmente de
    madrugada.
-2. **`separarJobsPorAmbiente()` e `registrarJob`** — filtra a lista central
+2. **`separarJobsPorAmbiente()` e `registrarJob`** - filtra a lista central
    pelo `NODE_ENV` atual e registra o que pertence a este ambiente, e só
    acontece se `JOBS_ENABLED` estiver ligada. Os jobs de outros ambientes
    saem em log nominal, com a lista que declaram.
-3. **`construirApp()` e `listen()`** — a superfície HTTP entra por último, e é
+3. **`construirApp()` e `listen()`** - a superfície HTTP entra por último, e é
    o que faz o readiness passar a responder.
 
 No encerramento, `encerrar(sinal)` inverte a lógica, na ordem que importa
 durante um rolling update:
 
-1. **`schedule.gracefulShutdown()`** — para de agendar novas execuções e
+1. **`schedule.gracefulShutdown()`** - para de agendar novas execuções e
    **espera** as que já estão rodando terminarem. Um job cortado na metade é
    exatamente o que o lock distribuído não consegue desfazer
    ([capítulo 06](06-lock-distribuido.md)).
-2. **`servidor.close()`** — para de aceitar novas requisições.
-3. **`fecharPoolDb()`** — só depois que ninguém mais precisa do banco.
-4. **`appInsightsInstance.descarregar()`** — envia os traces ainda no buffer,
+2. **`servidor.close()`** - para de aceitar novas requisições.
+3. **`fecharPoolDb()`** - só depois que ninguém mais precisa do banco.
+4. **`appInsightsInstance.descarregar()`** - envia os traces ainda no buffer,
    inclusive os do job que acabou de terminar
    ([capítulo 13](13-application-insights.md)).
 
@@ -277,7 +277,7 @@ procedimento duas vezes. `SIGTERM` e `SIGINT` levam ao mesmo caminho: o
 primeiro é o que o Kubernetes envia, o segundo é o `Ctrl+C` local.
 
 Para que esse encerramento aconteça de fato no container, o `SIGTERM` precisa
-chegar ao processo Node — é o papel do `tini` como PID 1
+chegar ao processo Node - é o papel do `tini` como PID 1
 ([capítulo 11](11-container-e-deploy.md)).
 
 ## Ligar e desligar todos os jobs de um processo
@@ -294,7 +294,7 @@ const { ativos, ignorados } = separarJobsPorAmbiente(jobs, ambiente.NODE_ENV);
 if (ambiente.JOBS_ENABLED) {
   ativos.forEach(registrarJob);
 } else {
-  logger.warn(`${jobs.length} jobs, JOBS_ENABLED=false — nenhum job ativo`);
+  logger.warn(`${jobs.length} jobs, JOBS_ENABLED=false - nenhum job ativo`);
 }
 ```
 
@@ -302,8 +302,8 @@ Três decisões explicam o desenho:
 
 - **O corte é no registro, não na execução.** Com a flag desligada, nada chega
   ao `node-schedule`: não há timer armado, não há disputa de lock e não há uma
-  linha de log por disparo. O oposto — registrar tudo e abortar dentro do
-  handler — encheria o log de ruído e ainda dependeria do banco para decidir
+  linha de log por disparo. O oposto - registrar tudo e abortar dentro do
+  handler - encheria o log de ruído e ainda dependeria do banco para decidir
   não fazer nada. Vale igual para o filtro de ambiente.
 - **O default é `true`.** Um deploy que não declara a variável se comporta
   exatamente como antes dela existir. Desligar é sempre um ato explícito.
@@ -316,7 +316,7 @@ job não estar rodando: `JOBS_ENABLED=false` sai como `warn` único, enquanto jo
 de outro ambiente sai como uma linha por job, com a lista declarada.
 
 A flag desliga os jobs, e só. O pool do banco continua sendo aberto no boot e o
-readiness continua dependendo dele — um scheduler sem jobs registrados ainda é
+readiness continua dependendo dele - um scheduler sem jobs registrados ainda é
 um serviço que precisa provar que está pronto.
 
 ## Expressões cron
@@ -344,17 +344,17 @@ no deployment ou use a forma com objeto:
 agendamento: { rule: '0 3 * * *', tz: 'America/Sao_Paulo' }
 ```
 
-Isso exige alargar o tipo de `DefinicaoJob.agendamento` — ver upgrades abaixo.
+Isso exige alargar o tipo de `DefinicaoJob.agendamento` - ver upgrades abaixo.
 
 ## Upgrades futuros sem quebrar o que existe
 
-**Adicionar um campo opcional ao `DefinicaoJob`** — seguro, porque jobs
+**Adicionar um campo opcional ao `DefinicaoJob`** - seguro, porque jobs
 existentes continuam válidos. É como adicionar `description?: string` ou
 `tz?: string`. Regra: o comportamento quando o campo está ausente tem de ser
-exatamente o de hoje. `ambientes` é a exceção deliberada a essa regra — ver
+exatamente o de hoje. `ambientes` é a exceção deliberada a essa regra - ver
 "Por que obrigatório, sem default" acima.
 
-**Suportar fuso por job** — alargue o tipo e repasse ao `node-schedule`, que já
+**Suportar fuso por job** - alargue o tipo e repasse ao `node-schedule`, que já
 aceita o objeto:
 
 ```ts
@@ -363,30 +363,30 @@ agendamento: string | { rule: string; tz: string };
 
 Nenhum job existente quebra, porque `string` continua no union.
 
-**Passar contexto ao handler** — `executar: (ctx: ContextoJob) => Promise<void>`,
+**Passar contexto ao handler** - `executar: (ctx: ContextoJob) => Promise<void>`,
 com `ctx` trazendo `execucaoId`, um `logger` filho e um `AbortSignal`. Essa é
 uma **quebra de contrato**: todo handler precisa ser revisado. Para migrar sem
 parada, torne o parâmetro opcional primeiro (`(ctx?: ContextoJob)`), migre os
 handlers um a um, e só depois torne obrigatório.
 
-**Fechar a janela de rolling update** — exige estado durável: uma tabela com
+**Fechar a janela de rolling update** - exige estado durável: uma tabela com
 chave primária em (job, ocorrência agendada), com o `INSERT` feito dentro da
 transação que já segura o applock. Violação de chave significa que a ocorrência
 já rodou, e a execução é pulada. O `fireDate` que o `node-schedule` entrega ao
-callback — hoje ignorado em `registrarJob` — é o instante agendado e serve de
+callback - hoje ignorado em `registrarJob` - é o instante agendado e serve de
 chave. Só vale a pena quando houver job cuja não-idempotência seja inevitável.
 
-**Expor quais jobs estão ativos por HTTP** — uma rota somente leitura listando
+**Expor quais jobs estão ativos por HTTP** - uma rota somente leitura listando
 nome, agendamento e ambientes declarados. Útil para responder "por que meu job
 não rodou?" sem abrir log. Respeite o [capítulo 07](07-servidor-http.md): é
 leitura, nunca um endpoint que registre ou cancele job.
 
-**Trocar `node-schedule` por `croner` ou `toad-scheduler`** — o acoplamento
+**Trocar `node-schedule` por `croner` ou `toad-scheduler`** - o acoplamento
 está em duas linhas de `registrarJob` e uma de `shutdown`. Requisitos para o
 substituto: aceitar expressão cron em string, permitir cancelamento gracioso no
 SIGTERM, e não disparar execuções concorrentes do mesmo job. Mantenha
 `DefinicaoJob` intacto e a troca fica invisível para os jobs.
 
-**Escalar para mais de uma réplica** — não faça sem antes ler o
+**Escalar para mais de uma réplica** - não faça sem antes ler o
 [capítulo 06](06-lock-distribuido.md). O lock protege a janela de rolling
 update, não um cenário de N réplicas permanentes com jobs não idempotentes.

@@ -11,10 +11,10 @@ const textoObrigatorio = z
   .min(1)
   .refine((valor) => valor === valor.trim(), {
     message:
-      'não pode começar nem terminar com espaço ou quebra de linha — confira se o manifesto usa o bloco `|-`',
+      'não pode começar nem terminar com espaço ou quebra de linha - confira se o manifesto usa o bloco `|-`',
   })
   .refine((valor) => valor !== 'CHANGE_ME', {
-    message: 'ainda está com o placeholder `CHANGE_ME` do `.env.example` — ajuste a variável com o valor real',
+    message: 'ainda está com o placeholder `CHANGE_ME` do `.env.example` - ajuste a variável com o valor real',
   });
 
 /** Ver `docs/02-configuracao-de-ambiente.md` */
@@ -41,7 +41,7 @@ const esquemaAmbiente = z.object({
 
 export type Ambiente = z.infer<typeof esquemaAmbiente>;
 
-/** Ambientes reais de deploy — exclui `test`, que só existe sob o vitest. */
+/** Ambientes reais de deploy - exclui `test`, que só existe sob o vitest. */
 export type AmbienteDeploy = Exclude<Ambiente['NODE_ENV'], 'test'>;
 
 function carregarAmbiente(): Ambiente {

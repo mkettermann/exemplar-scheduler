@@ -1,4 +1,4 @@
-# 03 — Logger
+# 03 - Logger
 
 [← Configuração de ambiente](02-configuracao-de-ambiente.md) ·
 [Índice](README.md) ·
@@ -34,7 +34,7 @@ export const logger = ambiente.NODE_ENV === 'development'
 | Ambiente | Nível | Formato |
 | --- | --- | --- |
 | `development` | `debug` | Colorido e legível (pino-pretty) |
-| `test` | `silent` | Nada — para a saída do vitest não virar sopa de log |
+| `test` | `silent` | Nada - para a saída do vitest não virar sopa de log |
 | `staging` | `debug` | JSON puro |
 | `production` | `info` | JSON puro |
 
@@ -59,7 +59,7 @@ o redact só alcança as chaves listadas, e só nos níveis que o curinga cobre.
 
 [`construirApp`](../src/server/app.ts) passa `logger: false` ao Fastify. O
 framework tem pino embutido, mas ligá-lo criaria uma segunda instância com
-configuração própria — dois formatos de log no mesmo serviço. Log de
+configuração própria - dois formatos de log no mesmo serviço. Log de
 requisição HTTP, se necessário, entra como hook usando este `logger`.
 
 ## Convenções de uso
@@ -68,7 +68,7 @@ requisição HTTP, se necessário, entra como hook usando este `logger`.
 // Certo: dado estruturado no primeiro argumento, mensagem fixa no segundo
 logger.info({ job: job.nome, status: 'sucesso', duracaoMs }, 'Job concluído');
 
-// Evite: dado interpolado na mensagem — não dá para filtrar depois
+// Evite: dado interpolado na mensagem - não dá para filtrar depois
 logger.info(`Job ${job.nome} concluído em ${duracaoMs}ms`);
 ```
 
@@ -82,12 +82,12 @@ logger.info(`Job ${job.nome} concluído em ${duracaoMs}ms`);
 
 ## Upgrades futuros sem quebrar o que existe
 
-**Subir a versão do pino** — a API `logger.<nível>(obj, msg)` é estável há
+**Subir a versão do pino** - a API `logger.<nível>(obj, msg)` é estável há
 várias majors. O ponto de atenção é o `transport`, que mudou de forma na v7.
 Como só o modo `development` usa transport, um problema aqui nunca chega em
-produção — mas rode `npm run dev` depois de subir.
+produção - mas rode `npm run dev` depois de subir.
 
-**Adicionar log de requisição HTTP** — não ligue o logger do Fastify. Adicione
+**Adicionar log de requisição HTTP** - não ligue o logger do Fastify. Adicione
 um hook em [`construirApp`](../src/server/app.ts):
 
 ```ts
@@ -102,21 +102,21 @@ app.addHook('onResponse', async (requisicao, resposta) => {
 Cuidado: `/health` é chamado pelas probes a cada poucos segundos. Filtre essa
 rota ou o log vira ruído e custo de ingestão.
 
-**Enviar logs direto para um destino externo** — use `pino.transport()` com o
+**Enviar logs direto para um destino externo** - use `pino.transport()` com o
 alvo correspondente, nunca um handler síncrono. Transporte em thread separada é
 o que impede que a latência do destino vire latência do job. Mantenha a saída
 em `stdout` funcionando em paralelo: no AKS ela é a rede de segurança quando o
 destino externo cai.
 
-**Trocar o pino por outra biblioteca** — a troca é viável porque todo o sistema
+**Trocar o pino por outra biblioteca** - a troca é viável porque todo o sistema
 importa `{ logger }` de um único módulo. Requisito para não quebrar nada: o
 substituto precisa aceitar a assinatura `(objeto, mensagem)` nos cinco níveis
 usados. Se ele aceitar só `(mensagem)`, escreva um adaptador dentro de
 `src/logger/logger.ts` em vez de reescrever as chamadas espalhadas.
 
-**Correlacionar logs de uma mesma execução** — hoje o campo `job` agrupa todas
+**Correlacionar logs de uma mesma execução** - hoje o campo `job` agrupa todas
 as linhas de um job, mas não separa uma execução da seguinte. Para isso, gere
 um identificador no `job-runner` e crie um `logger.child({ execucaoId })`,
 passando o filho ao handler. Isso exige mudar a assinatura de
-`DefinicaoJob.executar`, que é um contrato público — leia o
+`DefinicaoJob.executar`, que é um contrato público - leia o
 [capítulo 05](05-scheduler.md) antes.

@@ -28,7 +28,7 @@ let conectando: Promise<sql.ConnectionPool> | undefined;
 
 /**
  * Pool único do processo. A promise de conexão é memoizada para que dois jobs
- * disparados durante o boot esperem a mesma conexão — ver
+ * disparados durante o boot esperem a mesma conexão - ver
  * `docs/04-banco-de-dados.md`.
  */
 export async function obterPoolDb(): Promise<sql.ConnectionPool> {

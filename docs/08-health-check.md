@@ -1,4 +1,4 @@
-# 08 — Health check
+# 08 - Health check
 
 [← Servidor HTTP](07-servidor-http.md) ·
 [Índice](README.md) ·
@@ -21,13 +21,13 @@ diferentes:
 
 Misturar as duas é o erro clássico. Se o liveness consultasse o banco, uma
 instabilidade de 30 segundos no MSSQL faria o Kubernetes matar o pod, que
-subiria, encontraria o banco ainda fora, seria morto de novo — um
+subiria, encontraria o banco ainda fora, seria morto de novo - um
 `CrashLoopBackOff` causado por um problema que não era do processo. Pior: cada
 reinício interrompe jobs em andamento.
 
 Por isso a separação é explícita no código.
 
-## `GET /health` — liveness
+## `GET /health` - liveness
 
 ```ts
 export const obterLiveness = async () => ({
@@ -41,14 +41,14 @@ o processo está vivo. Falha só quando o processo travou de verdade, que é
 exatamente o caso em que reiniciar resolve.
 
 Sem autenticação de propósito: o kubelet chama esta rota e não tem como
-carregar credencial. A resposta não expõe nada sensível — `uptime` é a
+carregar credencial. A resposta não expõe nada sensível - `uptime` é a
 informação mais reveladora, e ela ajuda a diagnosticar reinícios inesperados.
 
 ```json
 { "status": "ok", "uptimeSeconds": 1834 }
 ```
 
-## `GET /health/ready` — readiness
+## `GET /health/ready` - readiness
 
 Verifica as dependências externas e responde:
 
@@ -101,7 +101,7 @@ readinessProbe:
 ```
 
 Um detalhe específico deste serviço: como a réplica é única, um readiness
-reprovado **não** transfere carga para outro pod — não há outro. O valor aqui é
+reprovado **não** transfere carga para outro pod - não há outro. O valor aqui é
 de sinalização: o pod aparece como `NotReady` no cluster e o alerta dispara.
 Os jobs continuam tentando rodar e falhando na aquisição do lock, com o erro
 logado pelo [job-runner](05-scheduler.md).
@@ -117,7 +117,7 @@ cobre, com o módulo `src/db/mssql` mockado:
 
 - `/health` responde `200` com `uptimeSeconds` numérico;
 - `/health` é público (responde sem qualquer header de autenticação);
-- `/health` continua `200` com o banco fora — **e sequer consulta o banco**
+- `/health` continua `200` com o banco fora - **e sequer consulta o banco**
   (é a asserção que trava a separação liveness/readiness);
 - `/health` responde a `HEAD`;
 - `/health/ready` responde `200`/`ok` com o banco online;
@@ -130,7 +130,7 @@ Ver [capítulo 09](09-testes.md) para como rodar.
 
 ## Upgrades futuros sem quebrar o que existe
 
-**Adicionar uma dependência ao readiness** — o formato já foi desenhado para
+**Adicionar uma dependência ao readiness** - o formato já foi desenhado para
 isso. `checks` é um objeto com uma chave por dependência:
 
 ```ts
@@ -149,27 +149,27 @@ return {
 
 Use `Promise.all`, não `await` sequencial: o tempo total do readiness passa a
 ser o do check mais lento, e não a soma. Todo check novo segue o mesmo
-contrato interno — nunca lançar, sempre devolver `{ ok, latenciaMs, erro? }` —
+contrato interno - nunca lançar, sempre devolver `{ ok, latenciaMs, erro? }` -
 e o handler é quem traduz isso para as chaves do corpo da resposta, que ficam
 em inglês por serem contrato externo ([índice](README.md#4-o-código-é-em-português-a-fronteira-não)).
 
-**Distinguir dependência crítica de opcional** — nem toda dependência justifica
+**Distinguir dependência crítica de opcional** - nem toda dependência justifica
 `503`. Um cache fora deixa o serviço lento, não inoperante. Adicione
 `critico: boolean` por check e componha o status apenas com os críticos,
 expondo os demais como informação.
 
-**Cachear o resultado por alguns segundos** — com `periodSeconds: 10` o custo
+**Cachear o resultado por alguns segundos** - com `periodSeconds: 10` o custo
 atual é baixo, mas se o readiness ganhar vários checks, vale memoizar por ~5s.
 Cuidado: um cache longo demais faz o readiness mentir por mais tempo do que o
 `failureThreshold` leva para agir.
 
-**Expor a versão da aplicação** — útil para confirmar qual build está no ar.
+**Expor a versão da aplicação** - útil para confirmar qual build está no ar.
 Injete via variável de ambiente (`APP_VERSION`, preenchida pela pipeline com o
 SHA do commit) em vez de importar o `package.json`: importar JSON de fora de
 `src/` complica o `rootDir` do build ([capítulo 01](01-typescript-e-build.md)).
 Exponha no readiness, não no liveness.
 
-**Expor métricas de jobs no health** (último sucesso por job, fila de atraso) —
+**Expor métricas de jobs no health** (último sucesso por job, fila de atraso) -
 tentador, mas é outra responsabilidade. Health responde sim/não para o
 orquestrador; métrica é série temporal. O lugar certo é um `GET /metrics` no
 formato Prometheus, com `@fastify/metrics` ou `prom-client`. Continua sendo
@@ -180,7 +180,7 @@ um job **parar de rodar**, nada avisa. Falha gera log; ausência de execução n
 gera nada. Um contador por job, com alerta de "sem sucesso há mais de N horas",
 fecha esse buraco.
 
-**Proteger o readiness** — não coloque autenticação nele: o kubelet não tem
+**Proteger o readiness** - não coloque autenticação nele: o kubelet não tem
 como enviar credencial e o pod ficaria permanentemente `NotReady`. Se o
 conteúdo preocupar, a proteção certa é de rede (NetworkPolicy / ingress), não
 de aplicação. A omissão do `error` em produção já cobre o risco principal.

@@ -1,4 +1,4 @@
-# 04 — Banco de dados
+# 04 - Banco de dados
 
 [← Logger](03-logger.md) ·
 [Índice](README.md) ·
@@ -20,17 +20,17 @@ banco. Ele expõe quatro coisas e nada mais:
 | --- | --- |
 | `obterPoolDb()` | Devolve o pool único do processo |
 | `fecharPoolDb()` | Encerra o pool no shutdown |
-| `verificarSaudeDb()` | Ping usado pelo readiness — nunca lança |
+| `verificarSaudeDb()` | Ping usado pelo readiness - nunca lança |
 | `sql` | Reexport do driver, para os tipos de parâmetro (`sql.NVarChar`, `sql.Int`) |
 
 A regra é curta: **nunca instancie `new sql.ConnectionPool()` fora deste
 arquivo**. Um pool por processo é suficiente e é o que impede o serviço de
-esgotar as conexões do MSSQL — que é um recurso compartilhado com a API.
+esgotar as conexões do MSSQL - que é um recurso compartilhado com a API.
 
 ### Para que o banco serve neste serviço
 
 Hoje, para uma coisa só: o [lock distribuído](06-lock-distribuido.md) dos jobs,
-via `sp_getapplock`. Não há tabela própria nem schema a manter — é essa a razão
+via `sp_getapplock`. Não há tabela própria nem schema a manter - é essa a razão
 de a estrutura não trazer migrações nem ORM.
 
 Os jobs que você implementar provavelmente usarão o mesmo pool para a regra de
@@ -67,10 +67,10 @@ pool: { max: 10, min: 0, idleTimeoutMillis: 30_000 },
 - **`trustServerCertificate`** fica ligado fora de produção porque bancos locais
   e de desenvolvimento usam certificado autoassinado. Em produção ele é `false`,
   ou seja, o certificado do servidor **é** validado. Não mude isso para
-  "resolver" um erro de TLS em produção — o erro é o aviso.
-- **`min: 0`** — o serviço fica ocioso a maior parte do tempo. Não faz sentido
+  "resolver" um erro de TLS em produção - o erro é o aviso.
+- **`min: 0`** - o serviço fica ocioso a maior parte do tempo. Não faz sentido
   segurar conexão parada entre execuções de cron.
-- **`max: 10`** — teto por processo. Como só existe uma réplica, é também o
+- **`max: 10`** - teto por processo. Como só existe uma réplica, é também o
   teto do serviço inteiro.
 
 ## `verificarSaudeDb()` não lança
@@ -80,7 +80,7 @@ export async function verificarSaudeDb(tempoLimiteMs = ambiente.HEALTH_DB_TIMEOU
 ```
 
 Ele corre um `SELECT 1` contra um timeout e devolve
-`{ ok, latencyMs, error? }` — nunca uma exceção. É intencional: o endpoint de
+`{ ok, latencyMs, error? }` - nunca uma exceção. É intencional: o endpoint de
 saúde precisa responder principalmente **quando o banco está fora**. Se o ping
 lançasse, a rota viraria um 500 genérico, que não distingue "banco caiu" de
 "bug no serviço".
@@ -115,19 +115,19 @@ O usuário configurado aqui precisa apenas de:
 - o que os jobs que você implementar exigirem.
 
 Não conceda permissão de DDL. Um serviço que roda código agendado sem
-supervisão não deveria poder alterar schema — se um dia houver migração, quem
+supervisão não deveria poder alterar schema - se um dia houver migração, quem
 roda é a pipeline, com credencial própria.
 
 ## Upgrades futuros sem quebrar o que existe
 
-**Subir a versão do `mssql`** — acompanhe o
+**Subir a versão do `mssql`** - acompanhe o
 [changelog](https://github.com/tediousjs/node-mssql/releases). As quebras
 históricas ficaram concentradas em `options` (nomes de flag de TLS) e no
 comportamento padrão de `encrypt`. Depois de subir, o teste mais rápido é
 `npm run dev` com o banco real: o boot chama `obterPoolDb()` e falha na hora se
 a configuração ficou inválida.
 
-**Trocar autenticação por Managed Identity do Azure** — é o upgrade de
+**Trocar autenticação por Managed Identity do Azure** - é o upgrade de
 segurança de maior retorno aqui, porque elimina `DB_USER`/`DB_PASSWORD` do
 ambiente. A mudança é local a este arquivo:
 
@@ -141,26 +141,26 @@ const configuracao: sql.config = {
 ```
 
 Depois remova as três variáveis do `esquemaAmbiente` e do `.env.example`. Nenhum
-outro arquivo é tocado — é a prova de que o isolamento do pool funciona.
+outro arquivo é tocado - é a prova de que o isolamento do pool funciona.
 
-**Trocar o SQL Server por outro banco** — o impacto vai além deste arquivo,
+**Trocar o SQL Server por outro banco** - o impacto vai além deste arquivo,
 porque o [lock distribuído](06-lock-distribuido.md) usa `sp_getapplock`, que é
 específico do SQL Server. Planeje as duas peças juntas: o capítulo 06 lista os
 substitutos por banco. Como o lock é hoje o único uso do banco, essa é também
-a única amarra — não há schema para migrar junto.
+a única amarra - não há schema para migrar junto.
 
-**Ajustar o tamanho do pool** — `max: 10` é folgado para uma réplica única com
+**Ajustar o tamanho do pool** - `max: 10` é folgado para uma réplica única com
 jobs sequenciais. Só suba se o log mostrar espera por conexão. Antes de subir,
 confirme o limite de conexões da instância MSSQL: se ela for compartilhada com
 outro serviço, estourar o limite lá derruba os dois.
 
 Atenção a uma interação específica: cada job em execução segura **duas**
-conexões — a da transação do lock e a do trabalho em si
+conexões - a da transação do lock e a do trabalho em si
 ([capítulo 06](06-lock-distribuido.md)). Com jobs longos e simultâneos, o teto
 útil é metade do `max`.
 
-**Adicionar uma segunda dependência externa** (Redis, fila, API interna) — siga
+**Adicionar uma segunda dependência externa** (Redis, fila, API interna) - siga
 o mesmo formato: um módulo dono da conexão, um `obterX()` memoizado, um
 `fecharX()` chamado no encerramento e um `verificarSaudeX()` que nunca lança.
-Depois adicione o check ao readiness — o [capítulo 08](08-health-check.md)
+Depois adicione o check ao readiness - o [capítulo 08](08-health-check.md)
 mostra onde.

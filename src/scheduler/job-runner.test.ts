@@ -3,14 +3,14 @@ import type { Mock } from 'vitest';
 import type { DefinicaoJob } from './job.types.js';
 
 /**
- * O job-runner é exercitado pelo callback que ele entrega ao node-schedule —
+ * O job-runner é exercitado pelo callback que ele entrega ao node-schedule -
  * é assim que ele roda em produção, e `executarJob` não é exportado de
  * propósito. Lock, logger e scheduler são mockados; nada aqui abre conexão,
  * porta ou espera relógio real. Ver `docs/09-testes.md` e `docs/05-scheduler.md`.
  *
  * O desfecho de cada execução sai em uma linha só, em texto puro. A asserção
  * usa `stringMatching` com a duração em `\d+ms`, porque o número varia entre
- * máquinas — todo o resto da linha é contrato e é verificado por inteiro.
+ * máquinas - todo o resto da linha é contrato e é verificado por inteiro.
  */
 const mocks = vi.hoisted(() => ({
   executarComLock: vi.fn(),
@@ -71,7 +71,7 @@ async function aguardarCiclo(): Promise<void> {
 /**
  * A linha de log de cada chamada. No formato do pino, ela é o primeiro
  * argumento quando vem sozinha e o segundo quando vem depois do objeto de
- * campos — é o caso das linhas de falha, que carregam o `err`.
+ * campos - é o caso das linhas de falha, que carregam o `err`.
  */
 function linhasDe(espiao: Mock): string[] {
   return espiao.mock.calls.map(([primeiro, segundo]) =>
@@ -81,7 +81,7 @@ function linhasDe(espiao: Mock): string[] {
 
 /**
  * Deixa a cadeia de promises andar sem esperar o fim do ciclo. Usado quando o
- * ciclo **não deve** terminar ainda — o lock preso depois de um timeout.
+ * ciclo **não deve** terminar ainda - o lock preso depois de um timeout.
  */
 async function esvaziarMicrotarefas(): Promise<void> {
   for (let i = 0; i < 10; i += 1) {
@@ -131,7 +131,7 @@ describe('registrarJob', () => {
     ]);
   });
 
-  it('não executa nada só por registrar — o disparo é do scheduler', () => {
+  it('não executa nada só por registrar - o disparo é do scheduler', () => {
     const job = jobFalso();
 
     registrarJob(job);
@@ -201,7 +201,7 @@ describe('execução disparada pelo scheduler', () => {
     expect(mocks.logger.fatal).not.toHaveBeenCalled();
   });
 
-  it('o erro do handler vai para o log, com stack — não só a linha de desfecho', async () => {
+  it('o erro do handler vai para o log, com stack - não só a linha de desfecho', async () => {
     const erro = new Error('fornecedor fora do ar');
     const job = jobFalso({
       nome: 'cobranca',
@@ -325,7 +325,7 @@ describe('tempo limite do handler', () => {
   /**
    * O cenário que motivou a espera: se o runner devolvesse no timeout, o
    * `executarComLock` daria commit e soltaria a trava com o handler ainda
-   * rodando — e o disparo seguinte executaria o mesmo job em paralelo.
+   * rodando - e o disparo seguinte executaria o mesmo job em paralelo.
    */
   it('depois do timeout, segura o lock até o handler terminar de fato', async () => {
     const handler = handlerControlado();
@@ -349,7 +349,7 @@ describe('tempo limite do handler', () => {
 
     expect(lockLiberado).toBe(true);
     expect(linhasDe(mocks.logger.warn)).toEqual([
-      expect.stringMatching(/^Job cobranca terminou apos o timeout, em \d+ms — lock liberado$/),
+      expect.stringMatching(/^Job cobranca terminou apos o timeout, em \d+ms - lock liberado$/),
     ]);
   });
 
@@ -367,7 +367,7 @@ describe('tempo limite do handler', () => {
 
     expect(mocks.logger.warn).toHaveBeenCalledWith(
       { job: 'cobranca', err: erro },
-      expect.stringMatching(/^Job cobranca falhou apos o timeout, em \d+ms — lock liberado$/),
+      expect.stringMatching(/^Job cobranca falhou apos o timeout, em \d+ms - lock liberado$/),
     );
     expect(mocks.logger.fatal).not.toHaveBeenCalled();
   });
@@ -413,8 +413,8 @@ describe('tempo limite do handler', () => {
 });
 
 /**
- * `DefinicaoJob.ambientes` é o que impede DEV, QA e HML — que compartilham o
- * mesmo banco — de dispararem o mesmo job duas vezes sobre os mesmos dados.
+ * `DefinicaoJob.ambientes` é o que impede DEV, QA e HML - que compartilham o
+ * mesmo banco - de dispararem o mesmo job duas vezes sobre os mesmos dados.
  * Ver `docs/05-scheduler.md`, seção "Um job, um ambiente".
  */
 describe('separarJobsPorAmbiente', () => {
@@ -444,7 +444,7 @@ describe('separarJobsPorAmbiente', () => {
     expect(separarJobsPorAmbiente([job], 'qa').ativos).toEqual([]);
   });
 
-  it('lista vazia nunca registra — desligar um job é apagar seus ambientes', () => {
+  it('lista vazia nunca registra - desligar um job é apagar seus ambientes', () => {
     const job = jobFalso({ nome: 'cobranca', ambientes: [] });
 
     for (const alvo of ['development', 'qa', 'hml', 'production'] as const) {
@@ -474,7 +474,7 @@ describe('separarJobsPorAmbiente', () => {
 });
 
 describe('contrato de DefinicaoJob', () => {
-  it('`ambientes` é obrigatório — o compilador recusa um job que não declare', () => {
+  it('`ambientes` é obrigatório - o compilador recusa um job que não declare', () => {
     // @ts-expect-error `ambientes` ausente. Se este erro sumir, alguém tornou o
     // campo opcional e a proteção contra disparo duplicado virou convenção.
     const semAmbientes: DefinicaoJob = {

@@ -16,7 +16,7 @@ import { construirApp } from '../app.js';
 
 /**
  * Trava automatizada de uma regra de arquitetura: o serviço nunca recebe
- * conteúdo de fora. A outra metade — o health ser a única superfície HTTP —
+ * conteúdo de fora. A outra metade - o health ser a única superfície HTTP -
  * está em `routes.test.ts`. Ver `docs/07-servidor-http.md`.
  */
 describe('serviço somente leitura', () => {

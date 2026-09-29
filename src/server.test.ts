@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
- * O entrypoint só liga os sinais e dispara o boot — o boot em si é testado em
+ * O entrypoint só liga os sinais e dispara o boot - o boot em si é testado em
  * `ciclo-de-vida.test.ts`. Aqui se prova a fiação: `SIGTERM` e `SIGINT` levam
  * ao encerramento, e falha no boot vira `fatal` e saída com código 1.
  *
@@ -54,7 +54,7 @@ beforeEach(() => {
   vi.spyOn(process, 'exit').mockImplementation(saidaDoProcesso as never);
 });
 
-describe('server.ts — entrypoint', () => {
+describe('server.ts - entrypoint', () => {
   it('dispara o boot', async () => {
     await carregarEntrypoint();
 
@@ -70,7 +70,7 @@ describe('server.ts — entrypoint', () => {
     expect(mocks.encerrar).toHaveBeenCalledExactlyOnceWith(sinal);
   });
 
-  it('liga os sinais antes do boot — um SIGTERM durante o boot ainda encerra', async () => {
+  it('liga os sinais antes do boot - um SIGTERM durante o boot ainda encerra', async () => {
     mocks.iniciar.mockImplementation(async () => {
       expect([...tratadores.keys()].sort()).toEqual(['SIGINT', 'SIGTERM']);
     });

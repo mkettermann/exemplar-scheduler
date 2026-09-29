@@ -1,4 +1,4 @@
-# 07 — Servidor HTTP
+# 07 - Servidor HTTP
 
 [← Lock distribuído](06-lock-distribuido.md) ·
 [Índice](README.md) ·
@@ -27,7 +27,7 @@ a schema de validação, compensa.
 | [`routes.ts`](../src/server/routes.ts) | Mapa explícito de todas as rotas |
 | [`plugins/read-only.ts`](../src/server/plugins/read-only.ts) | Recusa verbos de escrita |
 | [`routes/health.route.ts`](../src/server/routes/health.route.ts) | Os dois handlers de health |
-| [`openapi.yaml`](../openapi.yaml) | Documentação OpenAPI das rotas — só documentação |
+| [`openapi.yaml`](../openapi.yaml) | Documentação OpenAPI das rotas - só documentação |
 
 ### `construirApp()` separado de `listen()`
 
@@ -66,7 +66,7 @@ São dois, e a intenção é que continuem sendo dois. Ver
 [capítulo 08](08-health-check.md) para o comportamento de cada um.
 
 Não há autenticação em nenhum deles porque não há o que proteger: as respostas
-expõem `uptime` e o estado de saúde do banco, e o kubelet — que é quem chama —
+expõem `uptime` e o estado de saúde do banco, e o kubelet - que é quem chama -
 não tem como carregar credencial. Se o serviço ficar alcançável fora do
 cluster, a proteção correta é de rede (NetworkPolicy / ingress), não de
 aplicação.
@@ -80,7 +80,7 @@ const METODOS_PERMITIDOS = new Set(['GET', 'HEAD', 'OPTIONS']);
 Um hook `onRequest` global recusa qualquer outro verbo com `405`, antes de
 qualquer handler e antes do roteamento.
 
-Isso é redundante hoje — não existe rota de escrita, então o Fastify já
+Isso é redundante hoje - não existe rota de escrita, então o Fastify já
 responderia `404`. A redundância é o ponto: a regra deixa de depender da
 disciplina de quem escreve a próxima rota. Se daqui a um ano alguém adicionar
 um `app.post('/rodar-job')` para "facilitar um teste", o hook derruba a
@@ -122,11 +122,11 @@ Documentação que não é executada apodrece. O teste
 [`routes.test.ts`](../src/server/routes.test.ts) trava o spec à
 realidade de dois jeitos:
 
-1. **Rotas** — registra `registrarRotas` numa instância limpa, coleta as rotas
+1. **Rotas** - registra `registrarRotas` numa instância limpa, coleta as rotas
    pelo hook `onRoute` e compara com os `paths` do spec. Rota nova sem
    documentação, ou documentada e removida, reprova. (`HEAD` fica fora da
    comparação: o Fastify o cria sozinho para cada `GET`.)
-2. **Respostas** — chama as rotas reais e valida o corpo com `ajv` contra o
+2. **Respostas** - chama as rotas reais e valida o corpo com `ajv` contra o
    schema documentado para aquele status. Os schemas usam
    `additionalProperties: false`, então um campo novo na resposta que não
    entrou no spec também reprova.
@@ -140,12 +140,12 @@ rode `npm test`, e o teste diz o que falta no `openapi.yaml`.
 Fastify({ logger: false, bodyLimit: 1024, trustProxy: true })
 ```
 
-- **`logger: false`** — o logging é do pino próprio ([capítulo 03](03-logger.md)).
+- **`logger: false`** - o logging é do pino próprio ([capítulo 03](03-logger.md)).
   O Fastify tem pino embutido, mas ligá-lo criaria uma segunda instância com
   configuração própria: dois formatos de log no mesmo serviço.
-- **`bodyLimit: 1024`** — sem rota de escrita, não existe corpo legítimo.
+- **`bodyLimit: 1024`** - sem rota de escrita, não existe corpo legítimo.
   Segunda linha de defesa atrás da guarda de verbos.
-- **`trustProxy: true`** — o ingress do AKS é quem fala com o cliente real.
+- **`trustProxy: true`** - o ingress do AKS é quem fala com o cliente real.
   Sem isso, `req.ip` seria sempre o IP do balanceador. **Só mantenha ligado
   enquanto houver de fato um proxy confiável na frente:** exposto direto, o
   cliente passa a poder forjar o próprio IP via `X-Forwarded-For`.
@@ -163,7 +163,7 @@ autorização e auditoria.
 de agenda e ativação/desativação entram por configuração e deploy, não por
 HTTP.
 
-**Adicionar uma rota de consulta, quando for mesmo o caso** — crie
+**Adicionar uma rota de consulta, quando for mesmo o caso** - crie
 `src/server/routes/x.route.ts`, exporte o handler, registre uma linha em
 `routes.ts` e documente a rota no `openapi.yaml` (o teste de contrato cobra).
 Valide toda query com zod, mesmo para um número:
@@ -184,32 +184,32 @@ export const obterAlgo = async (requisicao: FastifyRequest) => {
 serviço.** Toda a superfície HTTP aqui é pública e anônima de propósito: são
 duas rotas de health, que o orquestrador precisa alcançar sem credencial.
 Consulta operacional, painel e relatório pertencem à API principal, que já tem
-autenticação de usuário, autorização e auditoria — e não a uma chave estática
+autenticação de usuário, autorização e auditoria - e não a uma chave estática
 guardada em variável de ambiente, que não rotaciona, não identifica quem
 chamou e vaza inteira junto com o primeiro `.env` exposto.
 
-**Adicionar schema de resposta às rotas** — o Fastify serializa 2 a 3 vezes
+**Adicionar schema de resposta às rotas** - o Fastify serializa 2 a 3 vezes
 mais rápido com `schema.response` declarado, e o schema funciona como filtro:
 campo não declarado não sai na resposta. É a forma mais barata de garantir que
 um campo novo não vaze sem querer. Se for adotado, dá para gerar esses schemas
 a partir de `components.schemas` do `openapi.yaml`, mantendo uma fonte só.
 
-**Servir o Swagger UI** — se um dia for exigido, `@fastify/swagger` com
+**Servir o Swagger UI** - se um dia for exigido, `@fastify/swagger` com
 `mode: 'static'` apontando para o `openapi.yaml`, mais `@fastify/swagger-ui`.
 Isso adiciona rotas: atualize o teste de superfície em
 [`routes.test.ts`](../src/server/routes.test.ts) e prefira expor
 só fora de produção.
 
-**Cabeçalhos de segurança** — `@fastify/helmet`. Ganho pequeno para duas rotas
+**Cabeçalhos de segurança** - `@fastify/helmet`. Ganho pequeno para duas rotas
 de health, mas é uma linha e costuma ser exigido em revisão de segurança.
 
-**Expor métricas** — um `GET /metrics` no formato Prometheus
+**Expor métricas** - um `GET /metrics` no formato Prometheus
 (`@fastify/metrics` ou `prom-client`) continua sendo somente leitura e não
 conflita com a arquitetura. É o lugar certo para "último sucesso por job" e
-"duração da última execução" — e não o health, que responde sim/não para o
+"duração da última execução" - e não o health, que responde sim/não para o
 orquestrador.
 
-**Subir o Fastify para a v6** — os pontos de atenção históricos são a assinatura
+**Subir o Fastify para a v6** - os pontos de atenção históricos são a assinatura
 dos hooks e o encapsulamento de plugins, o que aqui afeta um arquivo só:
 `plugins/read-only.ts`. Os testes em
 [`plugins/read-only.test.ts`](../src/server/plugins/read-only.test.ts) cobrem esse

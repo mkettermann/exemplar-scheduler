@@ -3,7 +3,7 @@ import { registrarRotas } from './routes.js';
 import { aplicarGuardaSomenteLeitura } from './plugins/read-only.js';
 
 /**
- * Monta a instância Fastify sem subir o servidor — é o que permite aos testes
+ * Monta a instância Fastify sem subir o servidor - é o que permite aos testes
  * usarem `app.inject()` sem abrir porta. As opções passadas ao Fastify e o
  * motivo de a guarda ser aplicada fora de `register` estão em
  * `docs/07-servidor-http.md`.

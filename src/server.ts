@@ -1,4 +1,4 @@
-// Primeiro: é ele que carrega o Application Insights antes do Fastify — ver docs/13.
+// Primeiro: é ele que carrega o Application Insights antes do Fastify - ver docs/13.
 import { iniciar, encerrar } from './ciclo-de-vida.js';
 import { logger } from './logger/logger.js';
 import { Util } from './util/util.js';

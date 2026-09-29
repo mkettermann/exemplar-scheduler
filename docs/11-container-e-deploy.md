@@ -1,4 +1,4 @@
-# 11 — Container e deploy
+# 11 - Container e deploy
 
 [← Utilitários](10-utilitarios.md) ·
 [Índice](README.md) ·
@@ -12,7 +12,7 @@ e dois pacotes do sistema: `tini` e `tzdata`.
 ## Responsabilidade
 
 Produzir uma imagem que carregue `dist/`, as dependências de produção e nada
-mais — sem código-fonte, sem `devDependencies` e sem a suíte de testes. Isso
+mais - sem código-fonte, sem `devDependencies` e sem a suíte de testes. Isso
 reduz tanto o tamanho quanto a superfície de CVE que o Defender for Containers
 reporta.
 
@@ -68,7 +68,7 @@ justamente não depender de alguém lembrar de rodar os testes.
 
 O cron do `node-schedule` usa o fuso do **processo**
 ([capítulo 05](05-scheduler.md)), e uma imagem Alpine sem `tzdata` resolve
-qualquer `TZ` como UTC silenciosamente — `0 3 * * *` dispararia à meia-noite em
+qualquer `TZ` como UTC silenciosamente - `0 3 * * *` dispararia à meia-noite em
 Brasília.
 
 Por isso o Dockerfile instala `tzdata` e fixa `TZ=America/Sao_Paulo`. Ajuste
@@ -89,13 +89,13 @@ distribuído não consegue desfazer ([capítulo 06](06-lock-distribuido.md)).
 
 ## Outras opções da imagem final
 
-- **`USER node`** — usuário sem privilégio já presente na imagem oficial
+- **`USER node`** - usuário sem privilégio já presente na imagem oficial
   (uid 1000). Nada roda como root.
 - **`--enable-source-maps`** no `CMD`, porque o `tsconfig` gera sourcemap: sem
   a flag, o stack trace de um job que falha às 3h aponta para a linha do JS
   compilado ([capítulo 01](01-typescript-e-build.md)).
 - **`HEALTHCHECK`** vale para `docker run` e `docker compose`. Azure Container
-  Apps e App Service usam as próprias probes e ignoram essa instrução — lá o
+  Apps e App Service usam as próprias probes e ignoram essa instrução - lá o
   caminho é configurado no serviço ([capítulo 08](08-health-check.md)).
 
 ## `NODE_ENV` não é fixado na imagem
@@ -105,13 +105,13 @@ jobs cada um registra** ([capítulo 05](05-scheduler.md), seção "Um job, um
 ambiente"). Por isso o Dockerfile não a define.
 
 Fixá-la na imagem faria DEV, QA, HML e PRD se identificarem todos como
-`production` — e, como `production` é valor válido do enum, a validação passaria
+`production` - e, como `production` é valor válido do enum, a validação passaria
 calada e os quatro disparariam os mesmos jobs sobre o banco compartilhado.
 
 Quem injeta o valor é o deploy: ConfigMap no Kubernetes, app setting no App
 Service, variável de ambiente no Container Apps. Se ela faltar, o
 `.default('development')` assume e o boot emite um `warn` nominal
-(`ambienteAssumido`, em [`env.ts`](../src/config/env.ts)) — nenhum job de outro
+(`ambienteAssumido`, em [`env.ts`](../src/config/env.ts)) - nenhum job de outro
 ambiente é registrado, e isso aparece no log em vez de passar por normalidade.
 
 ## Configuração no Azure
@@ -124,7 +124,7 @@ definidas ([capítulo 02](02-configuracao-de-ambiente.md)), e mais:
 | Container Apps | `targetPort: 3000`; **réplicas mín. e máx. = 1** (sem isso os jobs duplicam) |
 | App Service for Containers | app setting `WEBSITES_PORT=3000` |
 | Probes | liveness em `GET /health`, readiness em `GET /health/ready` |
-| Ambiente | `NODE_ENV` **sempre explícito e distinto por ambiente** — é o que separa os jobs (seção acima) |
+| Ambiente | `NODE_ENV` **sempre explícito e distinto por ambiente** - é o que separa os jobs (seção acima) |
 | Jobs | `JOBS_ENABLED=false` para subir sem job nenhum; qual job roda onde é decidido em código ([capítulo 05](05-scheduler.md#um-job-um-ambiente)) |
 | Segredos | `DB_PASSWORD` via Key Vault ou secret do Container App, nunca como app setting em texto |
 
@@ -134,7 +134,7 @@ A réplica única não é detalhe de capacidade: é a premissa da arquitetura
 ### Variáveis vindas da Library do Azure Pipelines
 
 Não é preciso mudar nada no código para consumi-las. O `.env` é uma
-conveniência **só de desenvolvimento** — `npm run dev` usa
+conveniência **só de desenvolvimento** - `npm run dev` usa
 `--env-file-if-exists=.env`, e o [`.dockerignore`](../.dockerignore) mantém o
 arquivo fora da imagem. Em deploy a cadeia é:
 
@@ -171,30 +171,30 @@ banco.
 O [`.dockerignore`](../.dockerignore) mantém fora do contexto de build o `.env`
 e derivados, `node_modules` e `dist` do host (copiá-los quebraria binários
 nativos ao ir de Windows para Linux), além de `docs/`, `.git` e arquivos de
-editor — que só aumentariam o contexto enviado ao daemon.
+editor - que só aumentariam o contexto enviado ao daemon.
 
 ## Upgrades futuros sem quebrar o que existe
 
-**Subir a versão base do Node** — mude `ARG NODE_VERSION` e ajuste
+**Subir a versão base do Node** - mude `ARG NODE_VERSION` e ajuste
 `engines.node`, `target` e `lib` junto ([capítulo 01](01-typescript-e-build.md)).
 O `verify` roda no mesmo Node da imagem final, então uma incompatibilidade
 aparece no build, não em produção.
 
-**Trocar Alpine por Debian slim** — vale quando alguma dependência precisar de
+**Trocar Alpine por Debian slim** - vale quando alguma dependência precisar de
 glibc (pacotes nativos compilados costumam ser o motivo). Troque também o
 `apk add` por `apt-get install`, e confirme que `tini` e `tzdata` continuam
 presentes.
 
-**Publicar a imagem em um registry privado** — nada no Dockerfile muda. O que
+**Publicar a imagem em um registry privado** - nada no Dockerfile muda. O que
 muda é a pipeline: autentique no ACR, marque a imagem com o SHA do commit em
 vez de `latest` e deixe o deploy referenciar a tag imutável. Tag móvel torna
 impossível responder "qual build está no ar".
 
-**Expor a versão no readiness** — passe o SHA como `ARG`/`ENV` no build e leia
+**Expor a versão no readiness** - passe o SHA como `ARG`/`ENV` no build e leia
 do `ambiente` validado ([capítulo 08](08-health-check.md)). Não importe o
 `package.json` para isso.
 
-**Rodar o lint de markdown no CI** — `npm run lint:md` roda junto com o
+**Rodar o lint de markdown no CI** - `npm run lint:md` roda junto com o
 `typecheck` e os testes ([capítulo 09](09-testes.md)). Ele não entra no
 `Dockerfile` de propósito: documentação desformatada não é motivo para
 bloquear uma imagem de produção.

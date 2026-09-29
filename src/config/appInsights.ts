@@ -10,7 +10,7 @@ import { logger } from '../logger/logger.js';
  * Ver `docs/13-application-insights.md`.
  */
 
-/** 0 Verbose · 1 Information · 2 Warning · 3 Error · 4 Critical — o `SeverityLevel` do SDK. */
+/** 0 Verbose · 1 Information · 2 Warning · 3 Error · 4 Critical - o `SeverityLevel` do SDK. */
 export type Severidade = 0 | 1 | 2 | 3 | 4;
 
 /**
@@ -57,7 +57,7 @@ export class AppInsights {
         logger.info('Application Insights ligado');
       } else {
         AppInsights.instancia = new AppInsights(undefined);
-        logger.warn('APPINSIGHTSKEY ausente — Application Insights desligado');
+        logger.warn('APPINSIGHTSKEY ausente - Application Insights desligado');
       }
     }
 

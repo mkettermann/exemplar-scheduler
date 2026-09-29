@@ -3,8 +3,8 @@ import type { DefinicaoJob } from './scheduler/job.types.js';
 
 /**
  * Boot e encerramento com todas as peças falsas: o que se prova é a **ordem**
- * — banco antes dos jobs, jobs antes do HTTP; jobs em andamento antes do
- * servidor, servidor antes do pool, pool antes da telemetria — e que a
+ * - banco antes dos jobs, jobs antes do HTTP; jobs em andamento antes do
+ * servidor, servidor antes do pool, pool antes da telemetria - e que a
  * decisão de ambiente e de `JOBS_ENABLED` é respeitada.
  *
  * `servidor` e `encerrando` são estado de módulo, então cada teste recarrega
@@ -139,7 +139,7 @@ describe('iniciar', () => {
     expect(mocks.separarJobsPorAmbiente).toHaveBeenCalledWith(mocks.jobs, 'hml');
   });
 
-  it('sem banco, não registra jobs nem sobe HTTP — falha rápido', async () => {
+  it('sem banco, não registra jobs nem sobe HTTP - falha rápido', async () => {
     mocks.obterPoolDb.mockRejectedValue(new Error('servidor inacessível'));
     const { iniciar } = await carregarCicloDeVida();
 
@@ -186,7 +186,7 @@ describe('iniciar', () => {
     await iniciar();
 
     expect(mocks.registrarJob).not.toHaveBeenCalled();
-    expect(textoDe(mocks.logger.warn)).toMatch(/1 jobs, .*JOBS_ENABLED=false.* — nenhum job ativo/);
+    expect(textoDe(mocks.logger.warn)).toMatch(/1 jobs, .*JOBS_ENABLED=false.* - nenhum job ativo/);
     expect(textoDe(mocks.logger.info)).toMatch(/JOBS ativos.* 0: $/m);
     expect(mocks.servidor.listen).toHaveBeenCalled();
   });

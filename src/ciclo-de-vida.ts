@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import schedule from 'node-schedule';
 import { ambiente, ambienteAssumido } from './config/env.js';
-// Antes do Fastify, para a auto-coleta enxergar o `http` — ver docs/13.
+// Antes do Fastify, para a auto-coleta enxergar o `http` - ver docs/13.
 import { appInsightsInstance } from './config/appInsights.js';
 import { logger } from './logger/logger.js';
 import { obterPoolDb, fecharPoolDb } from './db/mssql.js';
@@ -24,7 +24,7 @@ export async function iniciar(): Promise<void> {
 
   if (ambienteAssumido) {
     logger.warn(
-      `${Util.corAmarelo('NODE_ENV não foi injetada')} — assumindo '${ambiente.NODE_ENV}'. ` +
+      `${Util.corAmarelo('NODE_ENV não foi injetada')} - assumindo '${ambiente.NODE_ENV}'. ` +
       'Os jobs de outros ambientes não serão registrados.',
     );
   }
@@ -34,13 +34,13 @@ export async function iniciar(): Promise<void> {
   if (ambiente.JOBS_ENABLED) {
     ativos.forEach(registrarJob);
   } else {
-    logger.warn(`${jobs.length} jobs, ${Util.corAmarelo('JOBS_ENABLED=false')} — nenhum job ativo`);
+    logger.warn(`${jobs.length} jobs, ${Util.corAmarelo('JOBS_ENABLED=false')} - nenhum job ativo`);
   }
 
   // Responde "por que meu job não rodou?" sem ninguém precisar abrir o código.
   for (const job of ignorados) {
     logger.info(
-      `Job ${Util.corAmarelo(job.nome)} não pertence a ${Util.corAmarelo(ambiente.NODE_ENV)} — declara [${job.ambientes.join(', ')}]`,
+      `Job ${Util.corAmarelo(job.nome)} não pertence a ${Util.corAmarelo(ambiente.NODE_ENV)} - declara [${job.ambientes.join(', ')}]`,
     );
   }
 
