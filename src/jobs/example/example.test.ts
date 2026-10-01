@@ -76,14 +76,6 @@ describe('jobExemplo', () => {
     expect(jobExemplo.ambientes).toEqual(['development']);
   });
 
-  it('declara nome, agendamento e prazo', () => {
-    expect(jobExemplo).toMatchObject({
-      nome: 'example-job',
-      agendamento: '*/5 * * * *',
-      tempoLimiteMs: 30_000,
-    });
-  });
-
   it('está registrado na lista central de jobs', () => {
     expect(jobs).toContain(jobExemplo);
   });

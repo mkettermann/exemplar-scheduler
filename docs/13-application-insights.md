@@ -86,11 +86,7 @@ ingestão só por iKey, e o endpoint global não tem garantia de continuar
 aceitando telemetria.
 
 A variável é **opcional**. Sem ela, a instância nasce desligada: `trackTrace` e
-`descarregar` viram no-op, o job segue normalmente e o boot avisa:
-
-```text
-APPINSIGHTSKEY ausente - Application Insights desligado
-```
+`descarregar` viram no-op.
 
 É o critério do [capítulo 02](02-configuracao-de-ambiente.md) para defaults:
 ausência de telemetria nunca produz dado errado, só perde visibilidade. Por
@@ -118,6 +114,7 @@ import { appInsightsInstance } from './config/appInsights.js';
 A ordem importa. A coleta automática funciona interceptando o `require` dos
 módulos instrumentados, como o `http`. Se o Fastify carregar o `http` antes do
 `start()`, as chamadas HTTP de saída deixam de ser coletadas como dependência
+
 - sem erro, só sem dado.
 
 No encerramento, `descarregar()` roda depois de `fecharPoolDb()`

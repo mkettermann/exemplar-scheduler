@@ -28,7 +28,7 @@ async function autenticar(): Promise<string> {
   const apiKey = ambiente.EXAMPLE_ENVIO_API_KEY;
 
   if (!apiKey) {
-    throw new Error('EXAMPLE_ENVIO_API_KEY ausente - autenticação impossível');
+    throw new Error('EXAMPLE_ENVIO_API_KEY ausente - autenticacao impossivel');
   }
 
   const resposta = await fetch(URL_AUTENTICACAO, {

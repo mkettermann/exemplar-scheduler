@@ -40,7 +40,7 @@ export async function iniciar(): Promise<void> {
   // Responde "por que meu job não rodou?" sem ninguém precisar abrir o código.
   for (const job of ignorados) {
     logger.info(
-      `Job ${Util.corAmarelo(job.nome)} não pertence a ${Util.corAmarelo(ambiente.NODE_ENV)} - declara [${job.ambientes.join(', ')}]`,
+      `Job ${Util.corAmarelo(job.nome)} nao pertence a ${Util.corAmarelo(ambiente.NODE_ENV)} - declara [${job.ambientes.join(', ')}]`,
     );
   }
 
