@@ -37,6 +37,9 @@ const esquemaAmbiente = z.object({
 
   /** Ver `docs/13-application-insights.md`. Ausente, a telemetria fica desligada. */
   APPINSIGHTSKEY: textoObrigatorio.optional(),
+
+  /** Ver `docs/12-exemplo-job-e-servico.md` - sai junto com o exemplo. */
+  EXAMPLE_ENVIO_API_KEY: textoObrigatorio.optional(),
 });
 
 export type Ambiente = z.infer<typeof esquemaAmbiente>;

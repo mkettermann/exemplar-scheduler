@@ -4,10 +4,12 @@
 [Índice](README.md)
 
 > **Este capítulo documenta material descartável.**
-> As pastas [`src/jobs/example/`](../src/jobs/example/) e
-> [`src/jobs/example-consulta/`](../src/jobs/example-consulta/) e **este
+> As pastas [`src/jobs/example/`](../src/jobs/example/),
+> [`src/jobs/example-consulta/`](../src/jobs/example-consulta/) e
+> [`src/jobs/example-envio/`](../src/jobs/example-envio/) e **este
 > arquivo** existem para mostrar o formato. Ao implementar o sistema de
-> verdade, apague os três e remova a linha do índice.
+> verdade, apague os quatro, a variável `EXAMPLE_ENVIO_API_KEY` e a linha do
+> índice - o [checklist](#checklist-antes-de-apagar-o-exemplo) lista tudo.
 >
 > Jobs e serviços reais **não** ganham capítulo próprio - a documentação deles
 > é o código tipado mais o comentário no topo do arquivo. O que precisa estar
@@ -215,6 +217,69 @@ O arquivo não tem comentário explicativo, de propósito: a explicação é est
 capítulo, e o cabeçalho do serviço aponta para cá. Um modelo que só se entende
 com dez linhas de comentário em volta não é um bom modelo para copiar.
 
+### Um terceiro serviço: POST autenticado
+
+[`example-envio.service.ts`](../src/jobs/example-envio/example-envio.service.ts)
+aplica a [regra dos endpoints hardcoded](#onde-entra-a-regra-dos-endpoints-hardcoded)
+ao caso mais comum de integração: o parceiro exige trocar uma apiKey por um
+token temporário antes de aceitar o POST. Como o `example-consulta`, a pasta
+traz só o serviço e o teste.
+
+Um serviço, um envio, duas chamadas:
+
+| Peça | Papel |
+| --- | --- |
+| `URL_AUTENTICACAO`, `URL_ENVIO` | As duas origens, constantes do módulo |
+| `esquemaAutenticacao`, `esquemaResultado` | O contrato de cada resposta, em zod |
+| `autenticar()` | Troca a apiKey pelo token - interna |
+| `enviarRegistro()` | Única função exportada: autentica, faz o POST com o token no header `token-id`, devolve o resultado validado |
+
+```ts
+const token = await autenticar();
+
+const resposta = await fetch(URL_ENVIO, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json', 'token-id': token },
+  body: JSON.stringify(registro),
+  signal: AbortSignal.timeout(TEMPO_LIMITE_MS),
+});
+```
+
+Decisões que valem para qualquer integração desta forma:
+
+- **As URLs são fixas; a apiKey não está no código.** A chave é igualmente
+  fixa - não muda entre execuções -, mas é segredo, e segredo vem do
+  [`ambiente`](02-configuracao-de-ambiente.md) validado. Aqui ela é
+  `EXAMPLE_ENVIO_API_KEY`, opcional no schema para não exigir o valor de
+  quem não roda o exemplo; sem ela, o serviço falha **antes** de qualquer
+  chamada de rede, com mensagem que nomeia a variável. Num serviço real, a
+  variável é obrigatória e derruba o boot.
+- **O token é pedido a cada envio, nunca guardado.** Ele é temporário, e
+  guardá-lo exigiria estado no módulo mais a lógica de expiração e de
+  renovação no `401` - para economizar uma chamada a cada ciclo do cron. Só
+  vale a pena quando o parceiro limita a emissão de tokens ou o job envia
+  muitos registros por execução; nesse caso, autentique uma vez no início da
+  execução e passe o token adiante, ainda sem guardá-lo entre execuções.
+- **Cada chamada tem o seu `AbortSignal.timeout`.** São duas chamadas de rede,
+  e qualquer uma pode pendurar.
+- **Autenticação recusada para tudo.** O erro sobe com o status e o POST
+  principal não acontece. Nenhuma mensagem de erro ou `trackTrace` leva a
+  apiKey ou o token: o trace sai do cluster
+  ([capítulo 13](13-application-insights.md)) e a mensagem de erro chega ao
+  log do [job-runner](05-scheduler.md).
+- **Resposta `2xx` fora do contrato é falha.** Um envio aceito sem
+  `protocolo` não tem como ser conferido depois; o zod o transforma em erro em
+  vez de sucesso silencioso.
+
+O formato do corpo da autenticação (`{ apiKey }`) e das respostas
+(`{ token }`, `{ protocolo }`) é ilustrativo: ajuste os dois esquemas e o
+`JSON.stringify` ao contrato do parceiro real.
+
+Sobre idempotência: diferente da consulta, este serviço **escreve** num sistema
+externo. Um job que o chame precisa tolerar a reexecução que o
+[lock](06-lock-distribuido.md) não impede - marcando o que já foi enviado, ou
+contando com uma chave de deduplicação aceita pelo parceiro.
+
 ## O job
 
 ```ts
@@ -253,9 +318,10 @@ descartável:
 | --- | --- |
 | [`example/example.test.ts`](../src/jobs/example/example.test.ts) | Serviço sem banco (controla a entrada e verifica o resultado) e job (ambientes, agendamento, registro na lista e a execução passando pelo serviço) - lock e timeout ficam com o runner |
 | [`example-consulta/example-consulta.test.ts`](../src/jobs/example-consulta/example-consulta.test.ts) | Serviço com banco: mocka `mssql.ts`, verifica parâmetros, defaults e mapeamento |
+| [`example-envio/example-envio.test.ts`](../src/jobs/example-envio/example-envio.test.ts) | Serviço com sistema externo: troca o `fetch` global por `vi.stubGlobal`, verifica a ordem das chamadas, o `token-id` e a recusa de resposta fora do contrato |
 
 Job e serviço dividem o arquivo, e por isso o mock fica só na fronteira de
-infraestrutura - logger, `mssql.ts`, Application Insights -, nunca no
+infraestrutura - logger, `mssql.ts`, `fetch`, Application Insights -, nunca no
 serviço. Um `vi.mock` vale para o arquivo inteiro: mockar o serviço para
 testar o job esvaziaria os testes do próprio serviço. O teste do job, então,
 controla a mesma entrada que o do serviço e verifica o que o job faz com o
@@ -289,9 +355,11 @@ sozinhas no comparativo, em vez de aparecerem como incidente.
 ## Checklist antes de apagar o exemplo
 
 - [ ] `jobExemplo` e o import dele removidos de `src/jobs/jobs.ts`
-- [ ] Pastas `src/jobs/example/` e `src/jobs/example-consulta/` removidas,
-  com os testes dentro - copie os `*.test.ts` antes, como ponto de partida
-  dos testes do seu job
+- [ ] Pastas `src/jobs/example/`, `src/jobs/example-consulta/` e
+  `src/jobs/example-envio/` removidas, com os testes dentro - copie os
+  `*.test.ts` antes, como ponto de partida dos testes do seu job
+- [ ] `EXAMPLE_ENVIO_API_KEY` removida de `src/config/env.ts`, do
+  `.env.example` e da tabela do [capítulo 02](02-configuracao-de-ambiente.md)
 - [ ] `docs/12-exemplo-job-e-servico.md` removido
 - [ ] Linha 12 removida do índice em `docs/README.md`
 - [ ] `npm run typecheck && npm test && npm run build` passando

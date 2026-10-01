@@ -71,6 +71,7 @@ campos tipados. Ninguém lê `process.env` diretamente.
 | `DB_ENCRYPT` | não | `true` | TLS na conexão |
 | `HEALTH_DB_TIMEOUT_MS` | não | `3000` | Teto de espera do readiness pelo banco |
 | `APPINSIGHTSKEY` | não | - | Connection string (ou iKey) do Application Insights. Ausente, a telemetria fica desligada - ver [capítulo 13](13-application-insights.md) |
+| `EXAMPLE_ENVIO_API_KEY` | não | - | apiKey do modelo descartável `example-envio`. Ausente, só esse serviço falha - sai junto com o exemplo, ver [capítulo 12](12-exemplo-job-e-servico.md) |
 
 > **Atenção com `z.coerce.boolean()`**: ela segue a regra do JavaScript - toda
 > string não vazia vira `true`. `DB_ENCRYPT=false` resulta em **`true`**. Para

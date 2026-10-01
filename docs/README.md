@@ -151,6 +151,7 @@ src/
     jobs.test.ts                 # regras que valem para todo job da lista        -> cap. 09
     example/                     # MODELO descartável: job, serviço e teste       -> cap. 12
     example-consulta/            # MODELO descartável - consulta ao banco         -> cap. 12
+    example-envio/               # MODELO descartável - POST autenticado          -> cap. 12
   server/
     app.ts                       # monta o Fastify sem subir (testável)           -> cap. 07
     routes.ts                    # mapa explícito de rotas                        -> cap. 07

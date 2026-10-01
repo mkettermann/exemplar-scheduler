@@ -90,6 +90,7 @@ src/
       example.service.ts #   o que fazer
       example.test.ts    #   testes do job e do serviço
     example-consulta/    # MODELO de serviço com consulta ao banco
+    example-envio/       # MODELO de serviço com POST autenticado
   server/
     app.ts               # monta o Fastify sem subir (usado pelos testes)
     routes.ts            # registro central de todas as rotas
