@@ -262,7 +262,7 @@ Decisões que valem para qualquer integração desta forma:
   execução e passe o token adiante, ainda sem guardá-lo entre execuções.
 - **Cada chamada tem o seu `AbortSignal.timeout`.** São duas chamadas de rede,
   e qualquer uma pode pendurar.
-- **Autenticação recusada para tudo.** O erro sobe com o status e o POST
+- **Autenticacao recusada para tudo.** O erro sobe com o status e o POST
   principal não acontece. Nenhuma mensagem de erro ou `trackTrace` leva a
   apiKey ou o token: o trace sai do cluster
   ([capítulo 13](13-application-insights.md)) e a mensagem de erro chega ao
@@ -271,7 +271,7 @@ Decisões que valem para qualquer integração desta forma:
   `protocolo` não tem como ser conferido depois; o zod o transforma em erro em
   vez de sucesso silencioso.
 
-O formato do corpo da autenticação (`{ apiKey }`) e das respostas
+O formato do corpo da autenticacao (`{ apiKey }`) e das respostas
 (`{ token }`, `{ protocolo }`) é ilustrativo: ajuste os dois esquemas e o
 `JSON.stringify` ao contrato do parceiro real.
 

@@ -65,7 +65,7 @@ funciona**, aí sim entra-se no arquivo do handler.
 São dois, e a intenção é que continuem sendo dois. Ver
 [capítulo 08](08-health-check.md) para o comportamento de cada um.
 
-Não há autenticação em nenhum deles porque não há o que proteger: as respostas
+Não há autenticacao em nenhum deles porque não há o que proteger: as respostas
 expõem `uptime` e o estado de saúde do banco, e o kubelet - que é quem chama -
 não tem como carregar credencial. Se o serviço ficar alcançável fora do
 cluster, a proteção correta é de rede (NetworkPolicy / ingress), não de
@@ -156,7 +156,7 @@ Fastify({ logger: false, bodyLimit: 1024, trustProxy: true })
 Este serviço tem uma superfície mínima por decisão de arquitetura
 ([índice](README.md)), e o custo de cada endpoint novo não é o código: é o que
 ele passa a expor e a permitir. Consulta operacional, painel e relatório
-pertencem à API principal do sistema, que já tem autenticação de usuário,
+pertencem à API principal do sistema, que já tem autenticacao de usuário,
 autorização e auditoria.
 
 **Nunca** adicione rota que receba conteúdo. Disparo manual de job, alteração
@@ -180,11 +180,11 @@ export const obterAlgo = async (requisicao: FastifyRequest) => {
 };
 ```
 
-**Se a rota nova precisar de autenticação, ela provavelmente não é deste
+**Se a rota nova precisar de autenticacao, ela provavelmente não é deste
 serviço.** Toda a superfície HTTP aqui é pública e anônima de propósito: são
 duas rotas de health, que o orquestrador precisa alcançar sem credencial.
 Consulta operacional, painel e relatório pertencem à API principal, que já tem
-autenticação de usuário, autorização e auditoria - e não a uma chave estática
+autenticacao de usuário, autorização e auditoria - e não a uma chave estática
 guardada em variável de ambiente, que não rotaciona, não identifica quem
 chamou e vaza inteira junto com o primeiro `.env` exposto.
 

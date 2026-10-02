@@ -163,7 +163,7 @@ precisa do mapeamento explícito:
 ```
 
 Sem o bloco `env:`, `${DB_PASSWORD}` vira string vazia, o Secret é aplicado com
-senha em branco e o sintoma aparece só no boot, como falha de autenticação no
+senha em branco e o sintoma aparece só no boot, como falha de autenticacao no
 banco.
 
 ## O que fica fora da imagem

@@ -133,7 +133,7 @@ esconderia o manifesto errado em vez de apontá-lo. E o guard é só sobre as
 pontas - senha com espaço no meio é aceita sem ressalva.
 
 Vale para todo campo que chegue por substituição em manifesto, não só para a
-senha: `DB_USER` com `\n` no fim falha a autenticação exatamente igual.
+senha: `DB_USER` com `\n` no fim falha a autenticacao exatamente igual.
 
 ### O placeholder `CHANGE_ME`
 

@@ -36,11 +36,11 @@ export const obterLiveness = async () => ({
 });
 ```
 
-Sem autenticação, sem I/O, sem dependência. Se o event loop está respondendo,
+Sem autenticacao, sem I/O, sem dependência. Se o event loop está respondendo,
 o processo está vivo. Falha só quando o processo travou de verdade, que é
 exatamente o caso em que reiniciar resolve.
 
-Sem autenticação de propósito: o kubelet chama esta rota e não tem como
+Sem autenticacao de propósito: o kubelet chama esta rota e não tem como
 carregar credencial. A resposta não expõe nada sensível - `uptime` é a
 informação mais reveladora, e ela ajuda a diagnosticar reinícios inesperados.
 
@@ -116,7 +116,7 @@ inicialização lenta.
 cobre, com o módulo `src/db/mssql` mockado:
 
 - `/health` responde `200` com `uptimeSeconds` numérico;
-- `/health` é público (responde sem qualquer header de autenticação);
+- `/health` é público (responde sem qualquer header de autenticacao);
 - `/health` continua `200` com o banco fora - **e sequer consulta o banco**
   (é a asserção que trava a separação liveness/readiness);
 - `/health` responde a `HEAD`;
@@ -180,7 +180,7 @@ um job **parar de rodar**, nada avisa. Falha gera log; ausência de execução n
 gera nada. Um contador por job, com alerta de "sem sucesso há mais de N horas",
 fecha esse buraco.
 
-**Proteger o readiness** - não coloque autenticação nele: o kubelet não tem
+**Proteger o readiness** - não coloque autenticacao nele: o kubelet não tem
 como enviar credencial e o pod ficaria permanentemente `NotReady`. Se o
 conteúdo preocupar, a proteção certa é de rede (NetworkPolicy / ingress), não
 de aplicação. A omissão do `error` em produção já cobre o risco principal.

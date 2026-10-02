@@ -127,7 +127,7 @@ comportamento padrão de `encrypt`. Depois de subir, o teste mais rápido é
 `npm run dev` com o banco real: o boot chama `obterPoolDb()` e falha na hora se
 a configuração ficou inválida.
 
-**Trocar autenticação por Managed Identity do Azure** - é o upgrade de
+**Trocar autenticacao por Managed Identity do Azure** - é o upgrade de
 segurança de maior retorno aqui, porque elimina `DB_USER`/`DB_PASSWORD` do
 ambiente. A mudança é local a este arquivo:
 

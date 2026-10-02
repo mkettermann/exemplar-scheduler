@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 /**
  * MODELO de teste de serviço com POST autenticado - apague junto com
  * `example-envio.service.ts`. O `fetch` é falso: o que se prova é a ordem das
- * chamadas, o token da autenticação chegando no header `token-id` e a recusa
+ * chamadas, o token da autenticacao chegando no header `token-id` e a recusa
  * de resposta fora do contrato. Que o parceiro aceite o envio é afirmação
  * sobre ele, e só um teste de integração a sustenta. Ver `docs/09-testes.md`.
  */
@@ -39,7 +39,7 @@ function chamadas() {
   }));
 }
 
-/** Respostas em ordem: a primeira é da autenticação, a segunda do envio. */
+/** Respostas em ordem: a primeira é da autenticacao, a segunda do envio. */
 function parceiroResponde(...respostas: Response[]): void {
   for (const r of respostas) {
     mocks.fetch.mockResolvedValueOnce(r);
@@ -122,17 +122,17 @@ describe('enviarRegistro - falhas', () => {
     expect(mocks.fetch).not.toHaveBeenCalled();
   });
 
-  it('autenticação recusada não envia, e o erro não carrega a apiKey', async () => {
+  it('autenticacao recusada não envia, e o erro não carrega a apiKey', async () => {
     parceiroResponde(resposta({ erro: 'apiKey inválida' }, 401));
 
     const erro = await enviarRegistro(REGISTRO).catch((e: unknown) => e);
 
     expect(erro).toBeInstanceOf(Error);
-    expect((erro as Error).message).toBe('Autenticação respondeu 401');
+    expect((erro as Error).message).toBe('Autenticacao respondeu 401');
     expect(mocks.fetch).toHaveBeenCalledTimes(1);
   });
 
-  it('autenticação sem token no corpo não envia', async () => {
+  it('autenticacao sem token no corpo não envia', async () => {
     parceiroResponde(resposta({ access: 'tok-1' }));
 
     await expect(enviarRegistro(REGISTRO)).rejects.toThrow();

@@ -39,7 +39,7 @@ async function autenticar(): Promise<string> {
   });
 
   if (!resposta.ok) {
-    throw new Error(`Autenticação respondeu ${resposta.status}`);
+    throw new Error(`Autenticacao respondeu ${resposta.status}`);
   }
 
   return esquemaAutenticacao.parse(await resposta.json()).token;

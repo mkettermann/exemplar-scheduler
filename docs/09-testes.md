@@ -167,7 +167,7 @@ Determinístico, instantâneo e sem precisar derrubar nada de verdade.
 | Asserção | Por que importa |
 | --- | --- |
 | `/health` responde `200` com `uptimeSeconds` numérico | O contrato da probe de liveness |
-| `/health` não exige autenticação | O kubelet não tem como enviar credencial |
+| `/health` não exige autenticacao | O kubelet não tem como enviar credencial |
 | `/health` continua `200` com o banco fora, **sem consultar o banco** | Impede a regressão que causaria `CrashLoopBackOff` |
 | `/health` responde a `HEAD` | Algumas probes e balanceadores usam `HEAD` |
 | `/health/ready` → `200`/`ok` com o banco online | Readiness positivo |
