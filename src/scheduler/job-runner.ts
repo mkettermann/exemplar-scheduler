@@ -34,6 +34,11 @@ async function aguardarComTempoLimite(
   }
 }
 
+/** `enviarTelemetria` ausente vale `true`: o comportamento de antes do campo existir. */
+function enviaTelemetria(job: DefinicaoJob): boolean {
+  return job.enviarTelemetria ?? true;
+}
+
 /** `async` converte um `throw` síncrono do handler em rejeição, classificada como as demais. */
 async function dispararHandler(job: DefinicaoJob): Promise<void> {
   await job.executar();
@@ -62,15 +67,18 @@ async function aguardarFimAposTimeout(
       { job: job.nome, err: error_ },
       `Job ${job.nome} falhou apos o timeout, em ${Date.now() - iniciadoEm}ms - lock liberado`,
     );
-    appInsightsInstance.trackException(error_, { job: job.nome, aposTimeout: true }, 2);
+    if (enviaTelemetria(job)) {
+      appInsightsInstance.trackException(error_, { job: job.nome, aposTimeout: true }, 2);
+    }
   }
 }
 
 /**
  * Aplica, nesta ordem: lock distribuído, handler com timeout e uma linha de
  * log com o desfecho. O erro do handler é classificado, logado e enviado ao
- * Application Insights, nunca relançado; o sucesso vira o evento `job`.
- * Ver `docs/05-scheduler.md`.
+ * Application Insights, nunca relançado; o sucesso vira o evento
+ * `JOB-<sigla>`. Com `enviarTelemetria: false`, desfecho e erro ficam só no
+ * log. Ver `docs/05-scheduler.md`.
  */
 async function executarJob(job: DefinicaoJob): Promise<void> {
   const { executou } = await executarComLock(job.nome, async () => {
@@ -88,7 +96,9 @@ async function executarJob(job: DefinicaoJob): Promise<void> {
         { job: job.nome, status, err: error_ },
         `Job ${job.nome} falhou (${status}) apos ${Date.now() - iniciadoEm}ms`,
       );
-      appInsightsInstance.trackException(error_, { job: job.nome, status });
+      if (enviaTelemetria(job)) {
+        appInsightsInstance.trackException(error_, { job: job.nome, status });
+      }
 
       if (status === 'timeout') {
         await aguardarFimAposTimeout(job, execucao, iniciadoEm);
@@ -100,7 +110,9 @@ async function executarJob(job: DefinicaoJob): Promise<void> {
     // não pode transformar um sucesso em `falha`.
     const duracaoMs = Date.now() - iniciadoEm;
     logger.info(`[JOB-${getSiglaAmbiente()}] ${job.nome} executado com sucesso. Durou ${duracaoMs}ms`);
-    appInsightsInstance.trackEvent(`JOB-${getSiglaAmbiente()}`, { job: job.nome, status: 'sucesso', duracao: `${duracaoMs}ms` });
+    if (enviaTelemetria(job)) {
+      appInsightsInstance.trackEvent(`JOB-${getSiglaAmbiente()}`, { job: job.nome, status: 'sucesso', duracao: `${duracaoMs}ms` });
+    }
   });
 
   if (!executou) {

@@ -36,12 +36,19 @@ export interface DefinicaoJob {
   agendamento: string;           // expressão cron
   tempoLimiteMs: number;         // teto de duração de uma execução
   executar: () => Promise<void>;
+  enviarTelemetria?: boolean;    // runner envia ao App Insights - padrão true
 }
 ```
 
-Cinco campos, e é isso. Um job **não** trata lock, não abre transação de log,
-não mede tempo e não captura o próprio erro. Se um handler estiver fazendo
-qualquer uma dessas coisas, ele está duplicando o runner.
+Cinco campos obrigatórios e um opcional, e é isso. Um job **não** trata lock,
+não abre transação de log, não mede tempo e não captura o próprio erro. Se um
+handler estiver fazendo qualquer uma dessas coisas, ele está duplicando o
+runner.
+
+Sobre `enviarTelemetria`: ausente, vale `true`, e o runner envia ao
+Application Insights o sucesso e as falhas do job. Com `false`, o job sai do
+Application Insights do runner, e o handler envia a própria telemetria. O log
+não muda. Ver [capítulo 13](13-application-insights.md#telemetria-por-job).
 
 Sobre `nome`: ele é a chave do lock distribuído e o campo `job` de todos os
 logs. Renomear um job libera o lock antigo e corta a continuidade das consultas
@@ -165,8 +172,10 @@ executarComLock(nome)              <- só uma instância executa   (cap. 06)
   -> aguardarComTempoLimite(...)   <- Promise.race contra o timeout
   -> logger.info/error             <- desfecho + duração no log  (cap. 03)
   -> trackException                <- em falha ou timeout        (cap. 13)
-  -> trackEvent('job')             <- em sucesso                 (cap. 13)
+  -> trackEvent('JOB-<sigla>')     <- em sucesso                 (cap. 13)
 ```
+
+Os dois `track*` só acontecem se o job não declarar `enviarTelemetria: false`.
 
 O desfecho de cada execução sai em **uma linha por evento**, em texto puro -
 `[JOB-<sigla>] <nome> executado com sucesso. Durou <n>ms` ou `Job <nome>

@@ -28,6 +28,15 @@ export interface DefinicaoJob {
    * Ver `docs/06-lock-distribuido.md`.
    */
   executar: () => Promise<void>;
+
+  /**
+   * Se o runner envia ao Application Insights o evento de sucesso e as
+   * exceções de falha e timeout deste job. Ausente vale `true`. Com `false`, a
+   * telemetria do job fica por conta do handler; o log do processo não muda, e
+   * a falha do próprio runner continua sendo enviada.
+   * Ver `docs/13-application-insights.md`, seção "Telemetria por job".
+   */
+  enviarTelemetria?: boolean;
 }
 
 /** Desfecho de uma execução, usado no campo `status` do log estruturado. */

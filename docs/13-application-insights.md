@@ -242,6 +242,49 @@ try {
 que não é `Error` (uma string, por exemplo) é embrulhado em `Error`, para o
 portal ter mensagem e tipo.
 
+### Telemetria por job
+
+O evento `JOB-<sigla>` e as exceções da tabela acima são o padrão de todo job.
+Um job que precisa de telemetria própria - traces com os marcos que interessam
+a ele, propriedades de negócio na exceção - declara `enviarTelemetria: false`
+e passa a enviar tudo do handler:
+
+```ts
+export const jobConciliacao: DefinicaoJob = {
+  nome: 'conciliacao',
+  ambientes: ['hml', 'production'],
+  agendamento: '0 3 * * *',
+  tempoLimiteMs: 60_000,
+  enviarTelemetria: false,
+  executar: async () => {
+    appInsightsInstance.trackTrace('conciliacao: iniciando');
+    try {
+      const { lote, total } = await conciliar();
+      appInsightsInstance.trackTrace(`conciliacao: concluída, lote ${lote}, ${total} registros`);
+    } catch (error_) {
+      appInsightsInstance.trackException(error_, { job: 'conciliacao' });
+      throw error_;
+    }
+  },
+};
+```
+
+O que muda e o que não muda com `false`:
+
+| Item | Com `enviarTelemetria: false` |
+| --- | --- |
+| Evento `JOB-<sigla>` de sucesso | Não é enviado |
+| Exceção de falha, de timeout e de falha depois do timeout | Não é enviada |
+| Exceção `Critical` do próprio runner (lock) | **Continua sendo enviada** - acontece fora do handler, que não teria como observá-la |
+| Linhas de log de início, desfecho e duração | Continuam iguais |
+| Lock, timeout e classificação do erro | Continuam iguais |
+
+Aqui, ao contrário do caso padrão, o `trackException` seguido de `throw` não
+gera item duplicado: o runner não envia nada. O `throw` continua necessário,
+porque é ele que faz o runner classificar e logar a falha. Note também que o
+**timeout** não passa pelo `catch` do handler - quem desiste é o runner -, e
+fica só no log. Se o job precisa do timeout no portal, mantenha o padrão.
+
 ### Dependências: procedures com `trackDependency`
 
 O driver do SQL Server (`mssql`/`tedious`) **não é instrumentado** pela 3.x:
@@ -381,7 +424,8 @@ aceita só `0` a `4`, então um valor fora da escala é erro de compilação.
   alcança o Application Insights - nem mensagens, nem `propriedades`.
 - **Deixe o erro subir.** O job-runner já envia a exceção com `job` e
   `status`. Um `trackException` no serviço seguido de `throw` gera dois itens
-  para a mesma falha.
+  para a mesma falha - salvo no job com `enviarTelemetria: false`
+  ([Telemetria por job](#telemetria-por-job)).
 - **Não substitui o `logger`.** O `pino` continua sendo o log do processo, em
   `stdout`; o Application Insights recebe os marcos e as falhas. Os dois
   convivem.
@@ -414,8 +458,9 @@ inteiro por um falso e prova o wrapper:
 
 E [`job-runner.test.ts`](../src/scheduler/job-runner.test.ts) prova que falha,
 timeout, falha depois do timeout e falha do runner viram `trackException` com
-`job` e `status`, que o sucesso vira o evento `job` e que sucesso e lock
-ocupado não enviam exceção.
+`job` e `status`, que o sucesso vira o evento `JOB-<sigla>` e que sucesso e
+lock ocupado não enviam exceção. Com `enviarTelemetria: false`, prova que
+nada disso é enviado - o log, sim - e que a falha do runner continua sendo.
 
 Como em [`mssql.test.ts`](../src/db/mssql.test.ts), a instância é estado de
 módulo: cada teste recarrega `appInsights.ts` com `vi.resetModules()`. Que a

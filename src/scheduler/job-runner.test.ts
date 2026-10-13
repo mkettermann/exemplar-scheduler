@@ -553,6 +553,100 @@ describe('separarJobsPorAmbiente', () => {
   });
 });
 
+/**
+ * `enviarTelemetria: false` tira o job do Application Insights do runner, para
+ * que o handler envie a sua própria. O log não muda, e a falha do runner -
+ * que o handler não consegue observar - continua sendo enviada.
+ */
+describe('enviarTelemetria', () => {
+  it('ausente, envia como sempre enviou', async () => {
+    const disparar = registrarECapturarDisparo(jobFalso({ nome: 'cobranca' }));
+
+    disparar();
+    await aguardarCiclo();
+
+    expect(mocks.trackEvent).toHaveBeenCalledTimes(1);
+  });
+
+  it('com `false`, o sucesso não vira evento, mas continua no log', async () => {
+    const disparar = registrarECapturarDisparo(
+      jobFalso({ nome: 'cobranca', enviarTelemetria: false }),
+    );
+
+    disparar();
+    await aguardarCiclo();
+
+    expect(mocks.trackEvent).not.toHaveBeenCalled();
+    expect(linhasDe(mocks.logger.info)).toContainEqual(
+      expect.stringMatching(/^\[JOB-TES\] cobranca executado com sucesso\. Durou \d+ms$/),
+    );
+  });
+
+  it('com `false`, a falha do handler não vira exceção, mas continua no log com o erro', async () => {
+    const erro = new Error('fornecedor fora do ar');
+    const job = jobFalso({
+      nome: 'cobranca',
+      enviarTelemetria: false,
+      executar: vi.fn(async () => {
+        throw erro;
+      }),
+    });
+    const disparar = registrarECapturarDisparo(job);
+
+    disparar();
+    await aguardarCiclo();
+
+    expect(mocks.trackException).not.toHaveBeenCalled();
+    expect(mocks.logger.error).toHaveBeenCalledWith(
+      { job: 'cobranca', status: 'falha', err: erro },
+      expect.any(String),
+    );
+  });
+
+  it('com `false`, nem o timeout nem a falha depois dele viram exceção', async () => {
+    vi.useFakeTimers();
+    try {
+      const handler = handlerControlado();
+      const disparar = registrarECapturarDisparo(
+        jobFalso({
+          nome: 'cobranca',
+          tempoLimiteMs: 3_000,
+          enviarTelemetria: false,
+          executar: handler.executar,
+        }),
+      );
+
+      disparar();
+      await vi.advanceTimersByTimeAsync(3_000);
+      handler.rejeitar(new Error('conexão perdida'));
+      await aguardarCiclo();
+
+      expect(mocks.trackException).not.toHaveBeenCalled();
+      expect(linhasDe(mocks.logger.error)).toEqual([
+        expect.stringMatching(/^Job cobranca falhou \(timeout\) apos \d+ms$/),
+      ]);
+      expect(linhasDe(mocks.logger.warn)).toEqual([
+        expect.stringMatching(/^Job cobranca falhou apos o timeout, em \d+ms - lock liberado$/),
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('com `false`, a falha do próprio runner ainda vira exceção `Critical`', async () => {
+    const erro = new Error('pool indisponível');
+    mocks.executarComLock.mockRejectedValue(erro);
+    const disparar = registrarECapturarDisparo(
+      jobFalso({ nome: 'cobranca', enviarTelemetria: false }),
+    );
+
+    disparar();
+    await aguardarCiclo();
+
+    expect(mocks.trackException).toHaveBeenCalledWith(erro, { job: 'cobranca' }, 4);
+  });
+});
+
 describe('contrato de DefinicaoJob', () => {
   it('`ambientes` é obrigatório - o compilador recusa um job que não declare', () => {
     // @ts-expect-error `ambientes` ausente. Se este erro sumir, alguém tornou o
