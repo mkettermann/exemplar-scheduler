@@ -150,11 +150,11 @@ const require = createRequire(import.meta.url);
 São escape hatches, não padrão da casa. Se aparecerem com frequência, o
 problema está na dependência, não no formato de módulo.
 
-**Trocar `tsx` por outro runner** (`ts-node`, `node --experimental-strip-types`)
-- só afeta o script `dev`. O Node 24 já roda `.ts` nativamente com
-`--experimental-strip-types`, mas sem watch integrado nem suporte a alguns
-recursos de TS (enums, decorators). Enquanto isso não estabilizar, `tsx` é a
-escolha de menor atrito.
+**Trocar `tsx` por outro runner** (`ts-node`,
+`node --experimental-strip-types`) - só afeta o script `dev`. O Node 24 já roda
+`.ts` nativamente com `--experimental-strip-types`, mas sem watch integrado nem
+suporte a alguns recursos de TS (enums, decorators). Enquanto isso não
+estabilizar, `tsx` é a escolha de menor atrito.
 
 **Adicionar paths/aliases** (`@/config/env`) - exige `paths` no `tsconfig.json`
 **e** um resolvedor em runtime (`tsconfig-paths`, ou o `alias` do build). Como

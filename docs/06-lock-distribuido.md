@@ -117,9 +117,10 @@ evita a execução simultânea, não a execução parcial.
 ## Limitações que você precisa conhecer
 
 **Transação longa.** Um job de 40 minutos mantém uma transação aberta por 40
-minutos. Ela não escreve nada (só segura o applock), então não bloqueia linhas
-- mas ocupa uma conexão do pool e aparece nos relatórios de transação longa do
-DBA. Alinhe isso com quem administra o banco antes de subir jobs demorados.
+minutos. Ela não escreve nada (só segura o applock), então não bloqueia
+linhas - mas ocupa uma conexão do pool e aparece nos relatórios de transação
+longa do DBA. Alinhe isso com quem administra o banco antes de subir jobs
+demorados.
 
 **O timeout não solta a trava.** Estourar `tempoLimiteMs` marca a execução
 como `timeout`, mas a trava só é liberada quando o handler termina de fato -

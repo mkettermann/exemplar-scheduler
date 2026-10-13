@@ -1,4 +1,5 @@
 import pino from 'pino';
+import pretty from 'pino-pretty';
 import { ambiente } from '../config/env.js';
 
 /**
@@ -19,10 +20,10 @@ const opcoesBase: pino.LoggerOptions = {
   },
 };
 
+// Em desenvolvimento o pino-pretty roda como stream na thread principal, e não
+// como `transport`: só assim ele escreve pelo `process.stdout`, que no console
+// do Windows exibe acentos independentemente da code page.
 export const logger =
   ambiente.NODE_ENV === 'development'
-    ? pino({
-      ...opcoesBase,
-      transport: { target: 'pino-pretty', options: { colorize: true, translateTime: 'SYS:standard' } },
-    })
+    ? pino(opcoesBase, pretty({ colorize: true, translateTime: 'SYS:standard', destination: process.stdout }))
     : pino(opcoesBase);

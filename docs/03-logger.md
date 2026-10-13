@@ -27,7 +27,7 @@ em texto livre.
 ```ts
 // src/logger/logger.ts
 export const logger = ambiente.NODE_ENV === 'development'
-  ? pino({ ...opcoesBase, transport: { target: 'pino-pretty' } })
+  ? pino(opcoesBase, pretty({ colorize: true, destination: process.stdout }))
   : pino(opcoesBase);
 ```
 
@@ -38,9 +38,26 @@ export const logger = ambiente.NODE_ENV === 'development'
 | `staging` | `debug` | JSON puro |
 | `production` | `info` | JSON puro |
 
-O `pino-pretty` só entra em desenvolvimento porque ele custa caro: roda em uma
-thread separada e reformata cada linha. Em produção o JSON cru é mais rápido
+O `pino-pretty` só entra em desenvolvimento porque ele custa caro: reformata
+cada linha, aqui na thread principal. Em produção o JSON cru é mais rápido
 **e** mais útil, já que a plataforma de observabilidade é quem formata.
+
+### Acentos no console do Windows
+
+Em desenvolvimento, o `pino-pretty` é passado ao `pino` como stream, e não como
+`transport: { target: 'pino-pretty' }`. Essa forma não é por acaso.
+
+O `pino` (e o `pino-pretty` em `transport`, de dentro da worker thread) grava
+os bytes UTF-8 direto no descritor 1. O console do Windows interpreta esses
+bytes pela code page ativa, que em instalações pt-BR costuma ser a 850, e
+`execução` aparece como `execu├º├úo`. Já o `process.stdout` entrega o texto ao
+console como Unicode, então os acentos saem certos em qualquer code page.
+
+Um stream não atravessa para a worker thread, e por isso o `destination:
+process.stdout` só funciona com o `pino-pretty` na thread principal. O preço é
+a formatação competir com a aplicação pela thread, o que em volume de
+desenvolvimento não pesa. Produção não é afetada: o JSON segue para o `stdout`
+e quem o lê é o coletor, em UTF-8.
 
 ### Redação de segredos
 
@@ -83,9 +100,11 @@ logger.info(`Job ${job.nome} concluído em ${duracaoMs}ms`);
 ## Upgrades futuros sem quebrar o que existe
 
 **Subir a versão do pino** - a API `logger.<nível>(obj, msg)` é estável há
-várias majors. O ponto de atenção é o `transport`, que mudou de forma na v7.
-Como só o modo `development` usa transport, um problema aqui nunca chega em
-produção - mas rode `npm run dev` depois de subir.
+várias majors. O ponto de atenção é o `pino-pretty`, que só o modo
+`development` usa: um problema aqui nunca chega em produção, mas rode
+`npm run dev` depois de subir e confira se uma mensagem acentuada sai legível
+no console do Windows. **Não** volte a usar o `pino-pretty` como `transport`
+(ver [Acentos no console do Windows](#acentos-no-console-do-windows)).
 
 **Adicionar log de requisição HTTP** - não ligue o logger do Fastify. Adicione
 um hook em [`construirApp`](../src/server/app.ts):
