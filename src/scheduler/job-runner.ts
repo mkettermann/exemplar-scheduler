@@ -1,5 +1,5 @@
 import schedule from 'node-schedule';
-import type { Ambiente } from '../config/env.js';
+import { getSiglaAmbiente, type Ambiente } from '../config/env.js';
 import type { DefinicaoJob, StatusJob } from './job.types.js';
 import { executarComLock } from './lock.js';
 import { appInsightsInstance } from '../config/appInsights.js';
@@ -69,7 +69,8 @@ async function aguardarFimAposTimeout(
 /**
  * Aplica, nesta ordem: lock distribuído, handler com timeout e uma linha de
  * log com o desfecho. O erro do handler é classificado, logado e enviado ao
- * Application Insights, nunca relançado. Ver `docs/05-scheduler.md`.
+ * Application Insights, nunca relançado; o sucesso vira o evento `job`.
+ * Ver `docs/05-scheduler.md`.
  */
 async function executarJob(job: DefinicaoJob): Promise<void> {
   const { executou } = await executarComLock(job.nome, async () => {
@@ -80,8 +81,6 @@ async function executarJob(job: DefinicaoJob): Promise<void> {
 
     try {
       await aguardarComTempoLimite(execucao, job.tempoLimiteMs);
-
-      logger.info(`Job ${job.nome} concluido em ${Date.now() - iniciadoEm}ms com sucesso`);
     } catch (error_) {
       const status: StatusJob = error_ instanceof ErroTempoLimite ? 'timeout' : 'falha';
 
@@ -94,7 +93,14 @@ async function executarJob(job: DefinicaoJob): Promise<void> {
       if (status === 'timeout') {
         await aguardarFimAposTimeout(job, execucao, iniciadoEm);
       }
+      return;
     }
+
+    // Fora do `try`: o que lançar daqui em diante não é erro do handler, e
+    // não pode transformar um sucesso em `falha`.
+    const duracaoMs = Date.now() - iniciadoEm;
+    logger.info(`[JOB-${getSiglaAmbiente()}] ${job.nome} executado com sucesso. Durou ${duracaoMs}ms`);
+    appInsightsInstance.trackEvent('job', { job: job.nome, status: 'sucesso', duracao: `${duracaoMs}ms` });
   });
 
   if (!executou) {

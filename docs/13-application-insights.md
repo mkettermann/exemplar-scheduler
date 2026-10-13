@@ -336,7 +336,8 @@ HTTP de saída continuam registradas.
 
 Os jobs, por outro lado, **não** são requisições: uma execução do cron não
 aparece como `request` no portal. O que a torna visível são os `trackTrace`
-manuais e, em falha, o `trackException` do runner.
+manuais, o evento `job` que o runner envia em sucesso e, em falha, o
+`trackException` do runner.
 
 ### Exceções não tratadas mudam o processo
 
@@ -413,7 +414,8 @@ inteiro por um falso e prova o wrapper:
 
 E [`job-runner.test.ts`](../src/scheduler/job-runner.test.ts) prova que falha,
 timeout, falha depois do timeout e falha do runner viram `trackException` com
-`job` e `status` - e que sucesso e lock ocupado não enviam nada.
+`job` e `status`, que o sucesso vira o evento `job` e que sucesso e lock
+ocupado não enviam exceção.
 
 Como em [`mssql.test.ts`](../src/db/mssql.test.ts), a instância é estado de
 módulo: cada teste recarrega `appInsights.ts` com `vi.resetModules()`. Que a

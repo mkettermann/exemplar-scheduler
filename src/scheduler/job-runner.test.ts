@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   executarComLock: vi.fn(),
   scheduleJob: vi.fn(),
   trackException: vi.fn(),
+  trackEvent: vi.fn(),
   logger: {
     info: vi.fn(),
     warn: vi.fn(),
@@ -32,7 +33,7 @@ vi.mock('./lock.js', () => ({
 vi.mock('../logger/logger.js', () => ({ logger: mocks.logger }));
 
 vi.mock('../config/appInsights.js', () => ({
-  appInsightsInstance: { trackException: mocks.trackException },
+  appInsightsInstance: { trackException: mocks.trackException, trackEvent: mocks.trackEvent },
 }));
 
 vi.mock('node-schedule', () => ({
@@ -165,12 +166,45 @@ describe('execução disparada pelo scheduler', () => {
     disparar();
     await aguardarCiclo();
 
+    // `TES` é a sigla de `NODE_ENV=test`, preenchido em `test/setup.ts`.
     expect(linhasDe(mocks.logger.info)).toEqual([
       'Job registrado: cobranca com agendamento */5 * * * *',
       'Job iniciado: cobranca',
-      expect.stringMatching(/^Job cobranca concluido em \d+ms com sucesso$/),
+      expect.stringMatching(/^\[JOB-TES\] cobranca executado com sucesso\. Durou \d+ms$/),
     ]);
     expect(mocks.logger.error).not.toHaveBeenCalled();
+  });
+
+  it('o sucesso chega ao Application Insights como o evento `job`, com a mesma duração do log', async () => {
+    const disparar = registrarECapturarDisparo(jobFalso({ nome: 'cobranca' }));
+
+    disparar();
+    await aguardarCiclo();
+
+    const duracaoNoLog = linhasDe(mocks.logger.info).at(-1)?.match(/Durou (\d+ms)$/)?.[1];
+    expect(mocks.trackEvent).toHaveBeenCalledTimes(1);
+    expect(mocks.trackEvent).toHaveBeenCalledWith('job', {
+      job: 'cobranca',
+      status: 'sucesso',
+      duracao: duracaoNoLog,
+    });
+  });
+
+  it('erro ao registrar o sucesso não reclassifica o job como falha do handler', async () => {
+    const erro = new Error('telemetria quebrada');
+    mocks.trackEvent.mockImplementationOnce(() => {
+      throw erro;
+    });
+    const disparar = registrarECapturarDisparo(jobFalso({ nome: 'cobranca' }));
+
+    disparar();
+    await aguardarCiclo();
+
+    expect(mocks.logger.error).not.toHaveBeenCalled();
+    expect(mocks.logger.fatal).toHaveBeenCalledWith(
+      expect.objectContaining({ job: 'cobranca', err: erro }),
+      'Falha inesperada no job-runner',
+    );
   });
 
   it('não chama o handler quando outra instância segura o lock', async () => {
@@ -308,9 +342,11 @@ describe('execução disparada pelo scheduler', () => {
     await aguardarCiclo();
 
     expect(chamadas).toBe(2);
-    expect(linhasDe(mocks.logger.error)).toHaveLength(1);
+    expect(linhasDe(mocks.logger.error)).toEqual([
+      expect.stringMatching(/^Job cobranca falhou \(falha\) apos \d+ms$/),
+    ]);
     expect(linhasDe(mocks.logger.info)).toContainEqual(
-      expect.stringMatching(/com sucesso$/),
+      expect.stringMatching(/^\[JOB-TES\] cobranca executado com sucesso\. Durou \d+ms$/),
     );
   });
 

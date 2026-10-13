@@ -60,5 +60,9 @@ function carregarAmbiente(): Ambiente {
 
 export const ambiente = carregarAmbiente();
 
+export const getSiglaAmbiente = (limite: number = 3): string => {
+  return ambiente.NODE_ENV.slice(0, limite).toUpperCase();
+}
+
 /** Ver `docs/05-scheduler.md`. */
 export const ambienteAssumido = process.env.NODE_ENV === undefined;

@@ -164,20 +164,30 @@ idempotentes**. Ver [capítulo 06](06-lock-distribuido.md).
 executarComLock(nome)              <- só uma instância executa   (cap. 06)
   -> aguardarComTempoLimite(...)   <- Promise.race contra o timeout
   -> logger.info/error             <- desfecho + duração no log  (cap. 03)
-  -> trackException                <- só em falha ou timeout     (cap. 13)
+  -> trackException                <- em falha ou timeout        (cap. 13)
+  -> trackEvent('job')             <- em sucesso                 (cap. 13)
 ```
 
 O desfecho de cada execução sai em **uma linha por evento**, em texto puro -
-`Job <nome> concluido em <n>ms com sucesso` ou `Job <nome> falhou (<status>)
-apos <n>ms`, com `status` sendo `sucesso`, `falha` ou `timeout`. É o que
+`[JOB-<sigla>] <nome> executado com sucesso. Durou <n>ms` ou `Job <nome>
+falhou (<status>) apos <n>ms`, com `status` sendo `sucesso`, `falha` ou
+`timeout`. A `<sigla>` são as três primeiras letras do `NODE_ENV`, em
+maiúsculas (`getSiglaAmbiente()`, em `env.ts`): `DEV`, `QA`, `HML`, `PRO`. É o que
 permite responder "esse job rodou?" e "quanto demorou?" por busca no Log
 Analytics, sem tabela de histórico.
 
 A linha única é uma escolha, não um descuido: ela é legível direto no `kubectl
 logs`. A linha de falha leva junto, como objeto do pino, `{ job, status, err }`
+
 - sem o `err`, a mensagem e o stack do erro se perderiam, e a linha só diria
 *que* o job falhou. Na linha de sucesso, `status` e `duracaoMs` ainda não são
-campos consultáveis. Ver upgrades.
+campos consultáveis no log - no Application Insights, sim, pelo evento `job`
+com `{ job, status: 'sucesso', duracao }`. Ver upgrades.
+
+O sucesso é registrado **fora** do `try` que espera o handler. Um erro ali -
+na telemetria, por exemplo - não é erro do handler: dentro do `try`, ele
+transformaria uma execução bem-sucedida em `falha`. Fora dele, sobe como falha
+do próprio runner e vira o log `fatal`.
 
 Dois detalhes que explicam o comportamento em falha:
 
