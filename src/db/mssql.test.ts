@@ -103,6 +103,14 @@ describe('obterPoolDb', () => {
     });
   });
 
+  it('repassa ao driver o teto de query do ambiente, no lugar dos 15 s do driver', async () => {
+    const { obterPoolDb } = await carregarModuloDb();
+
+    await obterPoolDb();
+
+    expect(configuracaoDaConexao().requestTimeout).toBe(900_000);
+  });
+
   it('só confia em certificado do servidor fora de produção', async () => {
     const { obterPoolDb } = await carregarModuloDb();
 

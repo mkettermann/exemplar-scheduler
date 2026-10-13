@@ -35,6 +35,9 @@ const esquemaAmbiente = z.object({
   DB_PASSWORD: textoObrigatorio,
   DB_ENCRYPT: booleano.default('true'),
 
+  /** Ver `docs/04-banco-de-dados.md`. Teto de cada query; estourado, o driver cancela a query no servidor. */
+  DB_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(900_000),
+
   HEALTH_DB_TIMEOUT_MS: z.coerce.number().int().positive().default(3000),
 
   /** Ver `docs/14-cliente-rest.md`. Prazo de cada chamada do `Rest` que não traz `signal` próprio. */

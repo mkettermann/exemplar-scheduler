@@ -12,6 +12,8 @@ const configuracao: sql.config = {
   database: ambiente.DB_NAME,
   user: ambiente.DB_USER,
   password: ambiente.DB_PASSWORD,
+  // Sem isto o driver corta toda query em 15 s - curto demais para as procedures dos jobs.
+  requestTimeout: ambiente.DB_REQUEST_TIMEOUT_MS,
   options: {
     encrypt: ambiente.DB_ENCRYPT,
     trustServerCertificate: ambiente.NODE_ENV !== 'production',

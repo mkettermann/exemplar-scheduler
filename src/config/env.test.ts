@@ -5,7 +5,14 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
  * com a variável ajustada. Ver `docs/02-configuracao-de-ambiente.md`.
  */
 const CAMPOS_DE_CONEXAO = ['DB_SERVER', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'] as const;
-const VARIAVEIS = [...CAMPOS_DE_CONEXAO, 'JOBS_ENABLED', 'DB_ENCRYPT', 'NODE_ENV', 'REST_TIMEOUT_MS'] as const;
+const VARIAVEIS = [
+  ...CAMPOS_DE_CONEXAO,
+  'JOBS_ENABLED',
+  'DB_ENCRYPT',
+  'NODE_ENV',
+  'REST_TIMEOUT_MS',
+  'DB_REQUEST_TIMEOUT_MS',
+] as const;
 type Variavel = (typeof VARIAVEIS)[number];
 
 const VALORES_DO_SETUP = Object.fromEntries(
@@ -244,5 +251,27 @@ describe('REST_TIMEOUT_MS', () => {
 
   it.each(['0', '-1', '1.5', 'abc', ''])('derruba o boot com `%s`', async (valor) => {
     await esperaDerrubarBoot('REST_TIMEOUT_MS', valor);
+  });
+});
+
+/**
+ * `DB_REQUEST_TIMEOUT_MS` substitui os 15 s do driver `mssql`, que cortariam
+ * as procedures longas dos jobs. Ver `docs/04-banco-de-dados.md`.
+ */
+describe('DB_REQUEST_TIMEOUT_MS', () => {
+  it('ausente, assume 900000ms - 15 minutos', async () => {
+    const ambiente = await carregarCom('DB_REQUEST_TIMEOUT_MS', undefined);
+
+    expect(ambiente.DB_REQUEST_TIMEOUT_MS).toBe(900_000);
+  });
+
+  it('aceita outro teto em milissegundos', async () => {
+    const ambiente = await carregarCom('DB_REQUEST_TIMEOUT_MS', '3600000');
+
+    expect(ambiente.DB_REQUEST_TIMEOUT_MS).toBe(3_600_000);
+  });
+
+  it.each(['0', '-1', '1.5', 'abc', ''])('derruba o boot com `%s`', async (valor) => {
+    await esperaDerrubarBoot('DB_REQUEST_TIMEOUT_MS', valor);
   });
 });

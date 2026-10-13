@@ -57,12 +57,17 @@ rejeitada ficar em cache para sempre.
 ## Configuração
 
 ```ts
+requestTimeout: ambiente.DB_REQUEST_TIMEOUT_MS,
 options: {
   encrypt: env.DB_ENCRYPT,
   trustServerCertificate: ambiente.NODE_ENV !== 'production',
 },
 pool: { max: 10, min: 0, idleTimeoutMillis: 30_000 },
 ```
+
+- **`requestTimeout`** - teto de cada query, vindo de `DB_REQUEST_TIMEOUT_MS`
+  (padrão de 15 minutos). Sem ele, o driver usa 15 **segundos**, e qualquer
+  procedure mais lenta falharia. Ver [Timeout de query](#timeout-de-query).
 
 - **`trustServerCertificate`** fica ligado fora de produção porque bancos locais
   e de desenvolvimento usam certificado autoassinado. Em produção ele é `false`,
@@ -72,6 +77,37 @@ pool: { max: 10, min: 0, idleTimeoutMillis: 30_000 },
   segurar conexão parada entre execuções de cron.
 - **`max: 10`** - teto por processo. Como só existe uma réplica, é também o
   teto do serviço inteiro.
+
+## Timeout de query
+
+`DB_REQUEST_TIMEOUT_MS` vale para **todas** as queries do pool: a do lock, a do
+readiness e as dos jobs. O `mssql` 11 não expõe um timeout por query; uma
+procedure que precise de mais que o teto exige subir a variável no ambiente.
+
+O timeout **interrompe a query no servidor**, não só a espera do Node. Ao
+estourar, o `tedious` (driver por baixo do `mssql`) envia ao SQL Server um
+pacote *attention*, o mesmo cancelamento do botão "Cancel" do SSMS, e rejeita
+a promise com `RequestError` de código `ETIMEOUT`
+(`Timeout: Request failed to complete in 900000ms`). O job termina como
+`falha`. Três consequências que o handler precisa considerar:
+
+- **O que já foi confirmado fica.** Sem transação explícita, cada comando da
+  procedure se confirma sozinho: os que terminaram antes do cancelamento
+  permanecem gravados. Só o comando em andamento é desfeito. É mais um motivo
+  para os handlers serem idempotentes ([capítulo 06](06-lock-distribuido.md)).
+- **O cancelamento não é instantâneo.** Desfazer um `UPDATE` grande pode levar
+  quase o mesmo tempo que ele levou até ali; nesse meio-tempo a sessão aparece
+  como `ROLLBACK` no servidor e continua segurando os locks das linhas.
+- **Transação aberta pela procedure pode ficar aberta.** Com `XACT_ABORT OFF`
+  (o padrão do SQL Server), o cancelamento interrompe o comando mas **não**
+  desfaz um `BEGIN TRAN` da procedure. Procedures que abrem transação devem
+  começar com `SET XACT_ABORT ON`, para o cancelamento desfazer a transação
+  inteira.
+
+O `tempoLimiteMs` do job é independente disso: estourado, ele só para de
+esperar ([capítulo 05](05-scheduler.md)). A query segue no servidor até
+terminar ou até o `DB_REQUEST_TIMEOUT_MS` cancelá-la. Na prática, para o
+trabalho no banco, o `DB_REQUEST_TIMEOUT_MS` é o teto que de fato interrompe.
 
 ## `verificarSaudeDb()` não lança
 

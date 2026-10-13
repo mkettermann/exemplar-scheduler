@@ -69,6 +69,7 @@ campos tipados. Ninguém lê `process.env` diretamente.
 | `DB_USER` | **sim** | - | Usuário. Sem espaço nem quebra de linha nas pontas |
 | `DB_PASSWORD` | **sim** | - | Senha. Sem espaço nem quebra de linha nas pontas |
 | `DB_ENCRYPT` | não | `true` | TLS na conexão. Aceita só `true`, `false`, `1` e `0` |
+| `DB_REQUEST_TIMEOUT_MS` | não | `900000` | Teto de cada query no MSSQL; estourado, a query é cancelada no servidor - ver [capítulo 04](04-banco-de-dados.md#timeout-de-query) |
 | `HEALTH_DB_TIMEOUT_MS` | não | `3000` | Teto de espera do readiness pelo banco |
 | `REST_TIMEOUT_MS` | não | `180000` | Prazo de cada chamada do `Rest` que não traz `signal` próprio - ver [capítulo 14](14-cliente-rest.md#timeout) |
 | `APPINSIGHTSKEY` | não | - | Connection string (ou iKey) do Application Insights. Ausente, a telemetria fica desligada - ver [capítulo 13](13-application-insights.md) |
@@ -154,7 +155,8 @@ que cada ambiente precisa declarar. O critério para decidir é único:
 > Um default afirma que **"ausente" e "este valor" são igualmente seguros**.
 
 Onde isso é verdade, o default é um ganho puro - `PORT`, `DB_PORT`,
-`DB_ENCRYPT`, `HEALTH_DB_TIMEOUT_MS`, `REST_TIMEOUT_MS`, `JOBS_ENABLED`.
+`DB_ENCRYPT`, `DB_REQUEST_TIMEOUT_MS`, `HEALTH_DB_TIMEOUT_MS`,
+`REST_TIMEOUT_MS`, `JOBS_ENABLED`.
 Errar ali custa um aborrecimento local, nunca um dado errado.
 
 Onde é falso, o default troca uma falha barulhenta por uma silenciosa. Os
