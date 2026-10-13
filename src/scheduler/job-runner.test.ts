@@ -175,7 +175,7 @@ describe('execução disparada pelo scheduler', () => {
     expect(mocks.logger.error).not.toHaveBeenCalled();
   });
 
-  it('o sucesso chega ao Application Insights como o evento `job`, com a mesma duração do log', async () => {
+  it('o sucesso chega ao Application Insights como o evento `JOB-<sigla>`, com a mesma duração do log', async () => {
     const disparar = registrarECapturarDisparo(jobFalso({ nome: 'cobranca' }));
 
     disparar();
@@ -183,7 +183,7 @@ describe('execução disparada pelo scheduler', () => {
 
     const duracaoNoLog = linhasDe(mocks.logger.info).at(-1)?.match(/Durou (\d+ms)$/)?.[1];
     expect(mocks.trackEvent).toHaveBeenCalledTimes(1);
-    expect(mocks.trackEvent).toHaveBeenCalledWith('job', {
+    expect(mocks.trackEvent).toHaveBeenCalledWith('JOB-TES', {
       job: 'cobranca',
       status: 'sucesso',
       duracao: duracaoNoLog,

@@ -100,7 +100,7 @@ async function executarJob(job: DefinicaoJob): Promise<void> {
     // não pode transformar um sucesso em `falha`.
     const duracaoMs = Date.now() - iniciadoEm;
     logger.info(`[JOB-${getSiglaAmbiente()}] ${job.nome} executado com sucesso. Durou ${duracaoMs}ms`);
-    appInsightsInstance.trackEvent('job', { job: job.nome, status: 'sucesso', duracao: `${duracaoMs}ms` });
+    appInsightsInstance.trackEvent(`JOB-${getSiglaAmbiente()}`, { job: job.nome, status: 'sucesso', duracao: `${duracaoMs}ms` });
   });
 
   if (!executou) {
