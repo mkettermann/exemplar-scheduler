@@ -2,6 +2,7 @@ import schedule from 'node-schedule';
 import type { Ambiente } from '../config/env.js';
 import type { DefinicaoJob, StatusJob } from './job.types.js';
 import { executarComLock } from './lock.js';
+import { appInsightsInstance } from '../config/appInsights.js';
 import { logger } from '../logger/logger.js';
 
 /**
@@ -61,13 +62,14 @@ async function aguardarFimAposTimeout(
       { job: job.nome, err: error_ },
       `Job ${job.nome} falhou apos o timeout, em ${Date.now() - iniciadoEm}ms - lock liberado`,
     );
+    appInsightsInstance.trackException(error_, { job: job.nome, aposTimeout: true }, 2);
   }
 }
 
 /**
  * Aplica, nesta ordem: lock distribuído, handler com timeout e uma linha de
- * log com o desfecho. O erro do handler é classificado e logado, nunca
- * relançado. Ver `docs/05-scheduler.md`.
+ * log com o desfecho. O erro do handler é classificado, logado e enviado ao
+ * Application Insights, nunca relançado. Ver `docs/05-scheduler.md`.
  */
 async function executarJob(job: DefinicaoJob): Promise<void> {
   const { executou } = await executarComLock(job.nome, async () => {
@@ -87,6 +89,7 @@ async function executarJob(job: DefinicaoJob): Promise<void> {
         { job: job.nome, status, err: error_ },
         `Job ${job.nome} falhou (${status}) apos ${Date.now() - iniciadoEm}ms`,
       );
+      appInsightsInstance.trackException(error_, { job: job.nome, status });
 
       if (status === 'timeout') {
         await aguardarFimAposTimeout(job, execucao, iniciadoEm);
@@ -146,6 +149,7 @@ export function registrarJob(job: DefinicaoJob): schedule.Job {
   return schedule.scheduleJob(job.nome, job.agendamento, () => {
     void executarJob(job).catch((error_) => {
       logger.fatal({ job: job.nome, err: error_ }, 'Falha inesperada no job-runner');
+      appInsightsInstance.trackException(error_, { job: job.nome }, 4);
     });
   });
 }

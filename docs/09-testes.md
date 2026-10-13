@@ -204,6 +204,7 @@ Determinístico, instantâneo e sem precisar derrubar nada de verdade.
 | O temporizador é liberado quando o banco responde | Cada check limpa o que criou |
 | O Application Insights é configurado uma vez, antes do `start()` | A configuração fica num lugar só, e o SDK não admite dois `setup()` |
 | `trackTrace` sem severidade envia `Information` e nunca lança | Telemetria não derruba job |
+| Falha e timeout de job viram `trackException` com `job` e `status` | O erro capturado pelo runner não chega sozinho ao Application Insights |
 | Boot: banco, jobs e HTTP, nessa ordem; sem banco, nada sobe | Falha rápido, em vez de no primeiro cron |
 | Encerramento: jobs, HTTP, banco e telemetria, nessa ordem | Um job não é cortado com o pool fechado |
 | Dois sinais seguidos encerram uma vez só | O procedimento não roda em dobro |

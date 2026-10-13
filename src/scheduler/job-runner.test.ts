@@ -15,6 +15,7 @@ import type { DefinicaoJob } from './job.types.js';
 const mocks = vi.hoisted(() => ({
   executarComLock: vi.fn(),
   scheduleJob: vi.fn(),
+  trackException: vi.fn(),
   logger: {
     info: vi.fn(),
     warn: vi.fn(),
@@ -29,6 +30,10 @@ vi.mock('./lock.js', () => ({
 }));
 
 vi.mock('../logger/logger.js', () => ({ logger: mocks.logger }));
+
+vi.mock('../config/appInsights.js', () => ({
+  appInsightsInstance: { trackException: mocks.trackException },
+}));
 
 vi.mock('node-schedule', () => ({
   default: { scheduleJob: mocks.scheduleJob },
@@ -220,6 +225,35 @@ describe('execução disparada pelo scheduler', () => {
     );
   });
 
+  it('o erro do handler chega ao Application Insights como exceção, com job e status', async () => {
+    const erro = new Error('fornecedor fora do ar');
+    const job = jobFalso({
+      nome: 'cobranca',
+      executar: vi.fn(async () => {
+        throw erro;
+      }),
+    });
+    const disparar = registrarECapturarDisparo(job);
+
+    disparar();
+    await aguardarCiclo();
+
+    expect(mocks.trackException).toHaveBeenCalledTimes(1);
+    expect(mocks.trackException).toHaveBeenCalledWith(erro, { job: 'cobranca', status: 'falha' });
+  });
+
+  it('sucesso e lock ocupado não enviam exceção', async () => {
+    const disparar = registrarECapturarDisparo(jobFalso());
+
+    disparar();
+    await aguardarCiclo();
+    mocks.executarComLock.mockResolvedValue({ executou: false });
+    disparar();
+    await aguardarCiclo();
+
+    expect(mocks.trackException).not.toHaveBeenCalled();
+  });
+
   it('timeout de query do driver é falha do handler, não estouro de prazo do job', async () => {
     const job = jobFalso({
       nome: 'cobranca',
@@ -292,6 +326,7 @@ describe('execução disparada pelo scheduler', () => {
       expect.objectContaining({ job: 'cobranca', err: erro }),
       'Falha inesperada no job-runner',
     );
+    expect(mocks.trackException).toHaveBeenCalledWith(erro, { job: 'cobranca' }, 4);
   });
 });
 
@@ -319,6 +354,10 @@ describe('tempo limite do handler', () => {
     expect(mocks.logger.error).toHaveBeenCalledWith(
       expect.objectContaining({ job: 'cobranca', status: 'timeout' }),
       expect.any(String),
+    );
+    expect(mocks.trackException).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'ErroTempoLimite', message: 'Timeout após 3000ms' }),
+      { job: 'cobranca', status: 'timeout' },
     );
   });
 
@@ -368,6 +407,11 @@ describe('tempo limite do handler', () => {
     expect(mocks.logger.warn).toHaveBeenCalledWith(
       { job: 'cobranca', err: erro },
       expect.stringMatching(/^Job cobranca falhou apos o timeout, em \d+ms - lock liberado$/),
+    );
+    expect(mocks.trackException).toHaveBeenLastCalledWith(
+      erro,
+      { job: 'cobranca', aposTimeout: true },
+      2,
     );
     expect(mocks.logger.fatal).not.toHaveBeenCalled();
   });

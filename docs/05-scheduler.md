@@ -164,6 +164,7 @@ idempotentes**. Ver [capítulo 06](06-lock-distribuido.md).
 executarComLock(nome)              <- só uma instância executa   (cap. 06)
   -> aguardarComTempoLimite(...)   <- Promise.race contra o timeout
   -> logger.info/error             <- desfecho + duração no log  (cap. 03)
+  -> trackException                <- só em falha ou timeout     (cap. 13)
 ```
 
 O desfecho de cada execução sai em **uma linha por evento**, em texto puro -
@@ -187,9 +188,16 @@ Dois detalhes que explicam o comportamento em falha:
   começa com `"Timeout: "`, e ele é uma `falha` do handler, não um estouro de
   `tempoLimiteMs`. Um job que falha não derruba o processo nem impede a
   próxima execução agendada.
+- **O erro também vai ao Application Insights.** Logo depois da linha de
+  falha, o runner chama `appInsightsInstance.trackException(err, { job,
+  status })`. Como o erro é capturado aqui, a coleta automática do SDK - que só
+  enxerga exceções **não tratadas** - nunca o veria, e o `pino` não é coletado.
+  Sem essa chamada, a falha de um job ficaria só no `kubectl logs`
+  ([capítulo 13](13-application-insights.md#exceções-dos-jobs)).
 - **`registrarJob` envolve tudo em `.catch()` com `logger.fatal`.** Chegar ali
   significa que o próprio runner falhou (o banco recusou a transação do lock,
-  por exemplo), não que o job falhou. É um alerta de infraestrutura.
+  por exemplo), não que o job falhou. É um alerta de infraestrutura, e vai ao
+  Application Insights como exceção `Critical`.
 
 ### O timeout interrompe a espera, não o trabalho
 
@@ -205,10 +213,12 @@ Por isso o runner **não solta o lock no timeout**. Ele loga a linha de
 `timeout` na hora e depois continua aguardando o handler; só quando o handler
 termina de fato é que o `executarComLock` dá `commit` e libera a trava, com uma
 linha de `warn` (`Job <nome> terminou apos o timeout...` ou `falhou apos o
-timeout...`). Se devolvesse no timeout, a trava sairia com o handler ainda
-rodando, e o disparo seguinte - ou o de outra réplica - executaria o mesmo job
-**em paralelo**, que é justamente o que o lock existe para impedir
-([capítulo 06](06-lock-distribuido.md)).
+timeout...`). No segundo caso, o erro real do handler também vai ao
+Application Insights, como exceção `Warning` com `aposTimeout: true` - a de
+`timeout` já tinha sido enviada. Se devolvesse no timeout, a trava sairia com
+o handler ainda rodando, e o disparo seguinte - ou o de outra réplica -
+executaria o mesmo job **em paralelo**, que é justamente o que o lock existe
+para impedir ([capítulo 06](06-lock-distribuido.md)).
 
 A consequência prática: um job que trava em uma query de 20 minutos é marcado
 como `timeout` aos `tempoLimiteMs`, mantém a conexão e a trava ocupadas até a
@@ -268,8 +278,8 @@ durante um rolling update:
    ([capítulo 06](06-lock-distribuido.md)).
 2. **`servidor.close()`** - para de aceitar novas requisições.
 3. **`fecharPoolDb()`** - só depois que ninguém mais precisa do banco.
-4. **`appInsightsInstance.descarregar()`** - envia os traces ainda no buffer,
-   inclusive os do job que acabou de terminar
+4. **`appInsightsInstance.descarregar()`** - envia a telemetria ainda no
+   buffer, inclusive a do job que acabou de terminar, com teto de 5 s
    ([capítulo 13](13-application-insights.md)).
 
 A flag `encerrando` garante que dois sinais seguidos não disparem o
