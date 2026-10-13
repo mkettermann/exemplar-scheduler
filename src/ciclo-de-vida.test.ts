@@ -14,7 +14,6 @@ import type { DefinicaoJob } from './scheduler/job.types.js';
 const mocks = vi.hoisted(() => ({
   ordem: [] as string[],
   ambiente: { NODE_ENV: 'hml', PORT: 3000, JOBS_ENABLED: true },
-  ambienteAssumido: false,
   jobs: [] as unknown[],
   obterPoolDb: vi.fn(),
   fecharPoolDb: vi.fn(),
@@ -32,14 +31,7 @@ const mocks = vi.hoisted(() => ({
   },
 }));
 
-// Getter porque a fábrica roda uma vez só: um booleano copiado aqui ficaria
-// congelado no valor do primeiro import.
-vi.mock('./config/env.js', () => ({
-  ambiente: mocks.ambiente,
-  get ambienteAssumido() {
-    return mocks.ambienteAssumido;
-  },
-}));
+vi.mock('./config/env.js', () => ({ ambiente: mocks.ambiente }));
 
 vi.mock('./config/appInsights.js', () => ({
   appInsightsInstance: { descarregar: mocks.descarregar },
@@ -94,7 +86,6 @@ const saidaDoProcesso = vi.fn();
 beforeEach(() => {
   mocks.ordem.length = 0;
   mocks.ambiente.JOBS_ENABLED = true;
-  mocks.ambienteAssumido = false;
   mocks.jobs.length = 0;
 
   anotaOrdem(mocks.obterPoolDb, 'banco');
@@ -178,16 +169,7 @@ describe('iniciar', () => {
     expect(mocks.servidor.listen).toHaveBeenCalled();
   });
 
-  it('avisa quando o NODE_ENV não foi injetado e o valor é assumido', async () => {
-    mocks.ambienteAssumido = true;
-    const { iniciar } = await carregarCicloDeVida();
-
-    await iniciar();
-
-    expect(textoDe(mocks.logger.warn)).toContain("assumindo 'hml'");
-  });
-
-  it('não avisa nada quando o NODE_ENV veio da pipeline', async () => {
+  it('não emite aviso no boot normal, com JOBS_ENABLED ligada', async () => {
     const { iniciar } = await carregarCicloDeVida();
 
     await iniciar();

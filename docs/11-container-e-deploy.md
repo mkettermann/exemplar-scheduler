@@ -109,10 +109,10 @@ Fixá-la na imagem faria DEV, QA, HML e PRD se identificarem todos como
 calada e os quatro disparariam os mesmos jobs sobre o banco compartilhado.
 
 Quem injeta o valor é o deploy: ConfigMap no Kubernetes, app setting no App
-Service, variável de ambiente no Container Apps. Se ela faltar, o
-`.default('development')` assume e o boot emite um `warn` nominal
-(`ambienteAssumido`, em [`env.ts`](../src/config/env.ts)) - nenhum job de outro
-ambiente é registrado, e isso aparece no log em vez de passar por normalidade.
+Service, variável de ambiente no Container Apps. Se ela faltar, o boot é
+derrubado ([`env.ts`](../src/config/env.ts) não tem default para ela) e o pod
+não fica pronto - em vez de subir como `development` e disparar os jobs de DEV
+contra o banco do ambiente.
 
 ## Configuração no Azure
 

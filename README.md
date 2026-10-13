@@ -34,7 +34,7 @@ link para a documentação oficial de cada uma.
 | 07 | [Servidor HTTP](docs/07-servidor-http.md) | `fastify`, rotas, guarda somente-leitura |
 | 08 | [Health check](docs/08-health-check.md) | liveness, readiness, probes |
 | 09 | [Testes](docs/09-testes.md) | `vitest`, `markdownlint-cli2` |
-| 10 | [Utilitários](docs/10-utilitarios.md) | `src/util` |
+| 10 | [Utilitários](docs/10-utilitarios.md) | `src/shared/uteis/util.ts` |
 | 11 | [Container e deploy](docs/11-container-e-deploy.md) | `Dockerfile`, Azure |
 | 12 | [Exemplo de job e serviço](docs/12-exemplo-job-e-servico.md) | **descartável** |
 
@@ -97,7 +97,9 @@ src/
     plugins/read-only.ts # recusa verbos de escrita
     routes/
       health.route.ts    # GET /health e GET /health/ready
-  util/util.ts
+  shared/uteis/          # única pasta de utilitários, um arquivo por assunto
+    fetch_uteis.ts       # classe Rest: verbos HTTP + contrato zod
+    util.ts              # helpers de console e objeto
 test/
   setup.ts               # env dos testes; cada *.test.ts mora ao lado do que testa
 ```

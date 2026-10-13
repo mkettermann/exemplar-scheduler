@@ -20,10 +20,11 @@ primeira vez; depois use como referência pontual.
 | 07 | [Servidor HTTP](07-servidor-http.md) | `fastify`, rotas, guarda somente-leitura, OpenAPI |
 | 08 | [Health check](08-health-check.md) | liveness, readiness, probes do AKS |
 | 09 | [Testes](09-testes.md) | `vitest`, `@vitest/coverage-v8`, `markdownlint-cli2` |
-| 10 | [Utilitários](10-utilitarios.md) | `src/util/util.ts` |
+| 10 | [Utilitários](10-utilitarios.md) | `src/shared/uteis/util.ts` |
 | 11 | [Container e deploy](11-container-e-deploy.md) | `Dockerfile`, estágios, Azure |
 | 12 | [Exemplo de job e serviço](12-exemplo-job-e-servico.md) | material descartável - **apague ao implementar** |
 | 13 | [Application Insights](13-application-insights.md) | `applicationinsights`, `trackTrace`, `trackException`, configurações |
+| 14 | [Cliente REST](14-cliente-rest.md) | `src/shared/uteis/fetch_uteis.ts`, classe `Rest`, validação de contrato |
 
 ## Bibliotecas instaladas
 
@@ -61,7 +62,7 @@ cobre.
 
 ### Sem biblioteca
 
-Quatro peças resolvem seus problemas com recursos já disponíveis, e o capítulo
+Cinco peças resolvem seus problemas com recursos já disponíveis, e o capítulo
 correspondente explica o porquê:
 
 | Peça | Usa | Cap. |
@@ -70,6 +71,7 @@ correspondente explica o porquê:
 | Carregamento do `.env` | [`node --env-file`](https://nodejs.org/docs/latest-v24.x/api/cli.html) nativo | [02](02-configuracao-de-ambiente.md) |
 | Utilitários de terminal | Códigos ANSI escritos à mão | [10](10-utilitarios.md) |
 | Encerramento ordenado | Sinais do Node mais `tini` como PID 1 | [05](05-scheduler.md) |
+| Chamadas a sistemas externos | `fetch` nativo do Node, com contrato em `zod` | [14](14-cliente-rest.md) |
 
 ## Os quatro princípios que explicam o resto
 
@@ -158,7 +160,9 @@ src/
     plugins/read-only.ts         # guarda de verbos de escrita                    -> cap. 07
     routes/
       health.route.ts            # GET /health e GET /health/ready                -> cap. 08
-  util/util.ts                   # helpers de console e objeto                    -> cap. 10
+  shared/uteis/                  # única pasta de utilitários, um arquivo por assunto
+    fetch_uteis.ts               # classe Rest: verbos HTTP + contrato zod        -> cap. 14
+    util.ts                      # helpers de console e objeto                    -> cap. 10
 test/
   setup.ts                       # env dos testes                                 -> cap. 09
 Dockerfile                       # build multi-stage com portão de verificação    -> cap. 11

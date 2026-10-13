@@ -159,15 +159,18 @@ export function separarJobsPorAmbiente(
 /**
  * Registra um job no scheduler do processo. Chamar uma vez por job, no boot,
  * e só para jobs já filtrados por `separarJobsPorAmbiente`.
- * Ver `docs/05-scheduler.md`.
+ *
+ * O callback **devolve** a promise do ciclo: o node-schedule só conta como em
+ * execução o disparo que devolve uma `Promise`, e é essa contagem que o
+ * `gracefulShutdown()` do encerramento espera zerar. Ver `docs/05-scheduler.md`.
  */
 export function registrarJob(job: DefinicaoJob): schedule.Job {
   logger.info(`Job registrado: ${job.nome} com agendamento ${job.agendamento}`);
 
-  return schedule.scheduleJob(job.nome, job.agendamento, () => {
-    void executarJob(job).catch((error_) => {
+  return schedule.scheduleJob(job.nome, job.agendamento, () =>
+    executarJob(job).catch((error_) => {
       logger.fatal({ job: job.nome, err: error_ }, 'Falha inesperada no job-runner');
       appInsightsInstance.trackException(error_, { job: job.nome }, 4);
-    });
-  });
+    }),
+  );
 }

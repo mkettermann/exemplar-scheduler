@@ -1,12 +1,14 @@
 import { z } from 'zod';
 import { appInsightsInstance } from '../../config/appInsights.js';
 import { ambiente } from '../../config/env.js';
+import { Rest } from '../../shared/uteis/fetch_uteis.js';
 
 /**
  * MODELO de serviço com POST autenticado em sistema externo - um serviço, um
- * envio, duas chamadas: `autenticar` troca a apiKey por um token temporário e
- * a exportada `enviarRegistro` faz o POST com ele no header `token-id`. As
- * decisões por trás do formato estão em `docs/12-exemplo-job-e-servico.md`.
+ * envio, duas chamadas pelo `Rest.Validar`: `autenticar` troca a apiKey por um
+ * token temporário e a exportada `enviarRegistro` faz o POST com ele no header
+ * `token-id`. As decisões por trás do formato estão em
+ * `docs/12-exemplo-job-e-servico.md`.
  */
 const URL_AUTENTICACAO = 'https://auth.parceiro.example/api/v1/token';
 const URL_ENVIO = 'https://api.parceiro.example/api/v1/registros';
@@ -24,6 +26,11 @@ export interface ResultadoEnvio {
 const esquemaAutenticacao = z.object({ token: z.string().min(1) });
 const esquemaResultado = z.object({ protocolo: z.string().min(1) });
 
+/** Um `AbortSignal.timeout` novo por chamada: o prazo começa a contar no envio. */
+function comTempoLimite() {
+  return { signal: AbortSignal.timeout(TEMPO_LIMITE_MS) };
+}
+
 async function autenticar(): Promise<string> {
   const apiKey = ambiente.EXAMPLE_ENVIO_API_KEY;
 
@@ -31,18 +38,13 @@ async function autenticar(): Promise<string> {
     throw new Error('EXAMPLE_ENVIO_API_KEY ausente - autenticacao impossivel');
   }
 
-  const resposta = await fetch(URL_AUTENTICACAO, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ apiKey }),
-    signal: AbortSignal.timeout(TEMPO_LIMITE_MS),
-  });
+  const resposta = await Rest.Validar.Post(URL_AUTENTICACAO, { apiKey }, esquemaAutenticacao, undefined, comTempoLimite());
 
   if (!resposta.ok) {
-    throw new Error(`Autenticacao respondeu ${resposta.status}`);
+    throw new Error(`Autenticacao falhou (status ${resposta.status}): ${resposta.statusText}`);
   }
 
-  return esquemaAutenticacao.parse(await resposta.json()).token;
+  return resposta.data.token;
 }
 
 export async function enviarRegistro(registro: RegistroEnvio): Promise<ResultadoEnvio> {
@@ -52,20 +54,13 @@ export async function enviarRegistro(registro: RegistroEnvio): Promise<Resultado
 
   appInsightsInstance.trackTrace('enviarRegistro: enviando');
 
-  const resposta = await fetch(URL_ENVIO, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'token-id': token },
-    body: JSON.stringify(registro),
-    signal: AbortSignal.timeout(TEMPO_LIMITE_MS),
-  });
+  const resposta = await Rest.Validar.Post(URL_ENVIO, registro, esquemaResultado, { 'token-id': token }, comTempoLimite());
 
   if (!resposta.ok) {
-    throw new Error(`Envio respondeu ${resposta.status}`);
+    throw new Error(`Envio falhou (status ${resposta.status}): ${resposta.statusText}`);
   }
 
-  const resultado = esquemaResultado.parse(await resposta.json());
+  appInsightsInstance.trackTrace(`enviarRegistro: concluído com protocolo ${resposta.data.protocolo}`);
 
-  appInsightsInstance.trackTrace(`enviarRegistro: concluído com protocolo ${resultado.protocolo}`);
-
-  return resultado;
+  return resposta.data;
 }

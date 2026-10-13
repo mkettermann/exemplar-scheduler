@@ -112,20 +112,15 @@ describe('obterPoolDb', () => {
   });
 
   /**
-   * A asserção compara com `ambiente.DB_ENCRYPT` em vez de um literal de
-   * propósito: hoje `DB_ENCRYPT=false` resulta em `true`, porque o campo ainda
-   * usa `z.coerce.boolean()` - a armadilha descrita em
-   * `docs/02-configuracao-de-ambiente.md`. O que cabe a este módulo é
-   * repassar o valor decidido lá, e é só isso que se prova aqui; o dia em que
-   * o parser explícito for aplicado, este teste continua valendo.
+   * `test/setup.ts` injeta `DB_ENCRYPT=false`. O parser de `env.ts` decide o
+   * booleano; o que cabe a este módulo é repassá-lo ao driver sem mudar nada.
    */
   it('repassa ao driver o valor de TLS que o ambiente decidiu', async () => {
     const { obterPoolDb } = await carregarModuloDb();
-    const { ambiente } = await import('../config/env.js');
 
     await obterPoolDb();
 
-    expect(configuracaoDaConexao().options.encrypt).toBe(ambiente.DB_ENCRYPT);
+    expect(configuracaoDaConexao().options.encrypt).toBe(false);
   });
 
   it('falha de conexão não trava o processo: a próxima chamada tenta de novo', async () => {

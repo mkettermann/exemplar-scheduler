@@ -147,9 +147,10 @@ Duas defesas, as duas já no código:
 - O [`Dockerfile`](../Dockerfile) **não** fixa `NODE_ENV`. A imagem é a mesma
   nos quatro ambientes; quem define a identidade é o ConfigMap
   ([capítulo 11](11-container-e-deploy.md)).
-- `ambienteAssumido`, em [`env.ts`](../src/config/env.ts), marca quando a
-  variável não foi injetada e o default assumiu. O boot emite um `warn`
-  nominal, para que "nenhum job rodou hoje" não passe por normalidade.
+- `NODE_ENV` é obrigatória em [`env.ts`](../src/config/env.ts), sem default.
+  Um pod que sobe sem ela não assume ambiente nenhum: o boot é derrubado com
+  mensagem nominal, em vez de registrar os jobs de DEV contra o banco para o
+  qual o pod aponta ([capítulo 02](02-configuracao-de-ambiente.md)).
 
 ### O que isto não resolve
 
@@ -294,7 +295,14 @@ durante um rolling update:
 1. **`schedule.gracefulShutdown()`** - para de agendar novas execuções e
    **espera** as que já estão rodando terminarem. Um job cortado na metade é
    exatamente o que o lock distribuído não consegue desfazer
-   ([capítulo 06](06-lock-distribuido.md)).
+   ([capítulo 06](06-lock-distribuido.md)). A espera depende de um detalhe
+   do `registrarJob`: o node-schedule só conta como em execução o disparo
+   cujo callback **devolve** uma `Promise`. Por isso o callback devolve a
+   promise do ciclo em vez de soltá-la com `void` - solta, o
+   `gracefulShutdown()` resolveria na hora e o pool fecharia com o job no
+   meio. Depois de um timeout, essa promise só se resolve quando o handler
+   termina de fato, então o encerramento espera também por ele; o teto passa
+   a ser o `terminationGracePeriodSeconds` do pod.
 2. **`servidor.close()`** - para de aceitar novas requisições.
 3. **`fecharPoolDb()`** - só depois que ninguém mais precisa do banco.
 4. **`appInsightsInstance.descarregar()`** - envia a telemetria ainda no

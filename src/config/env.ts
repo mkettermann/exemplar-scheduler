@@ -19,8 +19,10 @@ const textoObrigatorio = z
 
 /** Ver `docs/02-configuracao-de-ambiente.md` */
 const esquemaAmbiente = z.object({
-  /** Quatro ambientes de deploy, mais `test` */
-  NODE_ENV: z.enum(['development', 'test', 'qa', 'hml', 'production']).default('development'),
+  /** Quatro ambientes de deploy, mais `test`. Sem default: decide quais jobs rodam - ver docs/02. */
+  NODE_ENV: z.enum(['development', 'test', 'qa', 'hml', 'production'], {
+    required_error: 'obrigatória - decide quais jobs este processo registra; o deploy precisa injetá-la',
+  }),
   PORT: z.coerce.number().int().positive().default(3000),
 
   /** Ver `docs/05-scheduler.md`. */
@@ -31,7 +33,7 @@ const esquemaAmbiente = z.object({
   DB_NAME: textoObrigatorio,
   DB_USER: textoObrigatorio,
   DB_PASSWORD: textoObrigatorio,
-  DB_ENCRYPT: z.coerce.boolean().default(true),
+  DB_ENCRYPT: booleano.default('true'),
 
   HEALTH_DB_TIMEOUT_MS: z.coerce.number().int().positive().default(3000),
 
@@ -63,6 +65,3 @@ export const ambiente = carregarAmbiente();
 export const getSiglaAmbiente = (limite: number = 3): string => {
   return ambiente.NODE_ENV.slice(0, limite).toUpperCase();
 }
-
-/** Ver `docs/05-scheduler.md`. */
-export const ambienteAssumido = process.env.NODE_ENV === undefined;

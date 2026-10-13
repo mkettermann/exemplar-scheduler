@@ -1,7 +1,7 @@
 // Primeiro: é ele que carrega o Application Insights antes do Fastify - ver docs/13.
 import { iniciar, encerrar } from './ciclo-de-vida.js';
 import { logger } from './logger/logger.js';
-import { Util } from './util/util.js';
+import { Util } from './shared/uteis/util.js';
 
 /**
  * Entrypoint do serviço: só liga os sinais e dispara o boot. O que acontece

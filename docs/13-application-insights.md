@@ -1,7 +1,8 @@
 # 13 - Application Insights
 
 [← Container e deploy](11-container-e-deploy.md) ·
-[Índice](README.md)
+[Índice](README.md) ·
+[Próximo: Cliente REST →](14-cliente-rest.md)
 
 ## Biblioteca
 
@@ -158,7 +159,7 @@ o módulo **logo depois do `env.ts`**, antes de qualquer coisa que carregue o
 Fastify:
 
 ```ts
-import { ambiente, ambienteAssumido } from './config/env.js';
+import { ambiente } from './config/env.js';
 // Antes do Fastify, para a auto-coleta enxergar o `http` - ver docs/13.
 import { appInsightsInstance } from './config/appInsights.js';
 ```

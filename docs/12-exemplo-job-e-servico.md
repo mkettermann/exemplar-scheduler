@@ -86,32 +86,37 @@ Quando um job precisar falar com um sistema externo, o formato é este:
 const ERP_BASE_URL = 'https://erp.interno.empresa.com/api/v1';
 
 export async function buscarPedidosPendentes(): Promise<Pedido[]> {
-  const resposta = await fetch(`${ERP_BASE_URL}/pedidos?status=pendente`, {
-    headers: { Authorization: `Bearer ${ambiente.ERP_TOKEN}` },
+  const resposta = await Rest.GET(
+    `${ERP_BASE_URL}/pedidos?status=pendente`,
+    { Authorization: `Bearer ${ambiente.ERP_TOKEN}` },
     // Sempre um teto: sem isso, uma chamada pendurada segura o job
     // até o tempoLimiteMs do runner, e mesmo depois continua rodando.
-    signal: AbortSignal.timeout(10_000),
-  });
+    { signal: AbortSignal.timeout(10_000) },
+  );
 
   if (!resposta.ok) {
-    throw new Error(`ERP respondeu ${resposta.status}`);
+    throw new Error(`ERP respondeu ${resposta.status} (${resposta.statusText})`);
   }
 
-  return esquemaPedido.array().parse(await resposta.json());
+  return esquemaPedido.array().parse(resposta.data);
 }
 ```
 
-Quatro pontos desse trecho valem como regra geral:
+Cinco pontos desse trecho valem como regra geral:
 
 - **URL base constante** ou vinda do `esquemaAmbiente` validado - nunca de
   parâmetro externo. Isso elimina uma classe inteira de SSRF por construção.
 - **Segredo pelo `ambiente`**, nunca no código.
+- **Chamada pelo [`Rest`](14-cliente-rest.md), e falha convertida em erro.**
+  O `Rest` nunca lança: status fora de 2xx, timeout e falha de conexão voltam
+  como `ok: false`. Sem o `throw`, o [job-runner](05-scheduler.md) registraria
+  a execução como **sucesso**.
 - **`AbortSignal.timeout`** em toda chamada de rede. O `tempoLimiteMs` do
   [job-runner](05-scheduler.md) para de *esperar*, mas não interrompe a
   chamada; só o `AbortSignal` interrompe de fato.
 - **Resposta validada com zod** antes de ser usada. Um sistema externo pode
   mudar o contrato sem avisar, e o TypeScript não protege contra o que vem da
-  rede - `resposta.json()` é `any`.
+  rede - `resposta.data` é `unknown`.
 
 ### Um segundo serviço: consulta ao banco
 
@@ -231,19 +236,29 @@ Um serviço, um envio, duas chamadas:
 | --- | --- |
 | `URL_AUTENTICACAO`, `URL_ENVIO` | As duas origens, constantes do módulo |
 | `esquemaAutenticacao`, `esquemaResultado` | O contrato de cada resposta, em zod |
+| `comTempoLimite()` | Um `AbortSignal.timeout` novo para cada chamada - interna |
 | `autenticar()` | Troca a apiKey pelo token - interna |
 | `enviarRegistro()` | Única função exportada: autentica, faz o POST com o token no header `token-id`, devolve o resultado validado |
 
 ```ts
 const token = await autenticar();
 
-const resposta = await fetch(URL_ENVIO, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json', 'token-id': token },
-  body: JSON.stringify(registro),
-  signal: AbortSignal.timeout(TEMPO_LIMITE_MS),
-});
+const resposta = await Rest.Validar.Post(URL_ENVIO, registro, esquemaResultado, { 'token-id': token }, comTempoLimite());
+
+if (!resposta.ok) {
+  throw new Error(`Envio falhou (status ${resposta.status}): ${resposta.statusText}`);
+}
 ```
+
+As duas chamadas passam pelo [`Rest.Validar`](14-cliente-rest.md#validação-de-contrato),
+que monta o `Content-Type`, serializa o corpo, lê a resposta e a confere com o
+schema. Ele nunca lança: status de erro, falha de rede e resposta fora do
+contrato voltam todos como `ok: false`, com `status` e `statusText` dizendo
+qual foi. O serviço só converte isso em erro, porque o job-runner precisa de
+uma exceção **com o motivo** - `Envio falhou (status 500): ...`,
+`Envio falhou (status 0): Tempo esgotado` ou
+`Envio falhou (status 200): Resposta fora do contrato`. Depois do `if`,
+`resposta.data` já tem o tipo do schema, sem `parse` à parte.
 
 Decisões que valem para qualquer integração desta forma:
 
@@ -261,19 +276,23 @@ Decisões que valem para qualquer integração desta forma:
   muitos registros por execução; nesse caso, autentique uma vez no início da
   execução e passe o token adiante, ainda sem guardá-lo entre execuções.
 - **Cada chamada tem o seu `AbortSignal.timeout`.** São duas chamadas de rede,
-  e qualquer uma pode pendurar.
+  e qualquer uma pode pendurar. O `Rest` não tem timeout padrão, então o
+  `signal` vai em `options`.
+- **Falha de rede é falha do job.** O `Rest` devolve timeout e conexão recusada
+  como `ok: false`, sem lançar; o serviço transforma isso em erro, para a
+  execução não terminar como sucesso.
 - **Autenticacao recusada para tudo.** O erro sobe com o status e o POST
   principal não acontece. Nenhuma mensagem de erro ou `trackTrace` leva a
   apiKey ou o token: o trace sai do cluster
   ([capítulo 13](13-application-insights.md)) e a mensagem de erro chega ao
   log do [job-runner](05-scheduler.md).
 - **Resposta `2xx` fora do contrato é falha.** Um envio aceito sem
-  `protocolo` não tem como ser conferido depois; o zod o transforma em erro em
-  vez de sucesso silencioso.
+  `protocolo` não tem como ser conferido depois; o `Rest.Validar` o devolve como
+  `ok: false`, e o serviço o transforma em erro em vez de sucesso silencioso.
 
 O formato do corpo da autenticacao (`{ apiKey }`) e das respostas
 (`{ token }`, `{ protocolo }`) é ilustrativo: ajuste os dois esquemas e o
-`JSON.stringify` ao contrato do parceiro real.
+payload passado ao `Rest.Validar.Post` ao contrato do parceiro real.
 
 Sobre idempotência: diferente da consulta, este serviço **escreve** num sistema
 externo. Um job que o chame precisa tolerar a reexecução que o
@@ -318,7 +337,7 @@ descartável:
 | --- | --- |
 | [`example/example.test.ts`](../src/jobs/example/example.test.ts) | Serviço sem banco (controla a entrada e verifica o resultado) e job (ambientes, agendamento, registro na lista e a execução passando pelo serviço) - lock e timeout ficam com o runner |
 | [`example-consulta/example-consulta.test.ts`](../src/jobs/example-consulta/example-consulta.test.ts) | Serviço com banco: mocka `mssql.ts`, verifica parâmetros, defaults e mapeamento |
-| [`example-envio/example-envio.test.ts`](../src/jobs/example-envio/example-envio.test.ts) | Serviço com sistema externo: troca o `fetch` global por `vi.stubGlobal`, verifica a ordem das chamadas, o `token-id` e a recusa de resposta fora do contrato |
+| [`example-envio/example-envio.test.ts`](../src/jobs/example-envio/example-envio.test.ts) | Serviço com sistema externo: troca o `fetch` global por `vi.stubGlobal` com o `Rest` real no meio, verifica a ordem das chamadas, o `token-id`, a recusa de resposta fora do contrato e que timeout e falha de conexão viram erro |
 
 Job e serviço dividem o arquivo, e por isso o mock fica só na fronteira de
 infraestrutura - logger, `mssql.ts`, `fetch`, Application Insights -, nunca no

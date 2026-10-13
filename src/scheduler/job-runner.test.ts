@@ -56,16 +56,16 @@ function jobFalso(sobrescrever: Partial<DefinicaoJob> = {}): DefinicaoJob {
 }
 
 /** Registra o job e devolve o callback que o node-schedule dispararia. */
-function registrarECapturarDisparo(job: DefinicaoJob): () => void {
+function registrarECapturarDisparo(job: DefinicaoJob): () => Promise<void> {
   registrarJob(job);
   const ultimaChamada = mocks.scheduleJob.mock.calls.at(-1);
-  return ultimaChamada?.[2] as () => void;
+  return ultimaChamada?.[2] as () => Promise<void>;
 }
 
 /**
- * Espera o ciclo que o disparo abriu. O callback do node-schedule é síncrono
- * (o runner solta a promise com `void`), então o teste a retoma pela mesma via
- * que o runner usa: o retorno de `executarComLock`.
+ * Espera o ciclo que o disparo abriu, pelo retorno de `executarComLock`. Os
+ * testes que não olham a promise devolvida pelo disparo usam este atalho; o
+ * contrato dessa promise tem testes próprios em `registrarJob`.
  */
 async function aguardarCiclo(): Promise<void> {
   const ultimoResultado = mocks.executarComLock.mock.results.at(-1);
@@ -144,6 +144,40 @@ describe('registrarJob', () => {
 
     expect(mocks.executarComLock).not.toHaveBeenCalled();
     expect(job.executar).not.toHaveBeenCalled();
+  });
+
+  /**
+   * O node-schedule só conta como em execução o disparo cujo callback devolve
+   * uma `Promise`, e o `gracefulShutdown()` espera essa contagem zerar. Um
+   * callback que devolve `undefined` deixa o encerramento fechar o pool com o
+   * job no meio. Ver `docs/05-scheduler.md`.
+   */
+  it('o disparo devolve a promise do ciclo, que só se resolve quando o handler termina', async () => {
+    const handler = handlerControlado();
+    const disparar = registrarECapturarDisparo(jobFalso({ executar: handler.executar }));
+
+    let terminou = false;
+    const ciclo = disparar();
+    void ciclo.then(() => {
+      terminou = true;
+    });
+
+    expect(ciclo).toBeInstanceOf(Promise);
+    await esvaziarMicrotarefas();
+    expect(handler.executar).toHaveBeenCalledTimes(1);
+    expect(terminou).toBe(false);
+
+    handler.resolver();
+    await ciclo;
+    expect(terminou).toBe(true);
+  });
+
+  it('a promise do disparo resolve mesmo com falha inesperada do runner - não vira rejeição solta', async () => {
+    mocks.executarComLock.mockRejectedValueOnce(new Error('pool fechado'));
+    const disparar = registrarECapturarDisparo(jobFalso());
+
+    await expect(disparar()).resolves.toBeUndefined();
+    expect(mocks.logger.fatal).toHaveBeenCalledTimes(1);
   });
 });
 

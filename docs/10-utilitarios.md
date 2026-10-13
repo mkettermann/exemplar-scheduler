@@ -6,8 +6,13 @@
 
 ## Biblioteca
 
-Nenhuma. [`src/util/util.ts`](../src/util/util.ts) é código próprio, trazido do
-repositório legado para manter familiaridade.
+Nenhuma. [`src/shared/uteis/util.ts`](../src/shared/uteis/util.ts) é código
+próprio, trazido do repositório legado para manter familiaridade.
+
+`src/shared/uteis/` é a única pasta de utilitários do projeto, com um arquivo
+por assunto: `util.ts` (este capítulo) e `fetch_uteis.ts`, o cliente REST do
+[capítulo 14](14-cliente-rest.md). Um utilitário novo entra ali, em arquivo
+próprio e com o teste ao lado.
 
 ## Responsabilidade
 
@@ -46,7 +51,7 @@ fatal - os dois momentos em que alguém está de fato olhando o terminal.
 Duas advertências sobre `limparOA`: ela **muta** o objeto recebido (não devolve
 cópia) e é rasa (não desce em objetos aninhados). Ambas são herança do código
 legado, mantidas para compatibilidade de comportamento - e fixadas em
-[`util.test.ts`](../src/util/util.test.ts), para que mudá-las seja uma decisão
+[`util.test.ts`](../src/shared/uteis/util.test.ts), para que mudá-las seja uma decisão
 e não um acidente.
 
 Os membros de `Util` são `static readonly`: o legado os declarava

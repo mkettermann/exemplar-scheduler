@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import schedule from 'node-schedule';
-import { ambiente, ambienteAssumido } from './config/env.js';
+import { ambiente } from './config/env.js';
 // Antes do Fastify, para a auto-coleta enxergar o `http` - ver docs/13.
 import { appInsightsInstance } from './config/appInsights.js';
 import { logger } from './logger/logger.js';
@@ -8,7 +8,7 @@ import { obterPoolDb, fecharPoolDb } from './db/mssql.js';
 import { registrarJob, separarJobsPorAmbiente } from './scheduler/job-runner.js';
 import { jobs } from './jobs/jobs.js';
 import { construirApp } from './server/app.js';
-import { Util } from './util/util.js';
+import { Util } from './shared/uteis/util.js';
 
 /**
  * Boot e encerramento do processo, fora do entrypoint para poderem ser
@@ -21,13 +21,6 @@ let encerrando = false;
 /** Banco, jobs e HTTP, nessa ordem. */
 export async function iniciar(): Promise<void> {
   await obterPoolDb();
-
-  if (ambienteAssumido) {
-    logger.warn(
-      `${Util.corAmarelo('NODE_ENV não foi injetada')} - assumindo '${ambiente.NODE_ENV}'. ` +
-      'Os jobs de outros ambientes não serão registrados.',
-    );
-  }
 
   const { ativos, ignorados } = separarJobsPorAmbiente(jobs, ambiente.NODE_ENV);
 

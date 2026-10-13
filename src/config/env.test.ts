@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
  * com a variável ajustada. Ver `docs/02-configuracao-de-ambiente.md`.
  */
 const CAMPOS_DE_CONEXAO = ['DB_SERVER', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'] as const;
-const VARIAVEIS = [...CAMPOS_DE_CONEXAO, 'JOBS_ENABLED'] as const;
+const VARIAVEIS = [...CAMPOS_DE_CONEXAO, 'JOBS_ENABLED', 'DB_ENCRYPT', 'NODE_ENV'] as const;
 type Variavel = (typeof VARIAVEIS)[number];
 
 const VALORES_DO_SETUP = Object.fromEntries(
@@ -152,6 +152,74 @@ describe('JOBS_ENABLED', () => {
     'derruba o boot com `%s`, em vez de adivinhar o que foi pedido',
     async (valor) => {
       await esperaDerrubarBoot('JOBS_ENABLED', valor);
+    },
+  );
+});
+
+/**
+ * `DB_ENCRYPT` usava `z.coerce.boolean()`, em que toda string não vazia vira
+ * `true`: `DB_ENCRYPT=false` ligava o TLS. Agora usa o mesmo parser de
+ * `JOBS_ENABLED`.
+ */
+describe('DB_ENCRYPT', () => {
+  it('ausente, assume `true` - TLS ligado por padrão', async () => {
+    const ambiente = await carregarCom('DB_ENCRYPT', undefined);
+
+    expect(ambiente.DB_ENCRYPT).toBe(true);
+  });
+
+  it.each(['true', '1'])('liga o TLS com `%s`', async (valor) => {
+    const ambiente = await carregarCom('DB_ENCRYPT', valor);
+
+    expect(ambiente.DB_ENCRYPT).toBe(true);
+  });
+
+  it.each(['false', '0'])('desliga o TLS com `%s` - o caso que o coerce invertia', async (valor) => {
+    const ambiente = await carregarCom('DB_ENCRYPT', valor);
+
+    expect(ambiente.DB_ENCRYPT).toBe(false);
+  });
+
+  it.each(['False', 'yes', ''])('derruba o boot com `%s`, em vez de adivinhar', async (valor) => {
+    await esperaDerrubarBoot('DB_ENCRYPT', valor);
+  });
+});
+
+/**
+ * `NODE_ENV` decide quais jobs o processo registra. Sem default: um pod de
+ * produção sem a variável assumiria `development` e dispararia os jobs de DEV
+ * contra o banco para o qual aponta. Ver `docs/02-configuracao-de-ambiente.md`.
+ */
+describe('NODE_ENV', () => {
+  it.each(['development', 'qa', 'hml', 'production', 'test'])('aceita `%s`', async (valor) => {
+    const ambiente = await carregarCom('NODE_ENV', valor);
+
+    expect(ambiente.NODE_ENV).toBe(valor);
+  });
+
+  it('derruba o boot quando ausente, em vez de assumir um ambiente', async () => {
+    await esperaDerrubarBoot('NODE_ENV', undefined);
+  });
+
+  it('diz na mensagem por que a variável é obrigatória', async () => {
+    vi.spyOn(process, 'exit').mockImplementation((() => {
+      throw new Error('process.exit');
+    }) as never);
+    const erro = vi.spyOn(console, 'error').mockImplementation(() => { });
+
+    await expect(carregarCom('NODE_ENV', undefined)).rejects.toThrow('process.exit');
+    expect(erro).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        NODE_ENV: [expect.stringContaining('decide quais jobs este processo registra')],
+      }),
+    );
+  });
+
+  it.each(['prod', 'Production', 'homologacao', ''])(
+    'derruba o boot com `%s`, fora da lista de ambientes',
+    async (valor) => {
+      await esperaDerrubarBoot('NODE_ENV', valor);
     },
   );
 });
