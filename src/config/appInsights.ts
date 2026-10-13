@@ -44,8 +44,21 @@ function paraConnectionString(chave: string): string {
   return chave.includes('=') ? chave : `InstrumentationKey=${chave}`;
 }
 
+/**
+ * Desliga o Statsbeat - estatísticas de uso do SDK que a 3.x envia à
+ * Microsoft. O exporter lê as variáveis ao ser criado, dentro do `start()`.
+ * `APPLICATION_INSIGHTS_NO_STATSBEAT` é a que corta tudo; a outra só desliga
+ * as métricas "não essenciais", e fica para o caso de a legada sair.
+ */
+function desligarStatsbeat(): void {
+  process.env.APPLICATION_INSIGHTS_NO_STATSBEAT = 'true';
+  process.env.APPLICATIONINSIGHTS_STATSBEAT_DISABLED = 'true';
+}
+
 /** O que cada chamada faz está em `docs/13-application-insights.md`. */
 function iniciarCliente(chave: string): TelemetryClient {
+  desligarStatsbeat();
+
   appInsights
     .setup(paraConnectionString(chave))
     .setInternalLogging(false)

@@ -112,13 +112,43 @@ recusa quebra de linha nas pontas, como nos campos de conexão).
 
 O nome do sistema no portal - Application Map, filtros por *role*, alertas -
 vem do *resource* do OpenTelemetry, e o SDK o lê da variável
-**`OTEL_SERVICE_NAME`**. Ela não passa pelo `esquemaAmbiente`: quem a lê é o
-SDK, direto do processo.
+**`OTEL_SERVICE_NAME`**. A leitura é automática: o `envDetector` do
+`@opentelemetry/resources` a busca em `process.env` dentro do `start()`, e
+nada no código precisa repassá-la. Por isso ela não passa pelo
+`esquemaAmbiente` - basta estar no ambiente do processo antes do boot
+(manifesto, pipeline ou o `.env` do `npm run dev`).
 
 Sem ela, o `cloud_RoleName` fica `unknown_service:node` (o `argv0` do `CMD`
 do container) - igual para todo serviço Node do recurso. Injete-a na pipeline
 com o nome do sistema (`exemplar-scheduler`, no caso deste repositório). O
 `cloud_RoleInstance` continua sendo o hostname - no Kubernetes, o nome do pod.
+
+### Statsbeat desligado
+
+A 3.x envia por padrão o **Statsbeat** - estatísticas de uso do próprio SDK
+(contagem de envios, falhas, tempo de resposta, recursos ligados) - para
+recursos de Application Insights **da Microsoft**, não para o deste sistema.
+`iniciarCliente()` desliga isso antes do `setup()`, escrevendo duas variáveis
+em `process.env`:
+
+| Variável | O que desliga |
+| --- | --- |
+| `APPLICATION_INSIGHTS_NO_STATSBEAT` | **Tudo**: o exporter nasce com `trackStatsbeat = false` e o gerenciador de Statsbeat nunca é inicializado |
+| `APPLICATIONINSIGHTS_STATSBEAT_DISABLED` | Só as métricas "não essenciais" (falhas de leitura e escrita do cache em disco). Sozinha, o resto continua sendo enviado |
+
+Quem corta o envio é a primeira, embora o código do exporter a chame de
+"legada". As duas ficam para o caso de uma versão futura trocar os papéis. O
+exporter as lê **ao ser criado**, dentro do `start()`, e por isso a escrita
+vem antes dele.
+
+O desligamento fica no código, e não na pipeline, para valer em todo ambiente
+sem depender de configuração. Para religar, apague `desligarStatsbeat()`.
+
+Um tráfego para a Microsoft **continua**: o exporter consulta de hora em hora
+`settings.sdk.monitor.azure.com` (o "OneSettings") para buscar configuração
+dinâmica do SDK. É um `GET` sem dados da telemetria, e a 3.17 não tem variável
+que o desligue - se a rede do cluster bloquear o domínio, o SDK segue com os
+valores padrão.
 
 ### Onde a instância é criada
 
@@ -373,6 +403,7 @@ inteiro por um falso e prova o wrapper:
 | Cada configuração é chamada uma vez, com o valor definido, antes do `start()` | A configuração inteira fica num lugar só |
 | `setDistributedTracingMode` não é chamado | A 3.x o ignora e avisaria no boot |
 | A amostragem já está no `config` quando o `start()` roda | A 3.x lê o `config` uma vez, dentro dele |
+| As duas variáveis de Statsbeat já valem `true` quando o `start()` roda; desligado, o ambiente não é tocado | O exporter as lê ao ser criado |
 | `obterInstancia()` devolve sempre a mesma instância; `setup()` roda uma vez | O SDK não admite dois setups |
 | Severidade `0` a `4` vai pelo nome; o padrão é `Information` no trace e `Error` na exceção | A 3.x espera o nome |
 | `trackException` converte o que não é `Error` | O `catch` entrega `unknown` |
@@ -454,8 +485,8 @@ Fora das configurações:
   quebram - injete a variável e ajuste as consultas
   (ver [`cloud_RoleName`](#cloud_rolename)).
 - **Statsbeat**: a 3.x envia por padrão estatísticas de uso do SDK para a
-  Microsoft. Pode ser desligado com `APPLICATIONINSIGHTS_STATSBEAT_DISABLED=true`,
-  se a política exigir.
+  Microsoft. O wrapper o desliga
+  (ver [Statsbeat desligado](#statsbeat-desligado)).
 - **Tamanho e memória**: o `npm install` acrescentou 150 pacotes e removeu 12.
   Boot um pouco mais lento e mais memória residente.
 - **`addTelemetryProcessor`** é no-op com aviso, e `context.tags` tem suporte

@@ -44,6 +44,8 @@ const mocks = vi.hoisted(() => ({
   start: vi.fn(),
   /** Cópia de `cliente.config` no instante do `start()`. */
   configNoStart: undefined as Record<string, unknown> | undefined,
+  /** Variáveis de Statsbeat no instante do `start()`, quando o exporter as lê. */
+  statsbeatNoStart: undefined as Record<string, string | undefined> | undefined,
   logger: {
     info: vi.fn(),
     warn: vi.fn(),
@@ -66,6 +68,10 @@ vi.mock('applicationinsights', () => ({
 vi.mock('../logger/logger.js', () => ({ logger: mocks.logger }));
 
 const CHAVE_ORIGINAL = process.env.APPINSIGHTSKEY;
+const VARIAVEIS_STATSBEAT = [
+  'APPLICATION_INSIGHTS_NO_STATSBEAT',
+  'APPLICATIONINSIGHTS_STATSBEAT_DISABLED',
+] as const;
 const IKEY = '11111111-2222-3333-4444-555555555555';
 const CONNECTION_STRING = `InstrumentationKey=${IKEY};IngestionEndpoint=https://brazilsouth-1.in.applicationinsights.azure.com/`;
 
@@ -97,6 +103,11 @@ const DEPENDENCIA = {
 beforeEach(() => {
   mocks.cliente.config = {};
   mocks.configNoStart = undefined;
+  mocks.statsbeatNoStart = undefined;
+
+  for (const variavel of VARIAVEIS_STATSBEAT) {
+    delete process.env[variavel];
+  }
 
   for (const nome of [...METODOS_DE_CONFIGURACAO, ...METODOS_IGNORADOS_NA_3X]) {
     mocks.configuracao[nome] = vi.fn(() => mocks.configuracao);
@@ -105,6 +116,9 @@ beforeEach(() => {
   mocks.setup.mockImplementation(() => mocks.configuracao);
   mocks.start.mockImplementation(() => {
     mocks.configNoStart = { ...mocks.cliente.config };
+    mocks.statsbeatNoStart = Object.fromEntries(
+      VARIAVEIS_STATSBEAT.map((variavel) => [variavel, process.env[variavel]]),
+    );
     return mocks.configuracao;
   });
   mocks.cliente.flush.mockResolvedValue(undefined);
@@ -112,6 +126,10 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
+
+  for (const variavel of VARIAVEIS_STATSBEAT) {
+    delete process.env[variavel];
+  }
 
   if (CHAVE_ORIGINAL === undefined) {
     delete process.env.APPINSIGHTSKEY;
@@ -130,6 +148,14 @@ describe('sem APPINSIGHTSKEY', () => {
     expect(mocks.logger.warn).toHaveBeenCalledWith(
       'APPINSIGHTSKEY ausente - Application Insights desligado',
     );
+  });
+
+  it('não mexe no ambiente do processo', async () => {
+    await carregarCom();
+
+    for (const variavel of VARIAVEIS_STATSBEAT) {
+      expect(process.env[variavel]).toBeUndefined();
+    }
   });
 
   it('todo comando vira no-op - o job segue sem telemetria', async () => {
@@ -200,6 +226,15 @@ describe('setup', () => {
 
     expect(mocks.start).toHaveBeenCalledTimes(1);
     expect(mocks.configNoStart).toEqual({ samplingPercentage: 100 });
+  });
+
+  it('o Statsbeat já está desligado quando o start roda - é quando o exporter lê', async () => {
+    await carregarCom(CONNECTION_STRING);
+
+    expect(mocks.statsbeatNoStart).toEqual({
+      APPLICATION_INSIGHTS_NO_STATSBEAT: 'true',
+      APPLICATIONINSIGHTS_STATSBEAT_DISABLED: 'true',
+    });
   });
 });
 
