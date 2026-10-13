@@ -37,6 +37,9 @@ const esquemaAmbiente = z.object({
 
   HEALTH_DB_TIMEOUT_MS: z.coerce.number().int().positive().default(3000),
 
+  /** Ver `docs/14-cliente-rest.md`. Prazo de cada chamada do `Rest` que não traz `signal` próprio. */
+  REST_TIMEOUT_MS: z.coerce.number().int().positive().default(180_000),
+
   /** Ver `docs/13-application-insights.md`. Ausente, a telemetria fica desligada. */
   APPINSIGHTSKEY: textoObrigatorio.optional(),
 

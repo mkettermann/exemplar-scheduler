@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
  * com a variável ajustada. Ver `docs/02-configuracao-de-ambiente.md`.
  */
 const CAMPOS_DE_CONEXAO = ['DB_SERVER', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'] as const;
-const VARIAVEIS = [...CAMPOS_DE_CONEXAO, 'JOBS_ENABLED', 'DB_ENCRYPT', 'NODE_ENV'] as const;
+const VARIAVEIS = [...CAMPOS_DE_CONEXAO, 'JOBS_ENABLED', 'DB_ENCRYPT', 'NODE_ENV', 'REST_TIMEOUT_MS'] as const;
 type Variavel = (typeof VARIAVEIS)[number];
 
 const VALORES_DO_SETUP = Object.fromEntries(
@@ -222,4 +222,27 @@ describe('NODE_ENV', () => {
       await esperaDerrubarBoot('NODE_ENV', valor);
     },
   );
+});
+
+/**
+ * `REST_TIMEOUT_MS` é o prazo de cada chamada do `Rest` sem `signal` próprio.
+ * Um valor zerado ou inválido abortaria toda chamada na hora - por isso derruba
+ * o boot. Ver `docs/14-cliente-rest.md`.
+ */
+describe('REST_TIMEOUT_MS', () => {
+  it('ausente, assume 180000ms', async () => {
+    const ambiente = await carregarCom('REST_TIMEOUT_MS', undefined);
+
+    expect(ambiente.REST_TIMEOUT_MS).toBe(180_000);
+  });
+
+  it('aceita outro prazo em milissegundos', async () => {
+    const ambiente = await carregarCom('REST_TIMEOUT_MS', '600000');
+
+    expect(ambiente.REST_TIMEOUT_MS).toBe(600_000);
+  });
+
+  it.each(['0', '-1', '1.5', 'abc', ''])('derruba o boot com `%s`', async (valor) => {
+    await esperaDerrubarBoot('REST_TIMEOUT_MS', valor);
+  });
 });

@@ -18,6 +18,7 @@ vi.mock('../../logger/logger.js', () => ({
   logger: { error: mocks.loggerError, debug: mocks.loggerDebug },
 }));
 
+import { ambiente } from '../../config/env.js';
 import { getFetchOptions, getFetchResponse, Rest, validarRetornoZod } from './fetch_uteis.js';
 
 const URL_API = 'https://api.parceiro.example/v1/registros';
@@ -120,6 +121,27 @@ describe('getFetchOptions', () => {
     const signal = AbortSignal.timeout(1000);
 
     expect(getFetchOptions(null, { signal }).signal).toBe(signal);
+  });
+
+  it('sem `signal`, aplica o prazo padrão de `REST_TIMEOUT_MS`', () => {
+    const prazo = vi.spyOn(AbortSignal, 'timeout');
+
+    const opcoes = getFetchOptions(null);
+
+    expect(prazo).toHaveBeenCalledWith(ambiente.REST_TIMEOUT_MS);
+    expect(opcoes.signal).toBe(prazo.mock.results[0]!.value);
+  });
+
+  it('com `signal` próprio, não cria o prazo padrão - o da chamada vale sozinho', () => {
+    const signal = new AbortController().signal;
+    const prazo = vi.spyOn(AbortSignal, 'timeout');
+
+    expect(getFetchOptions(null, { signal }).signal).toBe(signal);
+    expect(prazo).not.toHaveBeenCalled();
+  });
+
+  it('cria um prazo novo a cada chamada, para ele contar a partir do envio', () => {
+    expect(getFetchOptions(null).signal).not.toBe(getFetchOptions(null).signal);
   });
 });
 
@@ -369,6 +391,14 @@ describe('Rest - opções', () => {
     await Rest.POST(URL_API, {}, undefined, { signal });
 
     expect((mocks.fetch.mock.calls[0]![1] as RequestInit).signal).toBe(signal);
+  });
+
+  it('sem `options`, a chamada chega ao fetch com o prazo padrão', async () => {
+    servidorResponde(resposta({}));
+
+    await Rest.GET(URL_API);
+
+    expect((mocks.fetch.mock.calls[0]![1] as RequestInit).signal).toBeInstanceOf(AbortSignal);
   });
 });
 

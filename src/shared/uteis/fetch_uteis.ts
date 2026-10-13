@@ -1,4 +1,5 @@
 import type { z, ZodTypeAny } from 'zod';
+import { ambiente } from '../../config/env.js';
 import { logger } from '../../logger/logger.js';
 
 /**
@@ -128,14 +129,18 @@ async function validarResposta<S extends ZodTypeAny>(pedido: Promise<RestRespost
 // - Padrão GET com `Content-Type: application/json`.
 // - Headers somam na ordem: padrão < `options.headers` < `headers`; o último vence.
 // - Verbos sem corpo nunca enviam body; os demais enviam o payload em JSON.
+// - Sem `options.signal`, a chamada ganha o prazo de `REST_TIMEOUT_MS`; um
+//   `signal` próprio substitui o padrão, para mais ou para menos.
 // ---------------------
 export function getFetchOptions(payload: unknown, options?: OpcoesRest, headers?: HeadersRest): RequestInit {
-  const { headers: headersDasOpcoes, body: _bodyIgnorado, ...resto } = options ?? {};
+  const { headers: headersDasOpcoes, body: _bodyIgnorado, signal, ...resto } = options ?? {};
   const metodo = (options?.method ?? 'GET').toUpperCase();
   const fetchOptions: RequestInit = {
     ...resto,
     method: metodo,
     headers: mesclarHeaders({ 'Content-Type': 'application/json' }, headersDasOpcoes, headers),
+    // Criado aqui, a cada chamada: o prazo começa a contar no envio.
+    signal: signal ?? AbortSignal.timeout(ambiente.REST_TIMEOUT_MS),
   };
   if (!METODOS_SEM_CORPO.has(metodo)) {
     fetchOptions.body = JSON.stringify(payload);

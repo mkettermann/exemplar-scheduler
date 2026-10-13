@@ -89,8 +89,8 @@ export async function buscarPedidosPendentes(): Promise<Pedido[]> {
   const resposta = await Rest.GET(
     `${ERP_BASE_URL}/pedidos?status=pendente`,
     { Authorization: `Bearer ${ambiente.ERP_TOKEN}` },
-    // Sempre um teto: sem isso, uma chamada pendurada segura o job
-    // até o tempoLimiteMs do runner, e mesmo depois continua rodando.
+    // Prazo menor que o padrão do Rest (REST_TIMEOUT_MS): o ERP responde
+    // rápido, e esperar mais só seguraria a trava do job.
     { signal: AbortSignal.timeout(10_000) },
   );
 
@@ -111,9 +111,11 @@ Cinco pontos desse trecho valem como regra geral:
   O `Rest` nunca lança: status fora de 2xx, timeout e falha de conexão voltam
   como `ok: false`. Sem o `throw`, o [job-runner](05-scheduler.md) registraria
   a execução como **sucesso**.
-- **`AbortSignal.timeout`** em toda chamada de rede. O `tempoLimiteMs` do
+- **Prazo em toda chamada de rede.** O `tempoLimiteMs` do
   [job-runner](05-scheduler.md) para de *esperar*, mas não interrompe a
-  chamada; só o `AbortSignal` interrompe de fato.
+  chamada; só o `AbortSignal` interrompe de fato. O `Rest` já aplica o
+  `REST_TIMEOUT_MS` (3 minutos) a quem não passa `signal`; passe o seu quando
+  a API merecer um prazo diferente ([capítulo 14](14-cliente-rest.md#timeout)).
 - **Resposta validada com zod** antes de ser usada. Um sistema externo pode
   mudar o contrato sem avisar, e o TypeScript não protege contra o que vem da
   rede - `resposta.data` é `unknown`.
@@ -276,8 +278,9 @@ Decisões que valem para qualquer integração desta forma:
   muitos registros por execução; nesse caso, autentique uma vez no início da
   execução e passe o token adiante, ainda sem guardá-lo entre execuções.
 - **Cada chamada tem o seu `AbortSignal.timeout`.** São duas chamadas de rede,
-  e qualquer uma pode pendurar. O `Rest` não tem timeout padrão, então o
-  `signal` vai em `options`.
+  e qualquer uma pode pendurar. O padrão do `Rest` (`REST_TIMEOUT_MS`) já as
+  cortaria em 3 minutos; os 10 segundos em `options` substituem esse padrão
+  porque autenticação e envio de um registro respondem rápido.
 - **Falha de rede é falha do job.** O `Rest` devolve timeout e conexão recusada
   como `ok: false`, sem lançar; o serviço transforma isso em erro, para a
   execução não terminar como sucesso.

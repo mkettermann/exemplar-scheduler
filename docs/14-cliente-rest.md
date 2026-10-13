@@ -148,13 +148,38 @@ Os campos são estruturados, sem códigos de cor, para a busca no Log Analytics
 
 ## Timeout
 
-Não há timeout padrão. Uma API que não responde segura a chamada até o
-`tempoLimiteMs` do job ([capítulo 05](05-scheduler.md)). Para limitar, passe o
-`signal` em `options`; o estouro volta como `statusText: 'Tempo esgotado'`:
+Toda chamada tem prazo. Sem `signal` em `options`, o `getFetchOptions` cria um
+`AbortSignal.timeout(REST_TIMEOUT_MS)` - padrão de **180000 ms (3 minutos)**,
+ajustável por ambiente ([capítulo 02](02-configuracao-de-ambiente.md)). O
+estouro volta como `ok: false` e `statusText: 'Tempo esgotado'`, sem lançar.
+
+O prazo existe porque o `tempoLimiteMs` do job **não** interrompe a chamada: ele
+para de esperar, mas o `fetch` continua rodando e segurando a trava do job
+([capítulo 05](05-scheduler.md)). Sem um `signal`, uma API pendurada só seria
+cortada pelos limites de inatividade do `fetch` do Node - 5 minutos sem
+receber dados, e um servidor que manda um byte de vez em quando nunca cai neles.
+
+O padrão é largo de propósito: os jobs chamam APIs lentas e procedures longas,
+e um prazo curto cortaria chamadas legítimas. Uma chamada que precisa de outro
+prazo passa o próprio `signal`, que **substitui** o padrão - para mais ou para
+menos:
 
 ```ts
-await Rest.Validar.Get(url, esquema, headers, { signal: AbortSignal.timeout(10_000) });
+// mais curto: autenticação deve responder rápido
+await Rest.Validar.Post(url, { apiKey }, esquema, undefined, { signal: AbortSignal.timeout(10_000) });
+
+// mais longo: exportação que o parceiro gera na hora
+await Rest.GET(url, headers, { signal: AbortSignal.timeout(15 * 60_000) });
 ```
+
+Duas regras sobre o prazo:
+
+- **Ele cobre a chamada inteira**, inclusive a leitura do corpo. Uma resposta
+  grande que ainda está chegando quando o prazo estoura é cortada.
+- **Um `signal` próprio não soma com o padrão.** Quem passa um
+  `AbortController` para cancelar a chamada por outro motivo assume também o
+  prazo: combine os dois com `AbortSignal.any([controlador.signal,
+  AbortSignal.timeout(ms)])` se quiser as duas coisas.
 
 ## Compatibilidade com o legado
 
@@ -187,6 +212,8 @@ exportadas com a mesma assinatura.
 por função exportada. O que se prova:
 
 - o que chega ao `fetch` em cada verbo: método, headers mesclados, corpo;
+- o prazo: `REST_TIMEOUT_MS` sem `signal`, o `signal` da chamada quando vier,
+  e um prazo novo a cada chamada;
 - a leitura do corpo: JSON, texto, binário, vazio e `HEAD`;
 - a normalização: 2xx, status de erro, falha de rede, timeout e abort;
 - que o log nunca leva headers, corpo nem o objeto que falhou no contrato;
@@ -195,10 +222,6 @@ por função exportada. O que se prova:
 - o fluxo de duas chamadas, com o token da primeira no header da segunda.
 
 ## Upgrades futuros sem quebrar o que existe
-
-**Timeout padrão** - se os jobs começarem a travar em APIs lentas, aplique um
-`AbortSignal.timeout` em `getFetchOptions` apenas quando `options.signal` não
-vier preenchido. Quem já passa o próprio `signal` não muda.
 
 **Corpo que não é JSON** (`FormData`, `URLSearchParams`) - hoje todo payload
 passa por `JSON.stringify`. Para suportar, envie sem serializar quando o payload
