@@ -39,13 +39,14 @@ describe('getParametro', () => {
     expect(String(mocks.requisicao.query.mock.calls[0]?.[0])).toContain('@ParametroGeralID');
   });
 
-  it('devolve o ValorParametro da linha encontrada', async () => {
-    bancoDevolve([{ ParametroGeralID: 'LOG_EXEMPLO', ValorParametro: 2.5 }]);
+  it('devolve o recordset com a linha encontrada', async () => {
+    const linha = { ParametroGeralID: 'LOG_EXEMPLO', ValorParametro: 2.5 };
+    bancoDevolve([linha]);
 
-    expect(await getParametro('LOG_EXEMPLO')).toBe(2.5);
+    expect(await getParametro('LOG_EXEMPLO')).toEqual([linha]);
   });
 
-  it('devolve null quando o parâmetro não existe', async () => {
-    expect(await getParametro('NAO_EXISTE')).toBeNull();
+  it('devolve recordset vazio quando o parâmetro não existe', async () => {
+    expect(await getParametro('NAO_EXISTE')).toEqual([]);
   });
 });

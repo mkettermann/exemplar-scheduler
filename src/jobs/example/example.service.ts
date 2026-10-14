@@ -30,8 +30,9 @@ export async function coletarResumoDoProcesso(): Promise<ResumoDoProcesso> {
   }
 
   // Logar o parametro
-  const valorParametro = await getParametro('LOG_EXEMPLO');
-  if (valorParametro !== null && valorParametro > 0) {
+  const parametros = await getParametro('LOG_EXEMPLO');
+  const valorParametro = parametros[0]?.ValorParametro;
+  if (valorParametro !== undefined && valorParametro > 0) {
     logger.info({ valorParametro }, 'Valor do parâmetro LOG_EXEMPLO');
   }
 

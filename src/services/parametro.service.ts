@@ -14,5 +14,5 @@ export async function getParametro(ParametroGeralID: string) {
       WHERE ParametroGeralID = @ParametroGeralID
     `);
 
-  return retorno.recordset.map(o => (o.ValorParametro as number))?.[0] ?? null;
+  return retorno.recordset;
 }
