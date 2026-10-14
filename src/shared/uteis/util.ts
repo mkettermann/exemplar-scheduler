@@ -42,6 +42,12 @@ export class Util {
     return objetoOuArray;
   };
 
+  static capitalize = (texto: string): string => {
+    return texto.length === 0
+      ? texto
+      : texto.charAt(0).toUpperCase() + texto.slice(1);
+  }
+  
   static readonly corVermelho = (texto: string, semFundo?: boolean) => {
     const colorido = `\x1b[31m${texto}\x1b[0m`;
     return semFundo ? colorido : `${Util.fundoPreto(colorido)}`;
