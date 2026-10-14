@@ -1,16 +1,16 @@
 import { obterPoolDb, sql } from "../db/mssql.js";
+import type { ParametroGeral } from "../interface/ParametroGeral.types.js";
 
 export async function getParametro(ParametroGeralID: string) {
   const pool = await obterPoolDb();
 
   const retorno = await pool
     .request()
-    .input('ParametroGeralID', sql.Int, ParametroGeralID)
-    .query(`
+    .input('ParametroGeralID', sql.NVarChar, ParametroGeralID)
+    .query<ParametroGeral>(`
       SELECT TOP 1
-        ParametroGeralID,
-        ValorParametro
-      FROM ParametroGeral WITH(NOLOCK)
+        PG.*
+      FROM ParametroGeral PG WITH(NOLOCK)
       WHERE ParametroGeralID = @ParametroGeralID
     `);
 

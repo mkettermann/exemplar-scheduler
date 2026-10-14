@@ -1,4 +1,5 @@
 import { logger } from '../../logger/logger.js';
+import { getParametro } from '../../services/parametro.service.js';
 
 /**
  * MODELO de serviço - apague junto com `example.job.ts` ao implementar de
@@ -26,6 +27,12 @@ export async function coletarResumoDoProcesso(): Promise<ResumoDoProcesso> {
 
   if (resumo.acimaDoLimite) {
     logger.warn({ resumo }, 'Uso de memória acima do limite configurado');
+  }
+
+  // Logar o parametro
+  const valorParametro = await getParametro('LOG_EXEMPLO');
+  if (valorParametro !== null && valorParametro > 0) {
+    logger.info({ valorParametro }, 'Valor do parâmetro LOG_EXEMPLO');
   }
 
   return resumo;

@@ -1,14 +1,19 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
  * MODELO de teste de job + serviço - apague junto com a pasta `example/`. Um
  * arquivo por pasta de job: o mock fica só na fronteira de infraestrutura
- * (aqui, o logger) e o job é exercitado passando pelo serviço real, porque um
+ * (aqui, o logger e o `mssql.ts`) e o job é exercitado passando pelo serviço real, porque um
  * `vi.mock` do serviço valeria para o arquivo inteiro e esvaziaria os testes
  * dele. Lock, timeout e classificação de erro ficam para `job-runner.test.ts`.
  * Ver `docs/09-testes.md` e `docs/12-exemplo-job-e-servico.md`.
  */
 const mocks = vi.hoisted(() => ({
+  obterPoolDb: vi.fn(),
+  requisicao: {
+    input: vi.fn(),
+    query: vi.fn(),
+  },
   logger: {
     info: vi.fn(),
     warn: vi.fn(),
@@ -19,6 +24,13 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('../../logger/logger.js', () => ({ logger: mocks.logger }));
+
+vi.mock('../../db/mssql.js', () => ({
+  obterPoolDb: mocks.obterPoolDb,
+  fecharPoolDb: vi.fn(),
+  verificarSaudeDb: vi.fn(),
+  sql: { Int: 'Int', NVarChar: 'NVarChar' },
+}));
 
 import { coletarResumoDoProcesso } from './example.service.js';
 import { jobExemplo } from './example.job.js';
@@ -37,6 +49,19 @@ function processoCom(heapUsedMb: number, uptimeSegundos: number): void {
   });
   vi.spyOn(process, 'uptime').mockReturnValue(uptimeSegundos);
 }
+
+/** Valor que a `ParametroGeral` devolve para `LOG_EXEMPLO`; `null` = sem linha. */
+function parametroLogExemplo(valor: number | null): void {
+  mocks.requisicao.query.mockResolvedValue({
+    recordset: valor === null ? [] : [{ ParametroGeralID: 'LOG_EXEMPLO', ValorParametro: valor }],
+  });
+}
+
+beforeEach(() => {
+  mocks.obterPoolDb.mockResolvedValue({ request: () => mocks.requisicao });
+  mocks.requisicao.input.mockReturnValue(mocks.requisicao);
+  parametroLogExemplo(null);
+});
 
 describe('coletarResumoDoProcesso', () => {
   it('resume memória em MB e uptime em segundos inteiros', async () => {
@@ -68,6 +93,30 @@ describe('coletarResumoDoProcesso', () => {
       { resumo },
       'Uso de memória acima do limite configurado',
     );
+  });
+
+  it('LOG_EXEMPLO positivo loga o valor do parâmetro', async () => {
+    processoCom(50, 1);
+    parametroLogExemplo(3);
+
+    await coletarResumoDoProcesso();
+
+    expect(mocks.logger.info).toHaveBeenCalledWith(
+      { valorParametro: 3 },
+      'Valor do parâmetro LOG_EXEMPLO',
+    );
+  });
+
+  it.each([
+    ['zero', 0],
+    ['ausente', null],
+  ])('LOG_EXEMPLO %s não loga', async (_, valor) => {
+    processoCom(50, 1);
+    parametroLogExemplo(valor);
+
+    await coletarResumoDoProcesso();
+
+    expect(mocks.logger.info).not.toHaveBeenCalled();
   });
 });
 

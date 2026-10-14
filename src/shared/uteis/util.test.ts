@@ -80,6 +80,19 @@ describe('Util.aCadaObjExecuta', () => {
   });
 });
 
+describe('Util.capitalize', () => {
+  it.each<[string, string, string]>([
+    ['string vazia', '', ''],
+    ['primeira letra minúscula', 'texto', 'Texto'],
+    ['só altera o primeiro caractere', 'mUNDO aZUL', 'MUNDO aZUL'],
+    ['primeira letra já maiúscula', 'Texto', 'Texto'],
+    ['letra acentuada', 'ética', 'Ética'],
+    ['primeiro caractere não é letra', '1º lugar', '1º lugar'],
+  ])('%s', (_rotulo, texto, esperado) => {
+    expect(Util.capitalize(texto)).toBe(esperado);
+  });
+});
+
 describe('Util - cores de texto', () => {
   it.each<[string, (texto: string, semFundo?: boolean) => string, number]>([
     ['corVermelho', Util.corVermelho, 31],
