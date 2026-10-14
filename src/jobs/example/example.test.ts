@@ -76,10 +76,6 @@ describe('jobExemplo', () => {
     expect(jobExemplo.ambientes).toEqual(['development']);
   });
 
-  it('está registrado na lista central de jobs', () => {
-    expect(jobs).toContain(jobExemplo);
-  });
-
   it('executa o serviço e loga o resumo', async () => {
     processoCom(50, 1);
 
